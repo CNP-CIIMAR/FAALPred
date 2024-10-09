@@ -1,11 +1,11 @@
 
 title: "Run InterProScan Automation Script - FAALpred_prepare.py"
-version: "1.0.0"
-date: "2024-04-27"
-description: 
-  This Python script automates the setup and execution of InterProScan for analyzing FASTA files.
-  It ensures that all necessary dependencies are installed, configures environment variables,
-  and processes the results to extract FAAL domains.
+- version: "1.0.0"
+- date: "2024-04-27"
+# description: 
+  - This Python script automates the setup and execution of InterProScan for analyzing FASTA files.
+  - It ensures that all necessary dependencies are installed, configures environment variables,
+    and processes the results to extract FAAL domains.
 
 ## features:
   - "Automatically checks and installs dependencies: Perl, Python 3, Java (11+), and bedtools."
