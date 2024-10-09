@@ -1,6 +1,5 @@
 
 title: "Run InterProScan Automation Script - FAALpred_prepare.py"
-author: "Your Name"
 version: "1.0.0"
 date: "2024-04-27"
 description: 
