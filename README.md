@@ -1,5 +1,5 @@
 
-title: "Run InterProScan Automation Script to get FAAL -domain of FAAL fasta file sequences - FAALpred_prepare.py"
+title: "Run InterProScan Automation Script to get FAAL -domain of FAAL fasta file sequences: faalpred_prepare.py"
 - version: "1.0.0"
 - date: "2024-10-10"
 # description: 
@@ -25,7 +25,7 @@ title: "Run InterProScan Automation Script to get FAAL -domain of FAAL fasta fil
     - "Clone the repository or download the `run_interproscan.py` script."
     - "Ensure the script has execute permissions (optional):"
       ```bash
-      chmod +x run_interproscan.py
+      chmod +x FAALpred_prepare.py
       ```
     - "Install necessary Python packages (if any) using pip (optional):"
     - |
@@ -39,11 +39,11 @@ title: "Run InterProScan Automation Script to get FAAL -domain of FAAL fasta fil
 # commands:
     - "Basic usage with default InterProScan directory (`./interproscan`):"
       ```bash
-      python3 run_interproscan.py faal.fasta
+      python3 faalpred_prepare.py faal.fasta
       ```
     - "Specify a custom InterProScan installation directory:"
       ```bash
-      python3 run_interproscan.py your_file.fasta -d /path/to/interproscan
+      python3 faalpred_prepare.py your_file.fasta -d /path/to/interproscan
       ```
   notes:
     - "The script may prompt for your sudo password to install missing dependencies."
