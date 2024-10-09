@@ -21,10 +21,9 @@ title: "Run InterProScan Automation Script to get FAAL -domain of FAAL fasta fil
   - "Sudo privileges for installing system packages."
 
 ## installation:
-  steps:
+  - steps:
     - "Clone the repository or download the `run_interproscan.py` script."
     - "Ensure the script has execute permissions (optional):"
-    - |
       ```bash
       chmod +x run_interproscan.py
       ```
@@ -34,10 +33,10 @@ title: "Run InterProScan Automation Script to get FAAL -domain of FAAL fasta fil
       pip3 install -r requirements.txt
       ```
 
-usage:
-  description: 
-    Run the script by providing the path to your FASTA file. Optionally, specify the InterProScan installation directory.
-  commands:
+# usage:
+  - description: 
+  - Run the script by providing the path to your FASTA file. Optionally, specify the InterProScan installation directory.
+# commands:
     - "Basic usage with default InterProScan directory (`./interproscan`):"
       ```bash
       python3 run_interproscan.py your_file.fasta
