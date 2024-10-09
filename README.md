@@ -50,7 +50,7 @@ usage:
     - "The script may prompt for your sudo password to install missing dependencies."
     - "Ensure that `interproscan.sh` is present in the specified directory or the current directory."
 
-configuration:
+# configuration:
   - arguments:
      fasta:
        description: "Path to the input FASTA file."
@@ -62,9 +62,9 @@ configuration:
       default: "./interproscan"
       type: "string"
 
-output:
-  description: >
-    After successful execution, the script generates the following:
+# output:
+  - description: 
+    - After successful execution, the script generates the following:
   files:
     - "interproscan_output/results.tsv: The raw InterProScan results in TSV format."
     - "interproscan_output/FAAL.interpro.tsv: Filtered results containing FAAL domains."
