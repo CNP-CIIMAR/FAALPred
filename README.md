@@ -1,5 +1,5 @@
 
-title: "Run InterProScan Automation Script - FAALpred_prepare.py"
+title: "Run InterProScan Automation Script to get FAAL -domain of FAAL fasta file sequences - FAALpred_prepare.py"
 - version: "1.0.0"
 - date: "2024-04-27"
 # description: 
@@ -53,14 +53,14 @@ usage:
 # configuration:
   - arguments:
      fasta:
-       description: "Path to the input FASTA file."
-       required: true
+      - description: "Path to the input FASTA file."
+      - required: true
       - type: "string"
     -d, --interproscan_dir:
-      description: "Directory for InterProScan installation."
-      required: false
-      default: "./interproscan"
-      type: "string"
+      - description: "Directory for InterProScan installation."
+      - required: false
+      - default: "./interproscan"
+      - type: "string"
 
 # output:
   - description: 
@@ -72,13 +72,13 @@ usage:
     - "interproscan_output/faal_FAAL.fasta: FASTA file containing extracted FAAL domain sequences."
 
 ## troubleshooting:
-  common_issues:
+  # common_issues:
     - issue: "UnboundLocalError: local variable 'interproscan_version' referenced before assignment"
-      solution: 
+    -solution: 
         - Ensure that the `interproscan_version` variable is defined before it's used in the script.
         - Update the script to define `interproscan_version` early in the main function.
     - issue: "InterProScan not found in PATH."
-      solution: 
+    - solution: 
         - Verify that `interproscan.sh` is located in the specified InterProScan directory or the current directory.
         - Ensure the script has added the correct directory to the PATH and reload the shell configuration:
         ```bash
@@ -86,7 +86,7 @@ usage:
         ```
     - issue: "Java version not detected correctly."
       # solution: 
-        Ensure that Java 11 or higher is installed and accessible. You can check the Java version with:
+        # Ensure that Java 11 or higher is installed and accessible. You can check the Java version with:
         ```bash
         java -version
         ```
@@ -95,8 +95,8 @@ usage:
 # FAALPred
 
 ## contributing:
-  description: 
-    Contributions are welcome! Please follow these steps to contribute:
+  # description: 
+    # Contributions are welcome! Please follow these steps to contribute:
   steps:
     - "Fork the repository."
     - "Create a new branch for your feature or bugfix."
