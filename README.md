@@ -39,7 +39,7 @@ title: "Run InterProScan Automation Script to get FAAL -domain of FAAL fasta fil
 # commands:
     - "Basic usage with default InterProScan directory (`./interproscan`):"
       ```bash
-      python3 run_interproscan.py your_file.fasta
+      python3 run_interproscan.py faal.fasta
       ```
     - "Specify a custom InterProScan installation directory:"
       ```bash
