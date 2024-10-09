@@ -1,7 +1,7 @@
 
 title: "Run InterProScan Automation Script to get FAAL -domain of FAAL fasta file sequences - FAALpred_prepare.py"
 - version: "1.0.0"
-- date: "2024-04-27"
+- date: "2024-10-10"
 # description: 
   - This Python script automates the setup and execution of InterProScan for analyzing FASTA files.
   - It ensures that all necessary dependencies are installed, configures environment variables,
