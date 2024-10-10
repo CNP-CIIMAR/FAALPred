@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 import os
 import sys
 import subprocess
@@ -108,11 +109,18 @@ def extract_tar_gz(file_path, extract_to):
         echo_error(f"Falha ao extrair {file_path}: {e}")
         sys.exit(1)
 
-def run_command(command, cwd=None):
+def run_command(command, cwd=None, capture_output=False):
     try:
-        subprocess.run(command, check=True, cwd=cwd)
+        if capture_output:
+            result = subprocess.run(command, check=True, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            return result.stdout, result.stderr
+        else:
+            subprocess.run(command, check=True, cwd=cwd)
     except subprocess.CalledProcessError as e:
         echo_error(f"Falha ao executar comando: {' '.join(command)}")
+        if capture_output:
+            echo_error(f"stdout: {e.stdout}")
+            echo_error(f"stderr: {e.stderr}")
         sys.exit(1)
 
 def parse_java_version(java_version_output):
@@ -382,7 +390,11 @@ def main():
             "-bed", str(faal_bed),
             "-fo", str(output_fasta)
         ]
-        run_command(bedtools_cmd)
+        stdout, stderr = run_command(bedtools_cmd, capture_output=True)
+        if stdout:
+            echo_info(f"bedtools output:\n{stdout}")
+        if stderr:
+            echo_warn(f"bedtools warnings/errors:\n{stderr}")
         echo_info(f"Sequências FAAL extraídas para {output_fasta}")
     except Exception as e:
         echo_error(f"Erro ao extrair sequências FAAL: {e}")
