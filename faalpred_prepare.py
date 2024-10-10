@@ -10,6 +10,7 @@ import tarfile
 import hashlib
 import platform
 import re
+from Bio import SeqIO
 from pathlib import Path
 
 def echo_info(message):
@@ -148,6 +149,29 @@ def parse_java_version(java_version_output):
             return 0
     return 0
 
+def map_fasta_headers(fasta_path):
+    """Lê o arquivo FASTA de entrada e cria um dicionário com IDs e seus respectivos cabeçalhos completos."""
+    headers_map = {}
+    with open(fasta_path, "r") as fasta_file:
+        for record in SeqIO.parse(fasta_file, "fasta"):
+            headers_map[record.id] = record.description
+    return headers_map
+
+def replace_fasta_headers(input_fasta, output_fasta, headers_map):
+    """Substitui os cabeçalhos das sequências de saída pelos cabeçalhos originais do FASTA de entrada."""
+    updated_records = []
+    with open(output_fasta, "r") as fasta_file:
+        for record in SeqIO.parse(fasta_file, "fasta"):
+            original_header = headers_map.get(record.id)
+            if original_header:
+                record.description = original_header
+            updated_records.append(record)
+    
+    # Escrever as sequências atualizadas em um novo arquivo FASTA
+    with open(output_fasta, "w") as output_file:
+        SeqIO.write(updated_records, output_file, "fasta")
+    echo_info(f"Cabeçalhos do FASTA de entrada aplicados ao arquivo de saída: {output_fasta}")
+
 def main():
     import argparse
 
@@ -162,7 +186,10 @@ def main():
     if not os.path.isfile(input_fasta):
         echo_error(f"O arquivo FASTA '{input_fasta}' não existe.")
         sys.exit(1)
-
+    # Ler cabeçalhos do FASTA de entrada
+    headers_map = map_fasta_headers(input_fasta)
+    echo_info("Cabeçalhos do FASTA de entrada mapeados.")
+    
     # Verificar arquitetura do sistema
     echo_info("Verificando a arquitetura do sistema...")
     arch = platform.machine()
@@ -399,7 +426,10 @@ def main():
     except Exception as e:
         echo_error(f"Erro ao extrair sequências FAAL: {e}")
         sys.exit(1)
-
+    # Substituir os cabeçalhos das sequências de saída
+    
+    replace_fasta_headers(input_fasta, output_fasta, headers_map)
+    
     echo_info("Processo concluído com sucesso!")
 
 if __name__ == "__main__":
