@@ -543,16 +543,13 @@ class Support:
             class_rankings.append(formatted_rankings)
 
         return class_rankings
-
-    def test_best_RF(self, X, y, output_dir='.'):
+        
+    def test_best_RF(self, X, y, scaler_dir='.'):
         """
         Testa o melhor modelo Random Forest com os dados fornecidos.
         """
-        if self.model is None:
-            raise ValueError("The fit() method must be called before test_best_RF().")
-
-        # Carregar o scaler
-        scaler_path = os.path.join(output_dir, 'scaler.pkl') if output_dir else 'scaler.pkl'
+    # Carregar o scaler
+        scaler_path = os.path.join(scaler_dir, 'scaler.pkl') if scaler_dir else 'scaler.pkl'
         if os.path.exists(scaler_path):
             scaler = joblib.load(scaler_path)
             logging.info(f"Scaler carregado de {scaler_path}")
@@ -560,7 +557,7 @@ class Support:
             logging.error(f"Scaler não encontrado em {scaler_path}")
             sys.exit(1)
 
-        X_scaled = scaler.transform(X)
+        X_scaled = scaler.transform(X)        
 
         # Aplicar oversampling ao conjunto inteiro antes do split
         X_resampled, y_resampled = self._oversample_single_sample_classes(X_scaled, y)
@@ -858,10 +855,11 @@ class ProteinEmbeddingGenerator:
 
             logging.debug(f"Protein ID: {sequence_id}, Embedding Shape: {embedding_concatenated.shape}")
 
-        # Ajustar o StandardScaler com os embeddings para treino/predição
+        # Verificar se todas as embeddings têm a mesma forma
+# Ajustar o StandardScaler com os embeddings para treino/predição
         embeddings_array_train = np.array([entry['embedding'] for entry in self.embeddings])
 
-        # Verificar se todas as embeddings têm a mesma forma
+# Verificar se todas as embeddings têm a mesma forma
         embedding_shapes = set(embedding.shape for embedding in [entry['embedding'] for entry in self.embeddings])
         if len(embedding_shapes) != 1:
             logging.error(f"Inconsistent embedding shapes detected: {embedding_shapes}")
@@ -869,16 +867,17 @@ class ProteinEmbeddingGenerator:
         else:
             logging.info(f"All embeddings have shape: {embedding_shapes.pop()}")
 
-        # Definir o caminho completo do scaler
+# Definir o caminho completo do scaler
         scaler_full_path = os.path.join(model_dir, 'scaler.pkl') if model_dir else 'scaler.pkl'
 
-        # Verificar se o scaler já existe
+# Verificar se o scaler já existe
         if os.path.exists(scaler_full_path):
             logging.info(f"StandardScaler encontrado em {scaler_full_path}. Carregando o scaler.")
             scaler = joblib.load(scaler_full_path)
         else:
             logging.info("StandardScaler não encontrado. Treinando um novo scaler.")
             scaler = StandardScaler().fit(embeddings_array_train)
+            logging.info(f"Salvando StandardScaler em {scaler_full_path}")
             joblib.dump(scaler, scaler_full_path)
             logging.info(f"StandardScaler salvo em {scaler_full_path}")
 
@@ -995,7 +994,13 @@ def main(args):
         logging.info(f"Calibrated Random Forest model for target_variable salvo em {calibrated_model_target_full_path}")
 
         # Testar o modelo
-        best_score, best_f1, best_pr_auc, best_params, best_model_target, X_test_target, y_test_target = support_model_target.test_best_RF(X_target, y_target, output_dir=args.output_dir)
+# Antes:
+        #best_score, best_f1, best_pr_auc, best_params, best_model_target, X_test_target, y_test_target = support_model_target.test_best_RF(X_target, y_target, output_dir=args.output_dir)
+
+# Depois:
+        best_score, best_f1, best_pr_auc, best_params, best_model_target, X_test_target, y_test_target = support_model_target.test_best_RF(X_target, y_target, output_dir=model_dir)
+
+        
         logging.info(f"Best ROC AUC for target_variable: {best_score}")
         logging.info(f"Best F1 Score for target_variable: {best_f1}")
         logging.info(f"Best Precision-Recall AUC for target_variable: {best_pr_auc}")
@@ -1059,7 +1064,9 @@ def main(args):
         logging.info(f"Calibrated Random Forest model for associated_variable salvo em {calibrated_model_associated_full_path}")
 
         # Testar o modelo
-        best_score_associated, best_f1_associated, best_pr_auc_associated, best_params_associated, best_model_associated, X_test_associated, y_test_associated = support_model_associated.test_best_RF(X_associated, y_associated, output_dir=args.output_dir)
+#        best_score_associated, best_f1_associated, best_pr_auc_associated, best_params_associated, best_model_associated, X_test_associated, y_test_associated = support_model_associated.test_best_RF(X_associated, y_associated, output_dir=args.output_dir)
+#Depois
+        best_score_associated, best_f1_associated, best_pr_auc_associated, best_params_associated, best_model_associated, X_test_associated, y_test_associated = support_model_associated.test_best_RF(X_associated, y_associated, scaler_dir=model_dir)
         logging.info(f"Best ROC AUC for associated_variable in test_best_RF: {best_score_associated}")
         logging.info(f"Best F1 Score for associated_variable in test_best_RF: {best_f1_associated}")
         logging.info(f"Best Precision-Recall AUC for associated_variable in test_best_RF: {best_pr_auc_associated}")
@@ -1269,6 +1276,8 @@ if __name__ == "__main__":
         logging.info(f"Diretório de modelos encontrado: {args.model_dir}")
 
     main(args)
+
+
 
 
 
