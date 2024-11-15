@@ -38,12 +38,14 @@ random.seed(SEED)
 
 # Logging Configuration
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.INFO,  # Change to DEBUG for more verbosity
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler(sys.stdout)
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler("app.log")  # Log to a file for persistent records
     ]
 )
+
 
 def are_sequences_aligned(fasta_file):
     """
@@ -54,7 +56,7 @@ def are_sequences_aligned(fasta_file):
         lengths.add(len(record.seq))
     return len(lengths) == 1  # Returns True if all sequences have the same length
 
-def realign_sequences_with_mafft(input_path, output_path, threads=1):
+def realign_sequences_with_mafft(input_path, output_path, threads=8):
     """
     Realigns sequences using MAFFT.
     """
@@ -196,7 +198,7 @@ class Support:
     Support class for training and evaluating Random Forest models with oversampling techniques.
     """
 
-    def __init__(self, cv=5, seed=SEED, n_jobs=1):
+    def __init__(self, cv=5, seed=SEED, n_jobs=8):
         self.cv = cv
         self.model = None
         self.seed = seed
@@ -314,7 +316,7 @@ class Support:
                 for cls, count in train_sample_counts.items():
                     f.write(f"{cls}: {count}\n")
 
-            self.model = RandomForestClassifier(**self.init_params, n_jobs=1)  # Fix n_jobs=1
+            self.model = RandomForestClassifier(**self.init_params, n_jobs=8)  # Fix n_jobs=1
             self.model.fit(X_train_resampled, y_train_resampled)
 
             train_score = self.model.score(X_train_resampled, y_train_resampled)
@@ -375,7 +377,7 @@ class Support:
                 logging.warning(f"No best parameters found from grid search for {model_name_prefix}.")
 
             # Integrate Probability Calibration
-            calibrator = CalibratedClassifierCV(self.model, method='isotonic', cv=5, n_jobs=1)  # Fix n_jobs=1
+            calibrator = CalibratedClassifierCV(self.model, method='isotonic', cv=5, n_jobs=8)  # Fix n_jobs=1
             calibrator.fit(X_train_resampled, y_train_resampled)
 
             self.model = calibrator
@@ -400,7 +402,7 @@ class Support:
             RandomForestClassifier(random_state=self.seed),
             self.parameters,
             cv=skf,
-            n_jobs=1,  # Fix n_jobs=1 for reproducibility
+            n_jobs=8,  # Fix n_jobs=1 for reproducibility
             scoring='roc_auc_ovo',
             verbose=1
         )
@@ -444,29 +446,27 @@ class Support:
             class_rankings.append(formatted_rankings)
 
         return class_rankings
-
-    def test_best_RF(self, X, y, output_dir='.'):
+        
+    def test_best_RF(self, X, y, scaler_dir='.'):
         """
-        Tests the best Random Forest model with the given data.
+        Testa o melhor modelo Random Forest com os dados fornecidos.
         """
-        if self.model is None:
-            raise ValueError("The fit() method must be called before test_best_RF().")
-
-        # Load the scaler
-        scaler_path = os.path.join(output_dir, 'scaler.pkl') if output_dir else 'scaler.pkl'
+    # Carregar o scaler
+        scaler_path = os.path.join(scaler_dir, 'scaler.pkl') if scaler_dir else 'scaler.pkl'
         if os.path.exists(scaler_path):
             scaler = joblib.load(scaler_path)
-            logging.info(f"Scaler loaded from {scaler_path}")
+            logging.info(f"Scaler carregado de {scaler_path}")
         else:
-            logging.error(f"Scaler not found at {scaler_path}")
+            logging.error(f"Scaler nÃ£o encontrado em {scaler_path}")
             sys.exit(1)
 
         X_scaled = scaler.transform(X)
+    
 
-        # Apply oversampling to the entire set before splitting
+        # Aplicar oversampling ao conjunto inteiro antes do split
         X_resampled, y_resampled = self._oversample_single_sample_classes(X_scaled, y)
 
-        # Split into training and testing
+        # Dividir em treinamento e teste
         X_train, X_test, y_train, y_test = train_test_split(
             X_resampled, y_resampled, test_size=0.4, random_state=self.seed, stratify=y_resampled
         )
@@ -485,12 +485,12 @@ class Support:
             bootstrap=self.best_params.get('bootstrap', True),
             ccp_alpha=self.best_params.get('ccp_alpha', 0.001),
             random_state=self.seed,
-            n_jobs=1  # Fix n_jobs=1 for reproducibility
+            n_jobs=8  # Fix n_jobs=1 for reproducibility
         )
         model.fit(X_train, y_train)  # Fit the model on the training data
 
         # Integrate Calibration into the Test Model
-        calibrator = CalibratedClassifierCV(model, method='isotonic', cv=5, n_jobs=1)  # Fix n_jobs=1
+        calibrator = CalibratedClassifierCV(model, method='isotonic', cv=5, n_jobs=8)  # Fix n_jobs=1
         calibrator.fit(X_train, y_train)
         calibrated_model = calibrator
 
@@ -629,7 +629,7 @@ class ProteinEmbeddingGenerator:
                 vector_size=125,  # change to 100 if necessary
                 window=5,
                 min_count=1,
-                workers=1,  # Fix workers=1 for reproducibility
+                workers=8,  # Fix workers=1 for reproducibility
                 sg=1,
                 hs=1,  # Hierarchical softmax enabled
                 negative=0,  # Negative sampling disabled
@@ -771,18 +771,18 @@ class ProteinEmbeddingGenerator:
         else:
             logging.info(f"All embeddings have shape: {embedding_shapes.pop()}")
 
-        # Define the full path of the scaler
+        # Definir o caminho completo do scaler
         scaler_full_path = os.path.join(model_dir, 'scaler.pkl') if model_dir else 'scaler.pkl'
 
-        # Check if the scaler already exists
+        # Verificar se o scaler jÃ¡ existe
         if os.path.exists(scaler_full_path):
-            logging.info(f"StandardScaler found at {scaler_full_path}. Loading the scaler.")
+            logging.info(f"StandardScaler encontrado em {scaler_full_path}. Carregando o scaler.")
             scaler = joblib.load(scaler_full_path)
         else:
-            logging.info("StandardScaler not found. Training a new scaler.")
+            logging.info("StandardScaler nÃ£o encontrado. Treinando um novo scaler.")
             scaler = StandardScaler().fit(embeddings_array_train)
             joblib.dump(scaler, scaler_full_path)
-            logging.info(f"StandardScaler saved at {scaler_full_path}")
+            logging.info(f"StandardScaler salvo em {scaler_full_path}")
 
     def get_embeddings_and_labels(self, label_type='target_variable'):
         """
@@ -944,6 +944,8 @@ def adjust_predictions_global(predicted_proba, method='normalize', alpha=1.0):
     return adjusted_proba
 
 def main(args):
+    model_dir = args.model_dir  # This should be 'results/models'
+
     """
     Main function coordinating the workflow.
     """
@@ -1027,7 +1029,9 @@ def main(args):
         logging.info(f"Calibrated Random Forest model for target_variable saved at {calibrated_model_target_full_path}")
 
         # Test the model
-        best_score, best_f1, best_pr_auc, best_params, best_model_target, X_test_target, y_test_target = support_model_target.test_best_RF(X_target, y_target, output_dir=args.output_dir)
+        #best_score, best_f1, best_pr_auc, best_params, best_model_target, X_test_target, y_test_target = support_model_target.test_best_RF(X_target, y_target, output_dir=args.output_dir)
+        best_score, best_f1, best_pr_auc, best_params, best_model_target, X_test_target, y_test_target = support_model_target.test_best_RF(X_target, y_target, output_dir=args.model_dir)
+
         logging.info(f"Best ROC AUC for target_variable: {best_score}")
         logging.info(f"Best F1 Score for target_variable: {best_f1}")
         logging.info(f"Best Precision-Recall AUC for target_variable: {best_pr_auc}")
@@ -1105,7 +1109,10 @@ def main(args):
         logging.info(f"Calibrated Random Forest model for associated_variable saved at {calibrated_model_associated_full_path}")
 
         # Test the model
-        best_score_associated, best_f1_associated, best_pr_auc_associated, best_params_associated, best_model_associated, X_test_associated, y_test_associated = support_model_associated.test_best_RF(X_associated, y_associated, output_dir=args.output_dir)
+#        best_score_associated, best_f1_associated, best_pr_auc_associated, best_params_associated, best_model_associated, X_test_associated, y_test_associated = support_model_associated.test_best_RF(X_associated, y_associated, output_dir=args.output_dir)
+        best_score_associated, best_f1_associated, best_pr_auc_associated, best_params_associated, best_model_associated, X_test_associated, y_test_associated = support_model_associated.test_best_RF(X_associated, y_associated, output_dir=args.model_dir)
+
+
         logging.info(f"Best ROC AUC for associated_variable in test_best_RF: {best_score_associated}")
         logging.info(f"Best F1 Score for associated_variable in test_best_RF: {best_f1_associated}")
         logging.info(f"Best Precision-Recall AUC for associated_variable in test_best_RF: {best_pr_auc_associated}")
@@ -1187,9 +1194,9 @@ def main(args):
     scaler_full_path = os.path.join(model_dir, args.scaler)
     if os.path.exists(scaler_full_path):
         scaler = joblib.load(scaler_full_path)
-        logging.info(f"Scaler loaded from {scaler_full_path}")
+        logging.info(f"Scaler carregado de {scaler_full_path}")
     else:
-        logging.error(f"Scaler not found at {scaler_full_path}")
+        logging.error(f"Scaler nÃ£o encontrado em {scaler_full_path}")
         sys.exit(1)
     X_predict_scaled = scaler.transform(X_predict)
 
@@ -1285,7 +1292,7 @@ def main(args):
 # Streamlit Configuration
 st.set_page_config(
     page_title="FAAL_Pred",
-    page_icon="🧬",  # DNA symbol
+    page_icon="ðŸ§¬",  # DNA symbol
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -1506,7 +1513,7 @@ if st.sidebar.button("Run Analysis"):
         )
 
         # Credits
-        st.markdown("<span style='color:white'>CIIMAR - Pedro Leão @CNP - 2024 - All rights reserved.</span>", unsafe_allow_html=True)
+        st.markdown("<span style='color:white'>CIIMAR - Pedro LeÃ£o @CNP - 2024 - All rights reserved.</span>", unsafe_allow_html=True)
     except Exception as e:
         st.error(f"An error occurred during processing: {e}")
         logging.error(f"An error occurred: {e}")
@@ -1514,3 +1521,5 @@ if st.sidebar.button("Run Analysis"):
 # ============================================
 # End of Code
 # ============================================
+
+
