@@ -56,6 +56,7 @@ def are_sequences_aligned(fasta_file):
         lengths.add(len(record.seq))
     return len(lengths) == 1  # Returns True if all sequences have the same length
 
+
 def realign_sequences_with_mafft(input_path, output_path, threads=8):
     """
     Realigns sequences using MAFFT.
@@ -69,6 +70,7 @@ def realign_sequences_with_mafft(input_path, output_path, threads=8):
         logging.error(f"Error running MAFFT: {e.stderr.decode()}")
         sys.exit(1)
 
+
 def plot_roc_curve_global(y_true, y_pred_proba, title, save_as=None, classes=None):
     """
     Plots ROC curve for binary or multiclass classifications.
@@ -78,7 +80,7 @@ def plot_roc_curve_global(y_true, y_pred_proba, title, save_as=None, classes=Non
     # Check if it's binary or multiclass classification
     unique_classes = np.unique(y_true)
     if len(unique_classes) == 2:  # Binary classification
-        fpr, tpr, _ = roc_curve(y_true, y_pred_proba)
+        fpr, tpr, _ = roc_curve(y_true, y_pred_proba[:, 1])
         roc_auc = auc(fpr, tpr)
 
         plt.figure()
@@ -113,6 +115,7 @@ def plot_roc_curve_global(y_true, y_pred_proba, title, save_as=None, classes=Non
         plt.savefig(save_as, bbox_inches='tight', facecolor='#0B3C5D')  # Match the background color
     plt.close()
 
+
 def get_class_rankings_global(model, X):
     """
     Gets class rankings based on the probabilities predicted by the model.
@@ -131,6 +134,7 @@ def get_class_rankings_global(model, X):
         class_rankings.append(formatted_rankings)
 
     return class_rankings
+
 
 def calculate_roc_values(model, X_test, y_test):
     """
@@ -156,6 +160,7 @@ def calculate_roc_values(model, X_test, y_test):
 
     roc_df = pd.DataFrame(list(roc_auc.items()), columns=['Class', 'ROC AUC'])
     return roc_df
+
 
 def format_and_sum_probabilities(associated_rankings):
     """
@@ -192,6 +197,7 @@ def format_and_sum_probabilities(associated_rankings):
     formatted_results = [f"{category} ({sum_prob:.2f}%)" for category, sum_prob in sorted_results if sum_prob > 0]
 
     return " - ".join(formatted_results)
+
 
 class Support:
     """
@@ -248,7 +254,7 @@ class Support:
         """
         counter = Counter(y)
         classes_to_oversample = [cls for cls, count in counter.items() if count >= 2]
-        
+
         # Apply RandomOverSampler only to classes with at least 2 samples
         ros = RandomOverSampler(random_state=self.seed)
         X_ros, y_ros = ros.fit_resample(X, y)
@@ -316,7 +322,7 @@ class Support:
                 for cls, count in train_sample_counts.items():
                     f.write(f"{cls}: {count}\n")
 
-            self.model = RandomForestClassifier(**self.init_params, n_jobs=8)  # Fix n_jobs=1
+            self.model = RandomForestClassifier(**self.init_params, n_jobs=self.n_jobs)
             self.model.fit(X_train_resampled, y_train_resampled)
 
             train_score = self.model.score(X_train_resampled, y_train_resampled)
@@ -377,7 +383,7 @@ class Support:
                 logging.warning(f"No best parameters found from grid search for {model_name_prefix}.")
 
             # Integrate Probability Calibration
-            calibrator = CalibratedClassifierCV(self.model, method='isotonic', cv=5, n_jobs=8)  # Fix n_jobs=1
+            calibrator = CalibratedClassifierCV(self.model, method='isotonic', cv=5, n_jobs=self.n_jobs)
             calibrator.fit(X_train_resampled, y_train_resampled)
 
             self.model = calibrator
@@ -402,7 +408,7 @@ class Support:
             RandomForestClassifier(random_state=self.seed),
             self.parameters,
             cv=skf,
-            n_jobs=8,  # Fix n_jobs=1 for reproducibility
+            n_jobs=self.n_jobs,
             scoring='roc_auc_ovo',
             verbose=1
         )
@@ -446,27 +452,26 @@ class Support:
             class_rankings.append(formatted_rankings)
 
         return class_rankings
-        
+
     def test_best_RF(self, X, y, scaler_dir='.'):
         """
-        Testa o melhor modelo Random Forest com os dados fornecidos.
+        Tests the best Random Forest model with the given data.
         """
-    # Carregar o scaler
+        # Load the scaler
         scaler_path = os.path.join(scaler_dir, 'scaler.pkl') if scaler_dir else 'scaler.pkl'
         if os.path.exists(scaler_path):
             scaler = joblib.load(scaler_path)
-            logging.info(f"Scaler carregado de {scaler_path}")
+            logging.info(f"Scaler loaded from {scaler_path}")
         else:
-            logging.error(f"Scaler nÃ£o encontrado em {scaler_path}")
+            logging.error(f"Scaler not found at {scaler_path}")
             sys.exit(1)
 
         X_scaled = scaler.transform(X)
-    
 
-        # Aplicar oversampling ao conjunto inteiro antes do split
+        # Apply oversampling to the entire dataset before splitting
         X_resampled, y_resampled = self._oversample_single_sample_classes(X_scaled, y)
 
-        # Dividir em treinamento e teste
+        # Split into training and testing
         X_train, X_test, y_train, y_test = train_test_split(
             X_resampled, y_resampled, test_size=0.4, random_state=self.seed, stratify=y_resampled
         )
@@ -485,12 +490,12 @@ class Support:
             bootstrap=self.best_params.get('bootstrap', True),
             ccp_alpha=self.best_params.get('ccp_alpha', 0.001),
             random_state=self.seed,
-            n_jobs=8  # Fix n_jobs=1 for reproducibility
+            n_jobs=self.n_jobs
         )
         model.fit(X_train, y_train)  # Fit the model on the training data
 
         # Integrate Calibration into the Test Model
-        calibrator = CalibratedClassifierCV(model, method='isotonic', cv=5, n_jobs=8)  # Fix n_jobs=1
+        calibrator = CalibratedClassifierCV(model, method='isotonic', cv=5, n_jobs=self.n_jobs)
         calibrator.fit(X_train, y_train)
         calibrated_model = calibrator
 
@@ -532,6 +537,7 @@ class Support:
         """
         plot_roc_curve_global(y_true, y_pred_proba, title, save_as, classes)
 
+
 class ProteinEmbeddingGenerator:
     def __init__(self, sequences_path, table_data=None, aggregation_method='none'):
         aligned_path = sequences_path
@@ -544,8 +550,9 @@ class ProteinEmbeddingGenerator:
         self.embeddings = []
         self.models = {}
         self.aggregation_method = aggregation_method  # Added to choose the aggregation method
+        self.min_kmers = None  # Added to store min_kmers
 
-    def generate_embeddings(self, k=3, step_size=1, word2vec_model_path="word2vec_model.bin", model_dir=None):
+    def generate_embeddings(self, k=3, step_size=1, word2vec_model_path="word2vec_model.bin", model_dir=None, min_kmers=None):
         """
         Generates embeddings for protein sequences using Word2Vec, standardizing the number of k-mers.
         """
@@ -620,8 +627,12 @@ class ProteinEmbeddingGenerator:
                 logging.error("No k-mers were collected. Check your sequences and k-mer parameters.")
                 sys.exit(1)
 
-            min_kmers = min(kmers_counts)
-            logging.info(f"Minimum number of k-mers in any sequence: {min_kmers}")
+            if min_kmers is not None:
+                self.min_kmers = min_kmers
+                logging.info(f"Using provided min_kmers: {self.min_kmers}")
+            else:
+                self.min_kmers = min(kmers_counts)
+                logging.info(f"Minimum number of k-mers in any sequence: {self.min_kmers}")
 
             # Train Word2Vec model using all k-mers
             model = Word2Vec(
@@ -629,7 +640,7 @@ class ProteinEmbeddingGenerator:
                 vector_size=125,  # change to 100 if necessary
                 window=5,
                 min_count=1,
-                workers=8,  # Fix workers=1 for reproducibility
+                workers=8,
                 sg=1,
                 hs=1,  # Hierarchical softmax enabled
                 negative=0,  # Negative sampling disabled
@@ -695,18 +706,22 @@ class ProteinEmbeddingGenerator:
             logging.error("No k-mers were collected. Check your sequences and k-mer parameters.")
             sys.exit(1)
 
-        min_kmers = min(kmers_counts)
-        logging.info(f"Minimum number of k-mers in any sequence: {min_kmers}")
+        if min_kmers is not None:
+            self.min_kmers = min_kmers
+            logging.info(f"Using provided min_kmers: {self.min_kmers}")
+        else:
+            self.min_kmers = min(kmers_counts)
+            logging.info(f"Minimum number of k-mers in any sequence: {self.min_kmers}")
 
         # Generate standardized embeddings
         for record in self.alignment:
-            sequence_id = record.id
+            sequence_id = record.id.split()[0]  # Use consistent sequence IDs
             embedding_info = kmer_groups.get(sequence_id, {})
             kmers_for_protein = embedding_info.get('kmers', [])
 
             if len(kmers_for_protein) == 0:
                 if self.aggregation_method == 'none':
-                    embedding_concatenated = np.zeros(self.models['global'].vector_size * min_kmers)
+                    embedding_concatenated = np.zeros(self.models['global'].vector_size * self.min_kmers)
                 else:
                     embedding_concatenated = np.zeros(self.models['global'].vector_size)
                 self.embeddings.append({
@@ -718,18 +733,15 @@ class ProteinEmbeddingGenerator:
                 continue
 
             # Select the first min_kmers k-mers
-            selected_kmers = kmers_for_protein[:min_kmers]
+            selected_kmers = kmers_for_protein[:self.min_kmers]
 
-            # Standardize with zero vectors if necessary (shouldn't be necessary, but added for safety)
-            if len(selected_kmers) < min_kmers:
-                padding = [np.zeros(self.models['global'].vector_size)] * (min_kmers - len(selected_kmers))
+            # Pad with zeros if necessary
+            if len(selected_kmers) < self.min_kmers:
+                padding = [np.zeros(self.models['global'].vector_size)] * (self.min_kmers - len(selected_kmers))
                 selected_kmers.extend(padding)
 
             # Get embeddings of the selected k-mers
-            selected_embeddings = [self.models['global'].wv[kmer] for kmer in selected_kmers if kmer in self.models['global'].wv]
-            if len(selected_embeddings) < min_kmers:
-                padding = [np.zeros(self.models['global'].vector_size)] * (min_kmers - len(selected_embeddings))
-                selected_embeddings.extend(padding)
+            selected_embeddings = [self.models['global'].wv[kmer] if kmer in self.models['global'].wv else np.zeros(self.models['global'].vector_size) for kmer in selected_kmers]
 
             if self.aggregation_method == 'none':
                 # Concatenate embeddings of the selected k-mers
@@ -771,18 +783,18 @@ class ProteinEmbeddingGenerator:
         else:
             logging.info(f"All embeddings have shape: {embedding_shapes.pop()}")
 
-        # Definir o caminho completo do scaler
+        # Define the full path of the scaler
         scaler_full_path = os.path.join(model_dir, 'scaler.pkl') if model_dir else 'scaler.pkl'
 
-        # Verificar se o scaler jÃ¡ existe
+        # Check if the scaler already exists
         if os.path.exists(scaler_full_path):
-            logging.info(f"StandardScaler encontrado em {scaler_full_path}. Carregando o scaler.")
+            logging.info(f"StandardScaler found at {scaler_full_path}. Loading the scaler.")
             scaler = joblib.load(scaler_full_path)
         else:
-            logging.info("StandardScaler nÃ£o encontrado. Treinando um novo scaler.")
+            logging.info("StandardScaler not found. Training a new scaler.")
             scaler = StandardScaler().fit(embeddings_array_train)
             joblib.dump(scaler, scaler_full_path)
-            logging.info(f"StandardScaler salvo em {scaler_full_path}")
+            logging.info(f"StandardScaler saved at {scaler_full_path}")
 
     def get_embeddings_and_labels(self, label_type='target_variable'):
         """
@@ -790,12 +802,13 @@ class ProteinEmbeddingGenerator:
         """
         embeddings = []
         labels = []
-        
+
         for embedding_info in self.embeddings:
             embeddings.append(embedding_info['embedding'])
             labels.append(embedding_info[label_type])  # Uses the specified label type
-        
+
         return np.array(embeddings), np.array(labels)
+
 
 def generate_accuracy_pie_chart(formatted_results, table_data, output_path):
     """
@@ -839,6 +852,7 @@ def generate_accuracy_pie_chart(formatted_results, table_data, output_path):
     plt.tight_layout()
     plt.savefig(output_path, facecolor='#0B3C5D')  # Match the background color
     plt.close()
+
 
 def plot_predictions_scatterplot_custom(results, output_path):
     """
@@ -918,6 +932,7 @@ def plot_predictions_scatterplot_custom(results, output_path):
     plt.savefig(output_path, facecolor='#0B3C5D', dpi=300)  # Match the background color
     plt.close()
 
+
 def adjust_predictions_global(predicted_proba, method='normalize', alpha=1.0):
     """
     Adjusts the predicted probabilities from the model.
@@ -926,22 +941,23 @@ def adjust_predictions_global(predicted_proba, method='normalize', alpha=1.0):
         # Normalize probabilities so they sum to 1 for each sample
         logging.info("Normalizing predicted probabilities.")
         adjusted_proba = predicted_proba / predicted_proba.sum(axis=1, keepdims=True)
-    
+
     elif method == 'smoothing':
         # Apply smoothing to probabilities to avoid extreme values
         logging.info(f"Applying smoothing to predicted probabilities with alpha={alpha}.")
         adjusted_proba = (predicted_proba + alpha) / (predicted_proba.sum(axis=1, keepdims=True) + alpha * predicted_proba.shape[1])
-    
+
     elif method == 'none':
         # Do not apply any adjustment
         logging.info("No adjustment applied to predicted probabilities.")
         adjusted_proba = predicted_proba.copy()
-    
+
     else:
         logging.warning(f"Unknown adjustment method '{method}'. No adjustment will be applied.")
         adjusted_proba = predicted_proba.copy()
-    
+
     return adjusted_proba
+
 
 def main(args):
     model_dir = args.model_dir  # This should be 'results/models'
@@ -1029,8 +1045,10 @@ def main(args):
         logging.info(f"Calibrated Random Forest model for target_variable saved at {calibrated_model_target_full_path}")
 
         # Test the model
+        
         #best_score, best_f1, best_pr_auc, best_params, best_model_target, X_test_target, y_test_target = support_model_target.test_best_RF(X_target, y_target, output_dir=args.output_dir)
-        best_score, best_f1, best_pr_auc, best_params, best_model_target, X_test_target, y_test_target = support_model_target.test_best_RF(X_target, y_target, output_dir=args.model_dir)
+        #best_score, best_f1, best_pr_auc, best_params, best_model_target, X_test_target, y_test_target = support_model_target.test_best_RF(X_target, y_target, output_dir=args.model_dir)
+        best_score, best_f1, best_pr_auc, best_params, best_model_target, X_test_target, y_test_target = support_model_target.test_best_RF(X_target, y_target, scaler_dir=args.model_dir)
 
         logging.info(f"Best ROC AUC for target_variable: {best_score}")
         logging.info(f"Best F1 Score for target_variable: {best_f1}")
@@ -1110,8 +1128,11 @@ def main(args):
 
         # Test the model
 #        best_score_associated, best_f1_associated, best_pr_auc_associated, best_params_associated, best_model_associated, X_test_associated, y_test_associated = support_model_associated.test_best_RF(X_associated, y_associated, output_dir=args.output_dir)
-        best_score_associated, best_f1_associated, best_pr_auc_associated, best_params_associated, best_model_associated, X_test_associated, y_test_associated = support_model_associated.test_best_RF(X_associated, y_associated, output_dir=args.model_dir)
+        #best_score_associated, best_f1_associated, best_pr_auc_associated, best_params_associated, best_model_associated, X_test_associated, y_test_associated = support_model_associated.test_best_RF(X_associated, y_associated, output_dir=args.model_dir)
 
+        #best_score_associated, best_f1_associated, best_pr_auc_associated, best_params_associated, best_model_associated, X_test_associated, y_test_associated = support_model_associated.test_best_RF(X_associated, y_associated, scaler_dir=args.model_dir)
+
+        best_score_associated, best_f1_associated, best_pr_auc_associated, best_params_associated, best_model_associated, X_test_associated, y_test_associated = support_model_associated.test_best_RF(X_associated, y_associated, scaler_dir=args.model_dir)
 
         logging.info(f"Best ROC AUC for associated_variable in test_best_RF: {best_score_associated}")
         logging.info(f"Best F1 Score for associated_variable in test_best_RF: {best_f1_associated}")
@@ -1521,5 +1542,7 @@ if st.sidebar.button("Run Analysis"):
 # ============================================
 # End of Code
 # ============================================
+
+
 
 
