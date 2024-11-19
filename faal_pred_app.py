@@ -1,4 +1,3 @@
-import argparse
 import logging
 import os
 import sys
@@ -9,7 +8,7 @@ from collections import Counter
 from io import BytesIO
 import shutil
 import time
-
+import argparse 
 import numpy as np
 import pandas as pd
 from Bio import SeqIO, AlignIO
@@ -273,7 +272,7 @@ class Support:
 
         return X_smote, y_smote
 
-    def fit(self, X, y, model_name_prefix='model', model_dir=None):
+    def fit(self, X, y, model_name_prefix='model', model_dir=None, min_kmers=None):
         logging.info(f"Starting fit method for {model_name_prefix}...")
 
         X = np.array(X)
@@ -351,8 +350,8 @@ class Support:
             try:
                 if len(np.unique(y_test)) == 2:
                     fpr, tpr, thresholds = roc_curve(y_test, y_pred_proba[:, 1])
-                    roc_auc = auc(fpr, tpr)
-                    self.roc_results.append((fpr, tpr, roc_auc))
+                    roc_auc_score_value = auc(fpr, tpr)
+                    self.roc_results.append((fpr, tpr, roc_auc_score_value))
                 else:
                     y_test_bin = label_binarize(y_test, classes=self.model.classes_)
                     roc_auc_score_value = roc_auc_score(y_test_bin, y_pred_proba, multi_class='ovo', average='macro')
@@ -542,8 +541,10 @@ class ProteinEmbeddingGenerator:
     def __init__(self, sequences_path, table_data=None, aggregation_method='none'):
         aligned_path = sequences_path
         if not are_sequences_aligned(sequences_path):
-            realign_sequences_with_mafft(sequences_path, sequences_path.replace(".fasta", "_aligned.fasta"))
+            realign_sequences_with_mafft(sequences_path, sequences_path.replace(".fasta", "_aligned.fasta"), threads=1)
             aligned_path = sequences_path.replace(".fasta", "_aligned.fasta")
+        else:
+            logging.info(f"Sequences are already aligned: {sequences_path}")
 
         self.alignment = AlignIO.read(aligned_path, 'fasta')
         self.table_data = table_data
@@ -552,7 +553,7 @@ class ProteinEmbeddingGenerator:
         self.aggregation_method = aggregation_method  # Added to choose the aggregation method
         self.min_kmers = None  # Added to store min_kmers
 
-    def generate_embeddings(self, k=3, step_size=1, word2vec_model_path="word2vec_model.bin", model_dir=None, min_kmers=None):
+    def generate_embeddings(self, k=3, step_size=1, word2vec_model_path="word2vec_model.bin", model_dir=None, min_kmers=None, save_min_kmers=False):
         """
         Generates embeddings for protein sequences using Word2Vec, standardizing the number of k-mers.
         """
@@ -633,6 +634,13 @@ class ProteinEmbeddingGenerator:
             else:
                 self.min_kmers = min(kmers_counts)
                 logging.info(f"Minimum number of k-mers in any sequence: {self.min_kmers}")
+
+            # Save min_kmers if required
+            if save_min_kmers and model_dir:
+                min_kmers_path = os.path.join(model_dir, 'min_kmers.txt')
+                with open(min_kmers_path, 'w') as f:
+                    f.write(str(self.min_kmers))
+                logging.info(f"min_kmers saved at {min_kmers_path}")
 
             # Train Word2Vec model using all k-mers
             model = Word2Vec(
@@ -808,8 +816,6 @@ class ProteinEmbeddingGenerator:
             labels.append(embedding_info[label_type])  # Uses the specified label type
 
         return np.array(embeddings), np.array(labels)
-
-
 def generate_accuracy_pie_chart(formatted_results, table_data, output_path):
     """
     Generates a pie chart showing accuracy by category.
@@ -1011,9 +1017,13 @@ def main(args):
         k=args.kmer_size,
         step_size=args.step_size,
         word2vec_model_path=args.word2vec_model,
-        model_dir=model_dir
+        model_dir=model_dir,
+        save_min_kmers=True  # Save min_kmers after training
     )
     logging.info(f"Number of training embeddings generated: {len(protein_embedding_train.embeddings)}")
+
+    # Save min_kmers to ensure consistency
+    min_kmers = protein_embedding_train.min_kmers
 
     # Get embeddings and labels for target_variable
     X_target, y_target = protein_embedding_train.get_embeddings_and_labels(label_type='target_variable')
@@ -1037,7 +1047,7 @@ def main(args):
     else:
         # Model training for target_variable
         support_model_target = Support()
-        calibrated_model_target = support_model_target.fit(X_target, y_target, model_name_prefix='target', model_dir=model_dir)
+        calibrated_model_target = support_model_target.fit(X_target, y_target, model_name_prefix='target', model_dir=model_dir, min_kmers=min_kmers)
         logging.info("Training and calibration for target_variable completed.")
 
         # Save the calibrated model
@@ -1045,9 +1055,6 @@ def main(args):
         logging.info(f"Calibrated Random Forest model for target_variable saved at {calibrated_model_target_full_path}")
 
         # Test the model
-        
-        #best_score, best_f1, best_pr_auc, best_params, best_model_target, X_test_target, y_test_target = support_model_target.test_best_RF(X_target, y_target, output_dir=args.output_dir)
-        #best_score, best_f1, best_pr_auc, best_params, best_model_target, X_test_target, y_test_target = support_model_target.test_best_RF(X_target, y_target, output_dir=args.model_dir)
         best_score, best_f1, best_pr_auc, best_params, best_model_target, X_test_target, y_test_target = support_model_target.test_best_RF(X_target, y_target, scaler_dir=args.model_dir)
 
         logging.info(f"Best ROC AUC for target_variable: {best_score}")
@@ -1115,7 +1122,7 @@ def main(args):
     else:
         # Model training for associated_variable
         support_model_associated = Support()
-        calibrated_model_associated = support_model_associated.fit(X_associated, y_associated, model_name_prefix='associated', model_dir=model_dir)
+        calibrated_model_associated = support_model_associated.fit(X_associated, y_associated, model_name_prefix='associated', model_dir=model_dir, min_kmers=min_kmers)
         logging.info("Training and calibration for associated_variable completed.")
         
         # Plot learning curve
@@ -1127,11 +1134,6 @@ def main(args):
         logging.info(f"Calibrated Random Forest model for associated_variable saved at {calibrated_model_associated_full_path}")
 
         # Test the model
-#        best_score_associated, best_f1_associated, best_pr_auc_associated, best_params_associated, best_model_associated, X_test_associated, y_test_associated = support_model_associated.test_best_RF(X_associated, y_associated, output_dir=args.output_dir)
-        #best_score_associated, best_f1_associated, best_pr_auc_associated, best_params_associated, best_model_associated, X_test_associated, y_test_associated = support_model_associated.test_best_RF(X_associated, y_associated, output_dir=args.model_dir)
-
-        #best_score_associated, best_f1_associated, best_pr_auc_associated, best_params_associated, best_model_associated, X_test_associated, y_test_associated = support_model_associated.test_best_RF(X_associated, y_associated, scaler_dir=args.model_dir)
-
         best_score_associated, best_f1_associated, best_pr_auc_associated, best_params_associated, best_model_associated, X_test_associated, y_test_associated = support_model_associated.test_best_RF(X_associated, y_associated, scaler_dir=args.model_dir)
 
         logging.info(f"Best ROC AUC for associated_variable in test_best_RF: {best_score_associated}")
@@ -1175,6 +1177,16 @@ def main(args):
     # STEP 2: Classifying New Sequences
     # =============================
 
+    # Load min_kmers
+    min_kmers_path = os.path.join(model_dir, 'min_kmers.txt')
+    if os.path.exists(min_kmers_path):
+        with open(min_kmers_path, 'r') as f:
+            min_kmers_loaded = int(f.read().strip())
+        logging.info(f"Loaded min_kmers: {min_kmers_loaded}")
+    else:
+        logging.error(f"min_kmers file not found at {min_kmers_path}. Ensure training was completed successfully.")
+        sys.exit(1)
+
     # Load data for prediction
     predict_alignment_path = args.predict_fasta
 
@@ -1204,7 +1216,8 @@ def main(args):
         k=args.kmer_size,
         step_size=args.step_size,
         word2vec_model_path=args.word2vec_model,
-        model_dir=model_dir
+        model_dir=model_dir,
+        min_kmers=min_kmers_loaded  # Use the same min_kmers as training
     )
     logging.info(f"Number of embeddings for prediction generated: {len(protein_embedding_predict.embeddings)}")
 
@@ -1215,9 +1228,9 @@ def main(args):
     scaler_full_path = os.path.join(model_dir, args.scaler)
     if os.path.exists(scaler_full_path):
         scaler = joblib.load(scaler_full_path)
-        logging.info(f"Scaler carregado de {scaler_full_path}")
+        logging.info(f"Scaler loaded from {scaler_full_path}")
     else:
-        logging.error(f"Scaler nÃ£o encontrado em {scaler_full_path}")
+        logging.error(f"Scaler not found at {scaler_full_path}")
         sys.exit(1)
     X_predict_scaled = scaler.transform(X_predict)
 
@@ -1235,6 +1248,7 @@ def main(args):
         logging.info(f"Reducing number of features from {X_predict_scaled.shape[1]} to {calibrated_model_target.base_estimator_.n_features_in_} to match the model input size.")
         X_predict_scaled = X_predict_scaled[:, :calibrated_model_target.base_estimator_.n_features_in_]
 
+    # Make prediction for target_variable
     predictions_target = calibrated_model_target.predict(X_predict_scaled)
 
     # Check and adjust feature size for associated_variable
@@ -1305,6 +1319,7 @@ def main(args):
     progress_bar.progress(1.0)
     progress_text.markdown("<span style='color:white'>Progress: 100%</span>", unsafe_allow_html=True)
     time.sleep(0.1)
+
 
 # ============================================
 # Streamlit Configuration and Interface
@@ -1469,7 +1484,7 @@ if st.sidebar.button("Run Analysis"):
         st.error("Please upload a prediction FASTA file.")
         st.stop()
 
-    # Remaining parameters
+   # Remaining parameters
     args = argparse.Namespace(
         train_fasta=train_fasta_path,
         train_table=train_table_path,
@@ -1534,10 +1549,14 @@ if st.sidebar.button("Run Analysis"):
         )
 
         # Credits
-        st.markdown("<span style='color:white'>CIIMAR - Pedro LeÃ£o @CNP - 2024 - All rights reserved.</span>", unsafe_allow_html=True)
+        st.markdown("<span style='color:white'>CIIMAR - Pedro LeÃƒÂ£o @CNP - 2024 - All rights reserved.</span>", unsafe_allow_html=True)
     except Exception as e:
         st.error(f"An error occurred during processing: {e}")
         logging.error(f"An error occurred: {e}")
+
+# ============================================
+# End of Code
+# ===========
 
 # ============================================
 # End of Code
