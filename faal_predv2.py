@@ -1,16 +1,20 @@
-import argparse
 import logging
 import os
 import sys
 import subprocess
 import random
+import zipfile
 from collections import Counter
+from io import BytesIO
+import shutil
+import time
+
+import numpy as np
+import pandas as pd
 from Bio import SeqIO, AlignIO
 from Bio.Align.Applications import MafftCommandline
 import joblib
 import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
 from gensim.models import Word2Vec
 from imblearn.over_sampling import RandomOverSampler, SMOTE
 from sklearn.ensemble import RandomForestClassifier
@@ -20,202 +24,67 @@ from sklearn.preprocessing import StandardScaler, label_binarize
 from tabulate import tabulate
 from sklearn.calibration import CalibratedClassifierCV
 
-# Fixando as sementes para reproducibilidade
+import streamlit as st
+
+# ============================================
+# Definitions of Functions and Classes
+# ============================================
+
+# Fixing seeds for reproducibility
 SEED = 42
 np.random.seed(SEED)
 random.seed(SEED)
 
-# Configuração do Logging
+# Logging Configuration
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.INFO,  # Change to DEBUG for more verbosity
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler("pipeline.log")
+        logging.FileHandler("app.log")  # Log to a file for persistent records
     ]
 )
 
-def generate_accuracy_pie_chart(formatted_results, table_data, output_path):
+
+def are_sequences_aligned(fasta_file):
     """
-    Gera um gráfico de pizza mostrando a precisão por categoria.
+    Checks if all sequences in a FASTA file have the same length.
     """
-    category_counts = Counter()
-    correct_counts = Counter()
-    pattern_mapping = {
-        'C4-C6-C8': ['C4', 'C6', 'C8'],
-        'C6-C8-C10': ['C6', 'C8', 'C10'],
-        'C8-C10-C12': ['C8', 'C10', 'C12'],
-        'C10-C12-C14': ['C10', 'C12', 'C14'],
-        'C12-C14-C16': ['C12', 'C14', 'C16'],
-        'C14-C16-C18': ['C14', 'C16', 'C18'],
-    }
+    lengths = set()
+    for record in SeqIO.parse(fasta_file, "fasta"):
+        lengths.add(len(record.seq))
+    return len(lengths) == 1  # Returns True if all sequences have the same length
 
-    for result in formatted_results:
-        seq_id = result[0]
-        corresponding_row = table_data[table_data['Protein.accession'].str.split().str[0] == seq_id]
-        if not corresponding_row.empty:
-            associated_variable_real = corresponding_row['Associated variable'].values[0]
-            for category, patterns in pattern_mapping.items():
-                if any(pat in result[1] for pat in patterns):
-                    category_counts[category] += 1
-                    if any(pat in associated_variable_real for pat in patterns):
-                        correct_counts[category] += 1
 
-    # Criação do gráfico de pizza
-    accuracy = {category: (correct_counts[category] / category_counts[category] * 100) if category_counts[category] > 0 else 0
-                for category in category_counts.keys()}
-
-    # Remover categorias com contagem 0 para evitar NaN no gráfico
-    accuracy = {k: v for k, v in accuracy.items() if category_counts[k] > 0}
-
-    plt.figure(figsize=(8, 8))
-    if accuracy:
-        plt.pie(accuracy.values(), labels=[f'{key} ({val:.1f}%)' for key, val in accuracy.items()], autopct='%1.1f%%')
-    else:
-        logging.warning("Nenhum dado para plotar no gráfico de pizza.")
-    plt.title('Precisão por Categoria')
-    plt.tight_layout()
-    plt.savefig(output_path)
-    plt.close()
-
-def plot_predictions_scatterplot_custom(results, output_path):
+def realign_sequences_with_mafft(input_path, output_path, threads=8):
     """
-    Gera um scatter plot das previsões das novas sequências.
-
-    Eixo Y: ID de acesso da proteína
-    Eixo X: Especificidades de 2 a 18
-    Cada ponto representa a especificidade correspondente para a proteína
-    Linhas conectam os pontos de cada proteína
-    Os pontos são representados em escala de cinza, indicando a porcentagem associada.
+    Realigns sequences using MAFFT.
     """
-    # Preparar os dados
-    protein_specificities = {}
+    mafft_command = ['mafft', '--thread', str(threads), '--maxiterate', '1000', '--localpair', input_path]
+    try:
+        with open(output_path, "w") as outfile:
+            subprocess.run(mafft_command, stdout=outfile, stderr=subprocess.PIPE, check=True)
+        logging.info(f"Realigned sequences saved in {output_path}")
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Error running MAFFT: {e.stderr.decode()}")
+        sys.exit(1)
 
-    for seq_id, info in results.items():
-        rankings = info['associated_ranking']
-        specificity_probs = {}
-
-        for ranking in rankings:
-            try:
-                category, prob = ranking.split(": ")
-                prob = float(prob.replace("%", ""))
-                # Extrair os números das categorias, assumindo que são no formato 'C4-C6-C8'
-                specs = [int(s.strip('C')) for s in category.split('-') if s.startswith('C')]
-                for spec in specs:
-                    if spec in specificity_probs:
-                        specificity_probs[spec] += prob  # Somar probabilidades se já existir
-                    else:
-                        specificity_probs[spec] = prob
-            except ValueError:
-                logging.error(f"Erro ao processar o ranking: {ranking} para a proteína {seq_id}")
-
-        if specificity_probs:
-            # Normalizar as probabilidades para cada especificidade
-            total_prob = sum(specificity_probs.values())
-            if total_prob > 0:
-                for spec in specificity_probs:
-                    specificity_probs[spec] = (specificity_probs[spec] / total_prob) * 100
-            protein_specificities[seq_id] = specificity_probs
-
-    if not protein_specificities:
-        logging.warning("Nenhum dado disponível para plotar o scatterplot.")
-        return
-
-    # Ordenar os IDs das proteínas para melhor visualização
-    unique_proteins = sorted(protein_specificities.keys())
-    protein_order = {protein: idx for idx, protein in enumerate(unique_proteins)}
-
-    plt.figure(figsize=(20, max(10, len(unique_proteins) * 0.5)))  # Ajustar a altura com base no número de proteínas
-
-    for protein, specs in protein_specificities.items():
-        y = protein_order[protein]
-        x = sorted(specs.keys())
-        probs = [specs[spec] for spec in x]
-
-        # Normalizar as probabilidades para [0,1] para escala de cinza
-        probs_normalized = [p / 100.0 for p in probs]
-
-        # Mapear as probabilidades para cores em escala de cinza (1 - p para que maior probabilidade seja mais escura)
-        colors = [str(1 - p) for p in probs_normalized]
-
-        # Plotar os pontos
-        plt.scatter(x, [y] * len(x), c=colors, cmap='gray', edgecolors='w', s=100)
-
-        # Conectar os pontos com linhas
-        plt.plot(x, [y] * len(x), color='gray', linestyle='-', linewidth=0.5, alpha=0.5)
-
-    plt.xlabel('Especificidade', fontsize=12, fontweight='bold')
-    plt.ylabel('Proteínas', fontsize=12, fontweight='bold')
-    plt.title('Scatterplot das Previsões das Novas Sequências', fontsize=14, fontweight='bold')
-
-    plt.yticks(ticks=range(len(unique_proteins)), labels=unique_proteins, fontsize=8)
-    plt.xlim(2, 18)
-    plt.xticks(ticks=range(2, 19), fontsize=10)
-    plt.grid(True, axis='x', linestyle='--', alpha=0.5)
-
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=300)
-    plt.close()
-
-def get_class_rankings_global(model, X):
-    """
-    Obtém as classificações das classes com base nas probabilidades preditas pelo modelo.
-    """
-    if model is None:
-        raise ValueError("Model not fitted yet. Please fit the model first.")
-
-    # Obtendo probabilidades para cada classe
-    y_pred_proba = model.predict_proba(X)
-
-    # Classificando as classes com base nas probabilidades
-    class_rankings = []
-    for probabilities in y_pred_proba:
-        ranked_classes = sorted(zip(model.classes_, probabilities), key=lambda x: x[1], reverse=True)
-        formatted_rankings = [f"{cls}: {prob*100:.2f}%" for cls, prob in ranked_classes]
-        class_rankings.append(formatted_rankings)
-
-    return class_rankings
-
-def calculate_roc_values(model, X_test, y_test):
-    """
-    Calcula os valores ROC AUC para cada classe.
-    """
-    n_classes = len(np.unique(y_test))
-    y_pred_proba = model.predict_proba(X_test)
-
-    fpr = dict()
-    tpr = dict()
-    roc_auc = dict()
-
-    for i in range(n_classes):
-        fpr[i], tpr[i], _ = roc_curve(y_test, y_pred_proba[:, i], pos_label=i)
-        roc_auc[i] = auc(fpr[i], tpr[i])
-
-        # Logging valores de ROC
-        logging.info(f"For class {i}:")
-        logging.info(f"FPR: {fpr[i]}")
-        logging.info(f"TPR: {tpr[i]}")
-        logging.info(f"ROC AUC: {roc_auc[i]}")
-        logging.info("--------------------------")
-
-    roc_df = pd.DataFrame(list(roc_auc.items()), columns=['Class', 'ROC AUC'])
-    return roc_df
 
 def plot_roc_curve_global(y_true, y_pred_proba, title, save_as=None, classes=None):
     """
-    Plota a curva ROC para classificações binárias ou multiclasse.
+    Plots ROC curve for binary or multiclass classifications.
     """
-    lw = 2  # Largura da linha
+    lw = 2  # Line width
 
-    # Verifica se é classificação binária ou multiclasse
+    # Check if it's binary or multiclass classification
     unique_classes = np.unique(y_true)
-    if len(unique_classes) == 2:  # Classificação binária
-        fpr, tpr, _ = roc_curve(y_true, y_pred_proba)
+    if len(unique_classes) == 2:  # Binary classification
+        fpr, tpr, _ = roc_curve(y_true, y_pred_proba[:, 1])
         roc_auc = auc(fpr, tpr)
 
         plt.figure()
         plt.plot(fpr, tpr, color='darkorange', lw=lw, label='ROC curve (area = %0.2f)' % roc_auc)
-    else:  # Classificação multiclasse
+    else:  # Multiclass classification
         y_bin = label_binarize(y_true, classes=unique_classes)
         n_classes = y_bin.shape[1]
 
@@ -237,67 +106,104 @@ def plot_roc_curve_global(y_true, y_pred_proba, title, save_as=None, classes=Non
     plt.plot([0, 1], [0, 1], 'k--', lw=lw)
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
-    plt.title(title)
+    plt.xlabel('False Positive Rate', color='white')
+    plt.ylabel('True Positive Rate', color='white')
+    plt.title(title, color='white')
     plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
     if save_as:
-        plt.savefig(save_as, bbox_inches='tight')
+        plt.savefig(save_as, bbox_inches='tight', facecolor='#0B3C5D')  # Match the background color
     plt.close()
 
-def are_sequences_aligned(fasta_file):
-    """
-    Verifica se todas as sequências em um arquivo FASTA têm o mesmo comprimento.
-    """
-    lengths = set()
-    for record in SeqIO.parse(fasta_file, "fasta"):
-        lengths.add(len(record.seq))
-    return len(lengths) == 1  # Retorna True se todas as sequências tiverem o mesmo comprimento
 
-def realign_sequences_with_mafft(input_path, output_path, threads=1):
+def get_class_rankings_global(model, X):
     """
-    Realinha sequências usando o MAFFT.
+    Gets class rankings based on the probabilities predicted by the model.
     """
-    mafft_command = ['mafft', '--thread', str(threads), '--maxiterate', '1000', '--localpair', input_path]
-    try:
-        with open(output_path, "w") as outfile:
-            subprocess.run(mafft_command, stdout=outfile, stderr=subprocess.PIPE, check=True)
-        logging.info(f"Sequências realinhadas salvas em {output_path}")
-    except subprocess.CalledProcessError as e:
-        logging.error(f"Erro ao executar MAFFT: {e.stderr.decode()}")
-        sys.exit(1)
+    if model is None:
+        raise ValueError("Model not fitted yet. Please fit the model first.")
 
-def adjust_predictions_global(predicted_proba, method='normalize', alpha=1.0):
+    # Obtaining probabilities for each class
+    y_pred_proba = model.predict_proba(X)
+
+    # Ranking classes based on probabilities
+    class_rankings = []
+    for probabilities in y_pred_proba:
+        ranked_classes = sorted(zip(model.classes_, probabilities), key=lambda x: x[1], reverse=True)
+        formatted_rankings = [f"{cls}: {prob*100:.2f}%" for cls, prob in ranked_classes]
+        class_rankings.append(formatted_rankings)
+
+    return class_rankings
+
+
+def calculate_roc_values(model, X_test, y_test):
     """
-    Ajusta as probabilidades preditas pelo modelo.
+    Calculates ROC AUC values for each class.
     """
-    if method == 'normalize':
-        # Normaliza as probabilidades para que somem 1 para cada amostra
-        logging.info("Normalizando as probabilidades preditas.")
-        adjusted_proba = predicted_proba / predicted_proba.sum(axis=1, keepdims=True)
-    
-    elif method == 'smoothing':
-        # Aplica suavização nas probabilidades para evitar valores extremos
-        logging.info(f"Aplicando suavização nas probabilidades preditas com alpha={alpha}.")
-        adjusted_proba = (predicted_proba + alpha) / (predicted_proba.sum(axis=1, keepdims=True) + alpha * predicted_proba.shape[1])
-    
-    elif method == 'none':
-        # Não aplica nenhum ajuste
-        logging.info("Nenhum ajuste aplicado às probabilidades preditas.")
-        adjusted_proba = predicted_proba.copy()
-    
-    else:
-        logging.warning(f"Método de ajuste '{method}' desconhecido. Nenhum ajuste será aplicado.")
-        adjusted_proba = predicted_proba.copy()
-    
-    return adjusted_proba
+    n_classes = len(np.unique(y_test))
+    y_pred_proba = model.predict_proba(X_test)
+
+    fpr = dict()
+    tpr = dict()
+    roc_auc = dict()
+
+    for i in range(n_classes):
+        fpr[i], tpr[i], _ = roc_curve(y_test, y_pred_proba[:, i], pos_label=i)
+        roc_auc[i] = auc(fpr[i], tpr[i])
+
+        # Logging ROC values
+        logging.info(f"For class {i}:")
+        logging.info(f"FPR: {fpr[i]}")
+        logging.info(f"TPR: {tpr[i]}")
+        logging.info(f"ROC AUC: {roc_auc[i]}")
+        logging.info("--------------------------")
+
+    roc_df = pd.DataFrame(list(roc_auc.items()), columns=['Class', 'ROC AUC'])
+    return roc_df
+
+
+def format_and_sum_probabilities(associated_rankings):
+    """
+    Formats and sums probabilities for each category.
+    """
+    category_sums = {}
+    categories = ['C4-C6-C8', 'C6-C8-C10', 'C8-C10-C12', 'C10-C12-C14', 'C12-C14-C16', 'C14-C16-C18']
+    pattern_mapping = {
+        'C4-C6-C8': ['C4', 'C6', 'C8'],
+        'C6-C8-C10': ['C6', 'C8', 'C10'],
+        'C8-C10-C12': ['C8', 'C10', 'C12'],
+        'C10-C12-C14': ['C10', 'C12', 'C14'],
+        'C12-C14-C16': ['C12', 'C14', 'C16'],
+        'C14-C16-C18': ['C14', 'C16', 'C18'],
+    }
+
+    # Initialize the sums dictionary
+    for category in categories:
+        category_sums[category] = 0.0
+
+    # Sum probabilities for each category
+    for rank in associated_rankings:
+        try:
+            prob = float(rank.split(": ")[1].replace("%", ""))
+        except (IndexError, ValueError):
+            logging.error(f"Error processing ranking string: {rank}")
+            continue
+        for category, patterns in pattern_mapping.items():
+            if any(pattern in rank for pattern in patterns):
+                category_sums[category] += prob
+
+    # Sort results and format for output
+    sorted_results = sorted(category_sums.items(), key=lambda x: x[1], reverse=True)
+    formatted_results = [f"{category} ({sum_prob:.2f}%)" for category, sum_prob in sorted_results if sum_prob > 0]
+
+    return " - ".join(formatted_results)
+
 
 class Support:
     """
-    Classe de suporte para treinamento e avaliação de modelos Random Forest com técnicas de oversampling.
+    Support class for training and evaluating Random Forest models with oversampling techniques.
     """
 
-    def __init__(self, cv=5, seed=SEED, n_jobs=1):
+    def __init__(self, cv=5, seed=SEED, n_jobs=8):
         self.cv = cv
         self.model = None
         self.seed = seed
@@ -314,17 +220,17 @@ class Support:
 
         self.init_params = {
             "n_estimators": 100,
-            "max_depth": 5,  # Reduzido para prevenir overfitting
-            "min_samples_split": 4,  # Aumentado para prevenir overfitting
+            "max_depth": 5,  # Reduced to prevent overfitting
+            "min_samples_split": 4,  # Increased to prevent overfitting
             "min_samples_leaf": 2,
             "criterion": "entropy",
-            "max_features": "log2",  # Alterado de 'sqrt' para 'log2'
-            "class_weight": "balanced",  # Balanceamento automático das classes
-            "max_leaf_nodes": 20,  # Ajustado para maior regularização
+            "max_features": "log2",  # Changed from 'sqrt' to 'log2'
+            "class_weight": "balanced",  # Automatic class balancing
+            "max_leaf_nodes": 20,  # Adjusted for greater regularization
             "min_impurity_decrease": 0.01,
             "bootstrap": True,
             "ccp_alpha": 0.001,
-            "random_state": self.seed  # Adicionado para RandomForest
+            "random_state": self.seed  # Added for RandomForest
         }
 
         self.parameters = {
@@ -343,16 +249,16 @@ class Support:
 
     def _oversample_single_sample_classes(self, X, y):
         """
-        Personaliza o oversampling para evitar oversampling de classes extremamente raras.
+        Customizes oversampling to avoid oversampling extremely rare classes.
         """
         counter = Counter(y)
         classes_to_oversample = [cls for cls, count in counter.items() if count >= 2]
-        
-        # Aplicar RandomOverSampler apenas nas classes que têm pelo menos 2 amostras
+
+        # Apply RandomOverSampler only to classes with at least 2 samples
         ros = RandomOverSampler(random_state=self.seed)
         X_ros, y_ros = ros.fit_resample(X, y)
 
-        # Aplicar SMOTE nas classes que podem ser sintetizadas
+        # Apply SMOTE to classes that can be synthesized
         smote = SMOTE(random_state=self.seed)
         X_smote, y_smote = smote.fit_resample(X_ros, y_ros)
 
@@ -366,8 +272,8 @@ class Support:
 
         return X_smote, y_smote
 
-    def fit(self, X, y, model_name_prefix='model', model_dir=None):
-        logging.info(f"Iniciando o método fit para {model_name_prefix}...")
+    def fit(self, X, y, model_name_prefix='model', model_dir=None, min_kmers=None):
+        logging.info(f"Starting fit method for {model_name_prefix}...")
 
         X = np.array(X)
         y = np.array(y)
@@ -383,7 +289,7 @@ class Support:
                 f.write(f"{cls}: {count}\n")
 
         if any(count < self.cv for count in sample_counts.values()):
-            raise ValueError(f"Há classes com menos membros que o número de folds após o oversampling para {model_name_prefix}.")
+            raise ValueError(f"There are classes with fewer members than the number of folds after oversampling for {model_name_prefix}.")
 
         min_class_count = min(sample_counts.values())
         self.cv = min(self.cv, min_class_count)
@@ -415,7 +321,7 @@ class Support:
                 for cls, count in train_sample_counts.items():
                     f.write(f"{cls}: {count}\n")
 
-            self.model = RandomForestClassifier(**self.init_params, n_jobs=1)  # Fix n_jobs=1
+            self.model = RandomForestClassifier(**self.init_params, n_jobs=self.n_jobs)
             self.model.fit(X_train_resampled, y_train_resampled)
 
             train_score = self.model.score(X_train_resampled, y_train_resampled)
@@ -424,7 +330,7 @@ class Support:
             self.train_scores.append(train_score)
             self.test_scores.append(test_score)
 
-            # Cálculo de F1-score e Precision-Recall AUC
+            # Calculate F1-score and Precision-Recall AUC
             y_pred = self.model.predict(X_test)
             y_pred_proba = self.model.predict_proba(X_test)
 
@@ -434,18 +340,18 @@ class Support:
             if len(np.unique(y_test)) > 1:
                 pr_auc = average_precision_score(y_test, y_pred_proba, average='macro')
             else:
-                pr_auc = 0.0  # Não é possível calcular PR AUC para uma única classe
+                pr_auc = 0.0  # Cannot calculate PR AUC for a single class
             self.pr_auc_scores.append(pr_auc)
 
             logging.info(f"Fold {fold_number} [{model_name_prefix}]: F1 Score: {f1}")
             logging.info(f"Fold {fold_number} [{model_name_prefix}]: Precision-Recall AUC: {pr_auc}")
 
-            # Cálculo do ROC AUC
+            # Calculate ROC AUC
             try:
                 if len(np.unique(y_test)) == 2:
                     fpr, tpr, thresholds = roc_curve(y_test, y_pred_proba[:, 1])
-                    roc_auc = auc(fpr, tpr)
-                    self.roc_results.append((fpr, tpr, roc_auc))
+                    roc_auc_score_value = auc(fpr, tpr)
+                    self.roc_results.append((fpr, tpr, roc_auc_score_value))
                 else:
                     y_test_bin = label_binarize(y_test, classes=self.model.classes_)
                     roc_auc_score_value = roc_auc_score(y_test_bin, y_pred_proba, multi_class='ovo', average='macro')
@@ -453,14 +359,14 @@ class Support:
             except ValueError:
                 logging.warning(f"Unable to calculate ROC AUC for fold {fold_number} [{model_name_prefix}] due to insufficient class representation.")
 
-            # Realizando busca em grade e salvando o melhor modelo
+            # Perform grid search and save the best model
             best_model, best_params = self._perform_grid_search(X_train_resampled, y_train_resampled)
             self.model = best_model
             self.best_params = best_params
 
             if model_dir:
                 best_model_filename = os.path.join(model_dir, f'best_model_{model_name_prefix}.pkl')
-                # Garantir que o diretório exista
+                # Ensure the directory exists
                 os.makedirs(os.path.dirname(best_model_filename), exist_ok=True)
                 joblib.dump(best_model, best_model_filename)
                 logging.info(f"Best model saved as {best_model_filename} for {model_name_prefix}")
@@ -475,8 +381,8 @@ class Support:
             else:
                 logging.warning(f"No best parameters found from grid search for {model_name_prefix}.")
 
-            # Integração da Calibração de Probabilidades
-            calibrator = CalibratedClassifierCV(self.model, method='isotonic', cv=5, n_jobs=1)  # Fix n_jobs=1
+            # Integrate Probability Calibration
+            calibrator = CalibratedClassifierCV(self.model, method='isotonic', cv=5, n_jobs=self.n_jobs)
             calibrator.fit(X_train_resampled, y_train_resampled)
 
             self.model = calibrator
@@ -490,6 +396,9 @@ class Support:
 
             fold_number += 1
 
+            # Allow Streamlit to update the UI
+            time.sleep(0.1)
+
         return self.model
 
     def _perform_grid_search(self, X_train_resampled, y_train_resampled):
@@ -498,7 +407,7 @@ class Support:
             RandomForestClassifier(random_state=self.seed),
             self.parameters,
             cv=skf,
-            n_jobs=1,  # Fix n_jobs=1 para reproducibilidade
+            n_jobs=self.n_jobs,
             scoring='roc_auc_ovo',
             verbose=1
         )
@@ -516,25 +425,25 @@ class Support:
         plt.plot(self.test_scores, label='Cross-validation score')
         plt.plot(self.f1_scores, label='F1 Score')
         plt.plot(self.pr_auc_scores, label='Precision-Recall AUC')
-        plt.title("Learning Curve")
-        plt.xlabel("Fold")
-        plt.ylabel("Score")
+        plt.title("Learning Curve", color='white')
+        plt.xlabel("Fold", fontsize=12, fontweight='bold', color='white')
+        plt.ylabel("Score", fontsize=12, fontweight='bold', color='white')
         plt.legend(loc="best")
-        plt.grid()
-        plt.savefig(output_path)
+        plt.grid(color='white', linestyle='--', linewidth=0.5)
+        plt.savefig(output_path, facecolor='#0B3C5D')  # Match the background color
         plt.close()
 
     def get_class_rankings(self, X):
         """
-        Obtém as classificações das classes para os dados fornecidos.
+        Gets class rankings for the given data.
         """
         if self.model is None:
             raise ValueError("Model not fitted yet. Please fit the model first.")
 
-        # Obtendo probabilidades para cada classe
+        # Obtaining probabilities for each class
         y_pred_proba = self.model.predict_proba(X)
 
-        # Classificando as classes com base nas probabilidades
+        # Ranking classes based on probabilities
         class_rankings = []
         for probabilities in y_pred_proba:
             ranked_classes = sorted(zip(self.model.classes_, probabilities), key=lambda x: x[1], reverse=True)
@@ -542,31 +451,31 @@ class Support:
             class_rankings.append(formatted_rankings)
 
         return class_rankings
-        
+
     def test_best_RF(self, X, y, scaler_dir='.'):
         """
-        Testa o melhor modelo Random Forest com os dados fornecidos.
+        Tests the best Random Forest model with the given data.
         """
-        # Carregar o scaler
+        # Load the scaler
         scaler_path = os.path.join(scaler_dir, 'scaler.pkl') if scaler_dir else 'scaler.pkl'
         if os.path.exists(scaler_path):
             scaler = joblib.load(scaler_path)
-            logging.info(f"Scaler carregado de {scaler_path}")
+            logging.info(f"Scaler loaded from {scaler_path}")
         else:
-            logging.error(f"Scaler não encontrado em {scaler_path}")
+            logging.error(f"Scaler not found at {scaler_path}")
             sys.exit(1)
 
-        X_scaled = scaler.transform(X)        
+        X_scaled = scaler.transform(X)
 
-        # Aplicar oversampling ao conjunto inteiro antes do split
+        # Apply oversampling to the entire dataset before splitting
         X_resampled, y_resampled = self._oversample_single_sample_classes(X_scaled, y)
 
-        # Dividir em treinamento e teste
+        # Split into training and testing
         X_train, X_test, y_train, y_test = train_test_split(
             X_resampled, y_resampled, test_size=0.4, random_state=self.seed, stratify=y_resampled
         )
 
-        # Treinar o RandomForestClassifier com os melhores parâmetros
+        # Train RandomForestClassifier with the best parameters
         model = RandomForestClassifier(
             n_estimators=self.best_params.get('n_estimators', 100),
             max_depth=self.best_params.get('max_depth', 5),
@@ -580,36 +489,36 @@ class Support:
             bootstrap=self.best_params.get('bootstrap', True),
             ccp_alpha=self.best_params.get('ccp_alpha', 0.001),
             random_state=self.seed,
-            n_jobs=1  # Fix n_jobs=1 para reproducibilidade
+            n_jobs=self.n_jobs
         )
         model.fit(X_train, y_train)  # Fit the model on the training data
 
-        # Integração da Calibração no Modelo de Teste
-        calibrator = CalibratedClassifierCV(model, method='isotonic', cv=5, n_jobs=1)  # Fix n_jobs=1
+        # Integrate Calibration into the Test Model
+        calibrator = CalibratedClassifierCV(model, method='isotonic', cv=5, n_jobs=self.n_jobs)
         calibrator.fit(X_train, y_train)
         calibrated_model = calibrator
 
-        # Fazer previsões
+        # Make predictions
         y_pred = calibrated_model.predict_proba(X_test)
         y_pred_adjusted = adjust_predictions_global(y_pred, method='normalize')
 
-        # Calcular o score (por exemplo, AUC)
+        # Calculate the score (e.g., AUC)
         score = self._calculate_score(y_pred_adjusted, y_test)
 
-        # Calcular métricas adicionais
+        # Calculate additional metrics
         y_pred_classes = calibrated_model.predict(X_test)
         f1 = f1_score(y_test, y_pred_classes, average='weighted')
         if len(np.unique(y_test)) > 1:
             pr_auc = average_precision_score(y_test, y_pred_adjusted, average='macro')
         else:
-            pr_auc = 0.0  # Não é possível calcular PR AUC para uma única classe
+            pr_auc = 0.0  # Cannot calculate PR AUC for a single class
 
-        # Retornar o score, melhores parâmetros, modelo treinado e conjuntos de teste
+        # Return the score, best parameters, trained model, and test sets
         return score, f1, pr_auc, self.best_params, calibrated_model, X_test, y_test
 
     def _calculate_score(self, y_pred, y_test):
         """
-        Calcula o score (e.g., ROC AUC) com base nas previsões e rótulos reais.
+        Calculates the score (e.g., ROC AUC) based on predictions and actual labels.
         """
         n_classes = len(np.unique(y_test))
         if y_pred.ndim == 1 or n_classes == 2:
@@ -623,129 +532,140 @@ class Support:
 
     def plot_roc_curve(self, y_true, y_pred_proba, title, save_as=None, classes=None):
         """
-        Plota a curva ROC para classificações binárias ou multiclasse.
+        Plots ROC curve for binary or multiclass classifications.
         """
         plot_roc_curve_global(y_true, y_pred_proba, title, save_as, classes)
+
 
 class ProteinEmbeddingGenerator:
     def __init__(self, sequences_path, table_data=None, aggregation_method='none'):
         aligned_path = sequences_path
         if not are_sequences_aligned(sequences_path):
-            realign_sequences_with_mafft(sequences_path, sequences_path.replace(".fasta", "_aligned.fasta"))
+            realign_sequences_with_mafft(sequences_path, sequences_path.replace(".fasta", "_aligned.fasta"), threads=1)
             aligned_path = sequences_path.replace(".fasta", "_aligned.fasta")
+        else:
+            logging.info(f"Sequences are already aligned: {sequences_path}")
 
         self.alignment = AlignIO.read(aligned_path, 'fasta')
         self.table_data = table_data
         self.embeddings = []
         self.models = {}
-        self.aggregation_method = aggregation_method  # Adicionado para escolher o método de agregação
-        self.min_kmers = None  # Adicionado para armazenar o min_kmers
+        self.aggregation_method = aggregation_method  # Added to choose the aggregation method
+        self.min_kmers = None  # Added to store min_kmers
 
-    def generate_embeddings(self, k=3, step_size=1, word2vec_model_path="modelo_word2vec.bin", model_dir=None, min_kmers=None):
+    def generate_embeddings(self, k=3, step_size=1, word2vec_model_path="word2vec_model.bin", model_dir=None, min_kmers=None, save_min_kmers=False):
         """
-        Gera embeddings para as sequências de proteínas usando Word2Vec, padronizando o número de k-mers.
+        Generates embeddings for protein sequences using Word2Vec, standardizing the number of k-mers.
         """
-        # Definir o caminho completo do modelo Word2Vec
+        # Define the full path of the Word2Vec model
         if model_dir:
             word2vec_model_full_path = os.path.join(model_dir, word2vec_model_path)
         else:
             word2vec_model_full_path = word2vec_model_path
 
-        # Verificar se o modelo Word2Vec já existe
+        # Check if the Word2Vec model already exists
         if os.path.exists(word2vec_model_full_path):
-            logging.info(f"Modelo Word2Vec encontrado em {word2vec_model_full_path}. Carregando o modelo.")
+            logging.info(f"Word2Vec model found at {word2vec_model_full_path}. Loading the model.")
             model = Word2Vec.load(word2vec_model_full_path)
             self.models['global'] = model
         else:
-            logging.info("Modelo Word2Vec não encontrado. Treinando um novo modelo.")
-            # Inicialização das Variáveis
+            logging.info("Word2Vec model not found. Training a new model.")
+            # Variable Initialization
             kmer_groups = {}
             all_kmers = []
             kmers_counts = []
 
-            # Geração de k-mers
+            # Generate k-mers
             for record in self.alignment:
                 sequence = str(record.seq)
                 seq_len = len(sequence)
                 protein_accession_alignment = record.id.split()[0]
 
-                # Se a tabela de dados não for fornecida, skip matching
+                # If table data is not provided, skip matching
                 if self.table_data is not None:
                     matching_rows = self.table_data['Protein.accession'].str.split().str[0] == protein_accession_alignment
                     matching_info = self.table_data[matching_rows]
 
                     if matching_info.empty:
-                        logging.warning(f"Nenhuma correspondência na tabela de dados para {protein_accession_alignment}")
-                        continue  # Pula para a próxima iteração
+                        logging.warning(f"No match in data table for {protein_accession_alignment}")
+                        continue  # Skip to the next iteration
 
                     target_variable = matching_info['Target variable'].values[0]
                     associated_variable = matching_info['Associated variable'].values[0]
 
                 else:
-                    # Se não houver tabela, usamos valores padrão ou None
+                    # If there's no table, use default values or None
                     target_variable = None
                     associated_variable = None
 
-                logging.info(f"Processando {protein_accession_alignment} com comprimento de sequência {seq_len}")
+                logging.info(f"Processing {protein_accession_alignment} with sequence length {seq_len}")
 
                 if seq_len < k:
-                    logging.warning(f"Sequência muito curta para {protein_accession_alignment}. Tamanho: {seq_len}")
+                    logging.warning(f"Sequence too short for {protein_accession_alignment}. Length: {seq_len}")
                     continue
 
-                # Geração de k-mers, permitindo k-mers com menos de k gaps
+                # Generate k-mers, allowing k-mers with less than k gaps
                 kmers = [sequence[i:i + k] for i in range(0, seq_len - k + 1, step_size)]
-                kmers = [kmer for kmer in kmers if kmer.count('-') < k]  # Permite k-mers com menos de k gaps
+                kmers = [kmer for kmer in kmers if kmer.count('-') < k]  # Allows k-mers with less than k gaps
 
                 if not kmers:
-                    logging.warning(f"Nenhum k-mer válido para {protein_accession_alignment}")
+                    logging.warning(f"No valid k-mer for {protein_accession_alignment}")
                     continue
 
-                all_kmers.append(kmers)  # Adiciona a lista de k-mers como uma sentença
-                kmers_counts.append(len(kmers))  # Armazena a contagem de k-mers
+                all_kmers.append(kmers)  # Adds the list of k-mers as a sentence
+                kmers_counts.append(len(kmers))  # Stores the count of k-mers
 
                 embedding_info = {
                     'protein_accession': protein_accession_alignment,
                     'target_variable': target_variable,
                     'associated_variable': associated_variable,
-                    'kmers': kmers  # Armazena os k-mers para uso posterior
+                    'kmers': kmers  # Stores the k-mers for later use
                 }
                 kmer_groups[protein_accession_alignment] = embedding_info
 
-            # Determinar o número mínimo de k-mers
+            # Determine the minimum number of k-mers
             if not kmers_counts:
-                logging.error("Nenhum k-mer foi coletado. Verifique suas sequências e parâmetros de k-mer.")
+                logging.error("No k-mers were collected. Check your sequences and k-mer parameters.")
                 sys.exit(1)
 
             if min_kmers is not None:
                 self.min_kmers = min_kmers
-                logging.info(f"Usando min_kmers fornecido: {self.min_kmers}")
+                logging.info(f"Using provided min_kmers: {self.min_kmers}")
             else:
                 self.min_kmers = min(kmers_counts)
-                logging.info(f"Número mínimo de k-mers em qualquer sequência: {self.min_kmers}")
+                logging.info(f"Minimum number of k-mers in any sequence: {self.min_kmers}")
 
-            # Treinar modelo Word2Vec usando todos os k-mers
+            # Save min_kmers if required
+            if save_min_kmers and model_dir:
+                min_kmers_path = os.path.join(model_dir, 'min_kmers.txt')
+                with open(min_kmers_path, 'w') as f:
+                    f.write(str(self.min_kmers))
+                logging.info(f"min_kmers saved at {min_kmers_path}")
+
+            # Train Word2Vec model using all k-mers
             model = Word2Vec(
                 sentences=all_kmers,
-                vector_size=125,  # mudar para 100 se necessário
+                vector_size=125,  # change to 100 if necessary
                 window=5,
                 min_count=1,
-                workers=1,  # Fixar workers=1 para reproducibilidade
+                workers=8,
                 sg=1,
                 hs=1,  # Hierarchical softmax enabled
                 negative=0,  # Negative sampling disabled
-                epochs=2500,  # Fixar número de epochs para reproducibilidade
-                seed=SEED  # Fixar seed para reproducibilidade
+                epochs=2500,  # Fix number of epochs for reproducibility
+                seed=SEED  # Fix seed for reproducibility
             )
 
-            # Criar diretório para o modelo Word2Vec, se necessário
-            os.makedirs(os.path.dirname(word2vec_model_full_path), exist_ok=True)
+            # Create directory for the Word2Vec model if necessary
+            if model_dir:
+                os.makedirs(os.path.dirname(word2vec_model_full_path), exist_ok=True)
 
-            # Salvar o modelo Word2Vec
+            # Save the Word2Vec model
             model.save(word2vec_model_full_path)
             self.models['global'] = model
-            logging.info(f"Modelo Word2Vec salvo em {word2vec_model_full_path}")
+            logging.info(f"Word2Vec model saved at {word2vec_model_full_path}")
 
-        # Gerar embeddings padronizados
+        # Generate standardized embeddings
         kmer_groups = {}
         kmers_counts = []
         all_kmers = []
@@ -754,28 +674,28 @@ class ProteinEmbeddingGenerator:
             sequence = str(record.seq)
             protein_accession_alignment = record.id.split()[0]
 
-            # Se a tabela de dados não for fornecida, skip matching
+            # If table data is not provided, skip matching
             if self.table_data is not None:
                 matching_rows = self.table_data['Protein.accession'].str.split().str[0] == protein_accession_alignment
                 matching_info = self.table_data[matching_rows]
 
                 if matching_info.empty:
-                    logging.warning(f"Nenhuma correspondência na tabela de dados para {protein_accession_alignment}")
-                    continue  # Pula para a próxima iteração
+                    logging.warning(f"No match in data table for {protein_accession_alignment}")
+                    continue  # Skip to the next iteration
 
                 target_variable = matching_info['Target variable'].values[0]
                 associated_variable = matching_info['Associated variable'].values[0]
 
             else:
-                # Se não houver tabela, usamos valores padrão ou None
+                # If there's no table, use default values or None
                 target_variable = None
                 associated_variable = None
 
             kmers = [sequence[i:i + k] for i in range(0, len(sequence) - k + 1, step_size)]
-            kmers = [kmer for kmer in kmers if kmer.count('-') < k]  # Permite k-mers com menos de k gaps
+            kmers = [kmer for kmer in kmers if kmer.count('-') < k]  # Allows k-mers with less than k gaps
 
             if not kmers:
-                logging.warning(f"Nenhum k-mer válido para {protein_accession_alignment}")
+                logging.warning(f"No valid k-mer for {protein_accession_alignment}")
                 continue
 
             all_kmers.append(kmers)
@@ -789,21 +709,21 @@ class ProteinEmbeddingGenerator:
             }
             kmer_groups[protein_accession_alignment] = embedding_info
 
-        # Determinar o número mínimo de k-mers
+        # Determine the minimum number of k-mers
         if not kmers_counts:
-            logging.error("Nenhum k-mer foi coletado. Verifique suas sequências e parâmetros de k-mer.")
+            logging.error("No k-mers were collected. Check your sequences and k-mer parameters.")
             sys.exit(1)
 
         if min_kmers is not None:
             self.min_kmers = min_kmers
-            logging.info(f"Usando min_kmers fornecido: {self.min_kmers}")
+            logging.info(f"Using provided min_kmers: {self.min_kmers}")
         else:
             self.min_kmers = min(kmers_counts)
-            logging.info(f"Número mínimo de k-mers em qualquer sequência: {self.min_kmers}")
+            logging.info(f"Minimum number of k-mers in any sequence: {self.min_kmers}")
 
-        # Gerar embeddings padronizados
+        # Generate standardized embeddings
         for record in self.alignment:
-            sequence_id = record.id.split()[0]  # Ajuste para usar IDs consistentes
+            sequence_id = record.id.split()[0]  # Use consistent sequence IDs
             embedding_info = kmer_groups.get(sequence_id, {})
             kmers_for_protein = embedding_info.get('kmers', [])
 
@@ -820,35 +740,35 @@ class ProteinEmbeddingGenerator:
                 })
                 continue
 
-            # Selecionar os primeiros min_kmers k-mers
+            # Select the first min_kmers k-mers
             selected_kmers = kmers_for_protein[:self.min_kmers]
 
-            # Padronizar com vetores de zeros se necessário
+            # Pad with zeros if necessary
             if len(selected_kmers) < self.min_kmers:
                 padding = [np.zeros(self.models['global'].vector_size)] * (self.min_kmers - len(selected_kmers))
                 selected_kmers.extend(padding)
 
-            # Obter os embeddings dos k-mers selecionados
+            # Get embeddings of the selected k-mers
             selected_embeddings = [self.models['global'].wv[kmer] if kmer in self.models['global'].wv else np.zeros(self.models['global'].vector_size) for kmer in selected_kmers]
 
             if self.aggregation_method == 'none':
-                # Concatenar os embeddings dos k-mers selecionados
+                # Concatenate embeddings of the selected k-mers
                 embedding_concatenated = np.concatenate(selected_embeddings, axis=0)
             elif self.aggregation_method == 'mean':
-                # Agregar os embeddings dos k-mers selecionados pela média
+                # Aggregate embeddings of the selected k-mers by mean
                 embedding_concatenated = np.mean(selected_embeddings, axis=0)
             elif self.aggregation_method == 'median':
-                # Agregar os embeddings dos k-mers selecionados pela mediana
+                # Aggregate embeddings of the selected k-mers by median
                 embedding_concatenated = np.median(selected_embeddings, axis=0)
             elif self.aggregation_method == 'sum':
-                # Agregar os embeddings dos k-mers selecionados pela soma
+                # Aggregate embeddings of the selected k-mers by sum
                 embedding_concatenated = np.sum(selected_embeddings, axis=0)
             elif self.aggregation_method == 'max':
-                # Agregar os embeddings dos k-mers selecionados pelo máximo
+                # Aggregate embeddings of the selected k-mers by maximum
                 embedding_concatenated = np.max(selected_embeddings, axis=0)
             else:
-                # Caso não reconheça o método, usar concatenação como default
-                logging.warning(f"Método de agregação desconhecido '{self.aggregation_method}'. Usando concatenação.")
+                # If method not recognized, use concatenation as default
+                logging.warning(f"Unknown aggregation method '{self.aggregation_method}'. Using concatenation.")
                 embedding_concatenated = np.concatenate(selected_embeddings, axis=0)
 
             self.embeddings.append({
@@ -860,48 +780,37 @@ class ProteinEmbeddingGenerator:
 
             logging.debug(f"Protein ID: {sequence_id}, Embedding Shape: {embedding_concatenated.shape}")
 
-        # Verificar se todas as embeddings têm a mesma forma
-        embeddings_array = np.array([entry['embedding'] for entry in self.embeddings])
-        embedding_shapes = set(embedding.shape for embedding in embeddings_array)
+        # Adjust StandardScaler with embeddings for training/prediction
+        embeddings_array_train = np.array([entry['embedding'] for entry in self.embeddings])
+
+        # Check if all embeddings have the same shape
+        embedding_shapes = set(embedding.shape for embedding in [entry['embedding'] for entry in self.embeddings])
         if len(embedding_shapes) != 1:
             logging.error(f"Inconsistent embedding shapes detected: {embedding_shapes}")
             raise ValueError("Embeddings have inconsistent shapes.")
         else:
             logging.info(f"All embeddings have shape: {embedding_shapes.pop()}")
 
-        # Definir o caminho completo do scaler
+        # Define the full path of the scaler
         scaler_full_path = os.path.join(model_dir, 'scaler.pkl') if model_dir else 'scaler.pkl'
 
-        # Verificar se o scaler já existe
+        # Check if the scaler already exists
         if os.path.exists(scaler_full_path):
-            logging.info(f"StandardScaler encontrado em {scaler_full_path}. Carregando o scaler.")
+            logging.info(f"StandardScaler found at {scaler_full_path}. Loading the scaler.")
             scaler = joblib.load(scaler_full_path)
         else:
-            logging.info("StandardScaler não encontrado. Treinando um novo scaler.")
-            scaler = StandardScaler().fit(embeddings_array)
-            logging.info(f"Salvando StandardScaler em {scaler_full_path}")
+            logging.info("StandardScaler not found. Training a new scaler.")
+            scaler = StandardScaler().fit(embeddings_array_train)
             joblib.dump(scaler, scaler_full_path)
-            logging.info(f"StandardScaler salvo em {scaler_full_path}")
+            logging.info(f"StandardScaler saved at {scaler_full_path}")
 
-    def get_embeddings_and_labels(self, label_type='target_variable'):
-        """
-        Retorna os embeddings e os rótulos associados (target_variable ou associated_variable).
-        """
-        embeddings = []
-        labels = []
-        
-        for embedding_info in self.embeddings:
-            embeddings.append(embedding_info['embedding'])
-            labels.append(embedding_info[label_type])  # Usa o tipo de rótulo especificado
-        
-        return np.array(embeddings), np.array(labels)
 
-def format_and_sum_probabilities(associated_rankings):
+def generate_accuracy_pie_chart(formatted_results, table_data, output_path):
     """
-    Formata e soma as probabilidades para cada categoria.
+    Generates a pie chart showing accuracy by category.
     """
-    category_sums = {}
-    categories = ['C4-C6-C8', 'C6-C8-C10', 'C8-C10-C12', 'C10-C12-C14', 'C12-C14-C16', 'C14-C16-C18']
+    category_counts = Counter()
+    correct_counts = Counter()
     pattern_mapping = {
         'C4-C6-C8': ['C4', 'C6', 'C8'],
         'C6-C8-C10': ['C6', 'C8', 'C10'],
@@ -911,94 +820,230 @@ def format_and_sum_probabilities(associated_rankings):
         'C14-C16-C18': ['C14', 'C16', 'C18'],
     }
 
-    # Inicializar o dicionário de somas
-    for category in categories:
-        category_sums[category] = 0.0
+    for result in formatted_results:
+        seq_id = result[0]
+        corresponding_row = table_data[table_data['Protein.accession'].str.split().str[0] == seq_id]
+        if not corresponding_row.empty:
+            associated_variable_real = corresponding_row['Associated variable'].values[0]
+            for category, patterns in pattern_mapping.items():
+                if any(pat in result[1] for pat in patterns):
+                    category_counts[category] += 1
+                    if any(pat in associated_variable_real for pat in patterns):
+                        correct_counts[category] += 1
 
-    # Somar as probabilidades para cada categoria
-    for rank in associated_rankings:
-        try:
-            prob = float(rank.split(": ")[1].replace("%", ""))
-        except (IndexError, ValueError):
-            logging.error(f"Erro ao processar a string de ranking: {rank}")
-            continue
-        for category, patterns in pattern_mapping.items():
-            if any(pattern in rank for pattern in patterns):
-                category_sums[category] += prob
+    # Create pie chart
+    accuracy = {category: (correct_counts[category] / category_counts[category] * 100) if category_counts[category] > 0 else 0
+                for category in category_counts.keys()}
 
-    # Ordenar os resultados e formatar para saída
-    sorted_results = sorted(category_sums.items(), key=lambda x: x[1], reverse=True)
-    formatted_results = [f"{category} ({sum_prob:.2f}%)" for category, sum_prob in sorted_results if sum_prob > 0]
+    # Remove categories with count 0 to avoid NaN in the chart
+    accuracy = {k: v for k, v in accuracy.items() if category_counts[k] > 0}
 
-    return " - ".join(formatted_results)
+    plt.figure(figsize=(8, 8))
+    if accuracy:
+        plt.pie(accuracy.values(), labels=[f'{key} ({val:.1f}%)' for key, val in accuracy.items()], autopct='%1.1f%%', textprops={'color': 'white'})
+    else:
+        logging.warning("No data to plot in the pie chart.")
+    plt.title('Accuracy by Category', color='white')
+    plt.tight_layout()
+    plt.savefig(output_path, facecolor='#0B3C5D')  # Match the background color
+    plt.close()
+
+
+def plot_predictions_scatterplot_custom(results, output_path):
+    """
+    Generates a scatter plot of the predictions for the new sequences.
+
+    Y-axis: Protein accession ID
+    X-axis: Specificities from 2 to 18
+    Each point represents the corresponding specificity for the protein
+    Lines connect the points of each protein
+    Points are represented in grayscale, indicating the associated percentage.
+    """
+    # Prepare data
+    protein_specificities = {}
+
+    for seq_id, info in results.items():
+        rankings = info['associated_ranking']
+        specificity_probs = {}
+
+        for ranking in rankings:
+            try:
+                category, prob = ranking.split(": ")
+                prob = float(prob.replace("%", ""))
+                # Extract numbers from categories, assuming they are in the format 'C4-C6-C8'
+                specs = [int(s.strip('C')) for s in category.split('-') if s.startswith('C')]
+                for spec in specs:
+                    if spec in specificity_probs:
+                        specificity_probs[spec] += prob  # Sum probabilities if already exists
+                    else:
+                        specificity_probs[spec] = prob
+            except ValueError:
+                logging.error(f"Error processing ranking: {ranking} for protein {seq_id}")
+
+        if specificity_probs:
+            # Normalize probabilities for each specificity
+            total_prob = sum(specificity_probs.values())
+            if total_prob > 0:
+                for spec in specificity_probs:
+                    specificity_probs[spec] = (specificity_probs[spec] / total_prob) * 100
+            protein_specificities[seq_id] = specificity_probs
+
+    if not protein_specificities:
+        logging.warning("No data available to plot the scatterplot.")
+        return
+
+    # Sort protein IDs for better visualization
+    unique_proteins = sorted(protein_specificities.keys())
+    protein_order = {protein: idx for idx, protein in enumerate(unique_proteins)}
+
+    plt.figure(figsize=(20, max(10, len(unique_proteins) * 0.5)))  # Adjust height based on the number of proteins
+
+    for protein, specs in protein_specificities.items():
+        y = protein_order[protein]
+        x = sorted(specs.keys())
+        probs = [specs[spec] for spec in x]
+
+        # Normalize probabilities to [0,1] for grayscale
+        probs_normalized = [p / 100.0 for p in probs]
+
+        # Map probabilities to grayscale colors (1 - p so that higher probability is darker)
+        colors = [str(1 - p) for p in probs_normalized]
+
+        # Plot points
+        plt.scatter(x, [y] * len(x), c=colors, cmap='gray', edgecolors='w', s=100)
+
+        # Connect points with lines
+        plt.plot(x, [y] * len(x), color='gray', linestyle='-', linewidth=0.5, alpha=0.5)
+
+    plt.xlabel('Specificity', fontsize=12, fontweight='bold', color='white')
+    plt.ylabel('Proteins', fontsize=12, fontweight='bold', color='white')
+    plt.title('Scatterplot of New Sequences Predictions', fontsize=14, fontweight='bold', color='white')
+
+    plt.yticks(ticks=range(len(unique_proteins)), labels=unique_proteins, fontsize=8, color='white')
+    plt.xticks(ticks=range(2, 19), fontsize=10, color='white')
+    plt.grid(True, axis='x', linestyle='--', alpha=0.5, color='white')
+
+    plt.gca().set_facecolor('#0B3C5D')  # Match the background color
+    plt.savefig(output_path, facecolor='#0B3C5D', dpi=300)  # Match the background color
+    plt.close()
+
+
+def adjust_predictions_global(predicted_proba, method='normalize', alpha=1.0):
+    """
+    Adjusts the predicted probabilities from the model.
+    """
+    if method == 'normalize':
+        # Normalize probabilities so they sum to 1 for each sample
+        logging.info("Normalizing predicted probabilities.")
+        adjusted_proba = predicted_proba / predicted_proba.sum(axis=1, keepdims=True)
+
+    elif method == 'smoothing':
+        # Apply smoothing to probabilities to avoid extreme values
+        logging.info(f"Applying smoothing to predicted probabilities with alpha={alpha}.")
+        adjusted_proba = (predicted_proba + alpha) / (predicted_proba.sum(axis=1, keepdims=True) + alpha * predicted_proba.shape[1])
+
+    elif method == 'none':
+        # Do not apply any adjustment
+        logging.info("No adjustment applied to predicted probabilities.")
+        adjusted_proba = predicted_proba.copy()
+
+    else:
+        logging.warning(f"Unknown adjustment method '{method}'. No adjustment will be applied.")
+        adjusted_proba = predicted_proba.copy()
+
+    return adjusted_proba
+
 
 def main(args):
+    model_dir = args.model_dir  # This should be 'results/models'
+
     """
-    Função principal que coordena o fluxo de trabalho.
+    Main function coordinating the workflow.
     """
     model_dir = args.model_dir
 
+    # Initialize progress variables
+    total_steps = 10
+    current_step = 0
+    progress_bar = st.progress(0)
+    progress_text = st.empty()
+
     # =============================
-    # ETAPA 1: Treinamento do Modelo
+    # STEP 1: Model Training
     # =============================
 
-    # Carregar dados de treinamento
+    # Load training data
     train_alignment_path = args.train_fasta
     train_table_data_path = args.train_table
 
-    # Verifica se as sequências de treinamento estão alinhadas
+    # Check if training sequences are aligned
     if not are_sequences_aligned(train_alignment_path):
-        logging.info("Sequências de treinamento não estão alinhadas. Realinhando com MAFFT...")
+        logging.info("Training sequences are not aligned. Realigning with MAFFT...")
         aligned_train_path = train_alignment_path.replace(".fasta", "_aligned.fasta")
-        realign_sequences_with_mafft(train_alignment_path, aligned_train_path, threads=1)  # Fixar threads=1
+        realign_sequences_with_mafft(train_alignment_path, aligned_train_path, threads=1)  # Fix threads=1
         train_alignment_path = aligned_train_path
     else:
-        logging.info(f"Arquivo alinhado de treinamento encontrado ou sequências já alinhadas: {train_alignment_path}")
+        logging.info(f"Aligned training file found or sequences already aligned: {train_alignment_path}")
 
-    # Carregar dados da tabela de treinamento
+    # Load training table data
     train_table_data = pd.read_csv(train_table_data_path, delimiter="\t")
-    logging.info("Tabela de dados de treinamento carregada com sucesso.")
+    logging.info("Training data table loaded successfully.")
 
-    # Inicializar e gerar embeddings para o treinamento
+    # Update progress
+    current_step += 1
+    progress = min(current_step / total_steps, 1.0)
+    progress_bar.progress(progress)
+    progress_text.markdown(f"<span style='color:white'>Progress: {int(progress * 100)}%</span>", unsafe_allow_html=True)
+    time.sleep(0.1)
+
+    # Initialize and generate embeddings for training
     protein_embedding_train = ProteinEmbeddingGenerator(
         train_alignment_path, 
         train_table_data, 
-        aggregation_method=args.aggregation_method  # Passando o método de agregação
+        aggregation_method=args.aggregation_method  # Passing the aggregation method
     )
     protein_embedding_train.generate_embeddings(
         k=args.kmer_size,
         step_size=args.step_size,
         word2vec_model_path=args.word2vec_model,
-        model_dir=model_dir
+        model_dir=model_dir,
+        save_min_kmers=True  # Save min_kmers after training
     )
-    logging.info(f"Número de embeddings de treinamento gerados: {len(protein_embedding_train.embeddings)}")
+    logging.info(f"Number of training embeddings generated: {len(protein_embedding_train.embeddings)}")
 
-    # Armazenar o min_kmers usado no treinamento
-    min_kmers_training = protein_embedding_train.min_kmers
+    # Save min_kmers to ensure consistency
+    min_kmers = protein_embedding_train.min_kmers
 
-    # Obter embeddings e rótulos para target_variable
+    # Get embeddings and labels for target_variable
     X_target, y_target = protein_embedding_train.get_embeddings_and_labels(label_type='target_variable')
     logging.info(f"X_target shape: {X_target.shape}")
 
-    # Caminhos completos dos modelos para target_variable
+    # Full paths for target_variable models
     rf_model_target_full_path = os.path.join(model_dir, args.rf_model_target)
     calibrated_model_target_full_path = os.path.join(model_dir, 'calibrated_model_target.pkl')
 
-    # Verificar se o modelo calibrado para target_variable já existe
+    # Update progress
+    current_step += 1
+    progress = min(current_step / total_steps, 1.0)
+    progress_bar.progress(progress)
+    progress_text.markdown(f"<span style='color:white'>Progress: {int(progress * 100)}%</span>", unsafe_allow_html=True)
+    time.sleep(0.1)
+
+    # Check if calibrated model for target_variable already exists
     if os.path.exists(calibrated_model_target_full_path):
         calibrated_model_target = joblib.load(calibrated_model_target_full_path)
-        logging.info(f"Calibrated Random Forest model para target_variable carregado de {calibrated_model_target_full_path}")
+        logging.info(f"Calibrated Random Forest model for target_variable loaded from {calibrated_model_target_full_path}")
     else:
-        # Treinamento do modelo para target_variable
+        # Model training for target_variable
         support_model_target = Support()
-        calibrated_model_target = support_model_target.fit(X_target, y_target, model_name_prefix='target', model_dir=model_dir)
-        logging.info("Treinamento e calibração para target_variable concluídos.")
+        calibrated_model_target = support_model_target.fit(X_target, y_target, model_name_prefix='target', model_dir=model_dir, min_kmers=min_kmers)
+        logging.info("Training and calibration for target_variable completed.")
 
-        # Salvar o modelo calibrado
+        # Save the calibrated model
         joblib.dump(calibrated_model_target, calibrated_model_target_full_path)
-        logging.info(f"Calibrated Random Forest model for target_variable salvo em {calibrated_model_target_full_path}")
+        logging.info(f"Calibrated Random Forest model for target_variable saved at {calibrated_model_target_full_path}")
 
-        # Testar o modelo
+        # Test the model
         best_score, best_f1, best_pr_auc, best_params, best_model_target, X_test_target, y_test_target = support_model_target.test_best_RF(X_target, y_target, scaler_dir=args.model_dir)
 
         logging.info(f"Best ROC AUC for target_variable: {best_score}")
@@ -1009,61 +1054,75 @@ def main(args):
         for param, value in best_params.items():
             logging.info(f"{param}: {value}")
 
-        # Obter rankings de classe
+        # Get class rankings
         class_rankings = support_model_target.get_class_rankings(X_test_target)
 
-        # Exibir os rankings para as primeiras 5 amostras
+        # Display rankings for the first 5 samples
         logging.info("Top 3 class rankings for the first 5 samples:")
         for i in range(min(5, len(class_rankings))):
-            logging.info(f"Sample {i+1}: Class rankings - {class_rankings[i][:3]}")  # Mostra as top 3 classificações
+            logging.info(f"Sample {i+1}: Class rankings - {class_rankings[i][:3]}")  # Shows top 3 rankings
 
-        # Plotar a curva ROC
+        # Plot ROC curve
         n_classes_target = len(np.unique(y_test_target))
         if n_classes_target == 2:
             y_pred_proba_target = best_model_target.predict_proba(X_test_target)[:, 1]
         else:
             y_pred_proba_target = best_model_target.predict_proba(X_test_target)
             unique_classes_target = np.unique(y_test_target).astype(str)
-        plot_roc_curve_global(y_test_target, y_pred_proba_target, 'ROC Curve for target_variable', save_as=args.roc_curve_target, classes=unique_classes_target)
+        plot_roc_curve_global(y_test_target, y_pred_proba_target, 'ROC Curve for Target Variable', save_as=args.roc_curve_target, classes=unique_classes_target)
 
-        # Converter y_test_target para rótulos inteiros
+        # Convert y_test_target to integer labels
         unique_labels = sorted(set(y_test_target))
         label_to_int = {label: idx for idx, label in enumerate(unique_labels)}
         y_test_target_int = [label_to_int[label.strip()] for label in y_test_target]
 
-        # Calcular e imprimir valores ROC para target_variable
+        # Calculate and print ROC values for target_variable
         roc_df_target = calculate_roc_values(best_model_target, X_test_target, y_test_target_int)
         logging.info("ROC AUC Scores for target_variable:")
         logging.info(roc_df_target)
         roc_df_target.to_csv(args.roc_values_target, index=False)
 
-    # Repetir o processo para associated_variable
+    # Update progress
+    current_step += 1
+    progress = min(current_step / total_steps, 1.0)
+    progress_bar.progress(progress)
+    progress_text.markdown(f"<span style='color:white'>Progress: {int(progress * 100)}%</span>", unsafe_allow_html=True)
+    time.sleep(0.1)
+
+    # Repeat the process for associated_variable
     X_associated, y_associated = protein_embedding_train.get_embeddings_and_labels(label_type='associated_variable')
     logging.info(f"X_associated shape: {X_associated.shape}")
 
-    # Caminhos completos dos modelos para associated_variable
+    # Full paths for associated_variable models
     rf_model_associated_full_path = os.path.join(model_dir, args.rf_model_associated)
     calibrated_model_associated_full_path = os.path.join(model_dir, 'calibrated_model_associated.pkl')
 
-    # Verificar se o modelo calibrado para associated_variable já existe
+    # Update progress
+    current_step += 1
+    progress = min(current_step / total_steps, 1.0)
+    progress_bar.progress(progress)
+    progress_text.markdown(f"<span style='color:white'>Progress: {int(progress * 100)}%</span>", unsafe_allow_html=True)
+    time.sleep(0.1)
+
+    # Check if calibrated model for associated_variable already exists
     if os.path.exists(calibrated_model_associated_full_path):
         calibrated_model_associated = joblib.load(calibrated_model_associated_full_path)
-        logging.info(f"Calibrated Random Forest model para associated_variable carregado de {calibrated_model_associated_full_path}")
+        logging.info(f"Calibrated Random Forest model for associated_variable loaded from {calibrated_model_associated_full_path}")
     else:
-        # Treinamento do modelo para associated_variable
+        # Model training for associated_variable
         support_model_associated = Support()
-        calibrated_model_associated = support_model_associated.fit(X_associated, y_associated, model_name_prefix='associated', model_dir=model_dir)
-        logging.info("Treinamento e calibração para associated_variable concluídos.")
+        calibrated_model_associated = support_model_associated.fit(X_associated, y_associated, model_name_prefix='associated', model_dir=model_dir, min_kmers=min_kmers)
+        logging.info("Training and calibration for associated_variable completed.")
         
-        # Plotar a curva de aprendizado
-        logging.info("Plotando Learning Curve para Associated variable")
+        # Plot learning curve
+        logging.info("Plotting Learning Curve for Associated Variable")
         support_model_associated.plot_learning_curve(args.learning_curve_associated)
 
-        # Salvar o modelo calibrado
+        # Save the calibrated model
         joblib.dump(calibrated_model_associated, calibrated_model_associated_full_path)
-        logging.info(f"Calibrated Random Forest model for associated_variable salvo em {calibrated_model_associated_full_path}")
+        logging.info(f"Calibrated Random Forest model for associated_variable saved at {calibrated_model_associated_full_path}")
 
-        # Testar o modelo
+        # Test the model
         best_score_associated, best_f1_associated, best_pr_auc_associated, best_params_associated, best_model_associated, X_test_associated, y_test_associated = support_model_associated.test_best_RF(X_associated, y_associated, scaler_dir=args.model_dir)
 
         logging.info(f"Best ROC AUC for associated_variable in test_best_RF: {best_score_associated}")
@@ -1072,92 +1131,128 @@ def main(args):
         logging.info(f"Best Parameters found in test_best_RF: {best_params_associated}")
         logging.info(f"Best model Associated in test_best_RF: {best_model_associated}")
 
-        # Obter rankings de classe para associated_variable
+        # Get class rankings for associated_variable
         class_rankings_associated = support_model_associated.get_class_rankings(X_test_associated)
         logging.info("Top 3 class rankings for the first 5 samples in associated data:")
         for i in range(min(5, len(class_rankings_associated))):
-            logging.info(f"Sample {i+1}: Class rankings - {class_rankings_associated[i][:3]}")  # Mostra as top 3 classificações
+            logging.info(f"Sample {i+1}: Class rankings - {class_rankings_associated[i][:3]}")  # Shows top 3 rankings
 
-        # Acessando class_weight do dicionário best_params_associated
+        # Accessing class_weight from the best_params_associated dictionary
         class_weight = best_params_associated.get('class_weight', None)
-        # Imprimindo resultados
+        # Printing results
         logging.info(f"Class weight used: {class_weight}")
 
-        # Salvar o modelo treinado para associated_variable
+        # Save the trained model for associated_variable
         joblib.dump(best_model_associated, rf_model_associated_full_path)
-        logging.info(f"Random Forest model for associated_variable salvo em {rf_model_associated_full_path}")
+        logging.info(f"Random Forest model for associated_variable saved at {rf_model_associated_full_path}")
 
-        # Plotar a curva ROC para associated_variable
+        # Plot ROC curve for associated_variable
         n_classes_associated = len(np.unique(y_test_associated))
         if n_classes_associated == 2:
             y_pred_proba_associated = best_model_associated.predict_proba(X_test_associated)[:, 1]
         else:
             y_pred_proba_associated = best_model_associated.predict_proba(X_test_associated)
             unique_classes_associated = np.unique(y_test_associated).astype(str)
-        plot_roc_curve_global(y_test_associated, y_pred_proba_associated, 'ROC Curve for associated_variable', save_as=args.roc_curve_associated, classes=unique_classes_associated)
+        plot_roc_curve_global(y_test_associated, y_pred_proba_associated, 'ROC Curve for Associated Variable', save_as=args.roc_curve_associated, classes=unique_classes_associated)
+
+    # Update progress
+    current_step += 1
+    progress = min(current_step / total_steps, 1.0)
+    progress_bar.progress(progress)
+    progress_text.markdown(f"<span style='color:white'>Progress: {int(progress * 100)}%</span>", unsafe_allow_html=True)
+    time.sleep(0.1)
 
     # =============================
-    # ETAPA 2: Classificação de Novas Sequências
+    # STEP 2: Classifying New Sequences
     # =============================
 
-    # Carregar dados para predição
+    # Load min_kmers
+    min_kmers_path = os.path.join(model_dir, 'min_kmers.txt')
+    if os.path.exists(min_kmers_path):
+        with open(min_kmers_path, 'r') as f:
+            min_kmers_loaded = int(f.read().strip())
+        logging.info(f"Loaded min_kmers: {min_kmers_loaded}")
+    else:
+        logging.error(f"min_kmers file not found at {min_kmers_path}. Ensure training was completed successfully.")
+        sys.exit(1)
+
+    # Load data for prediction
     predict_alignment_path = args.predict_fasta
 
-    # Verifica se as sequências para predição estão alinhadas
+    # Check if sequences for prediction are aligned
     if not are_sequences_aligned(predict_alignment_path):
-        logging.info("Sequências para predição não estão alinhadas. Realinhando com MAFFT...")
+        logging.info("Sequences for prediction are not aligned. Realigning with MAFFT...")
         aligned_predict_path = predict_alignment_path.replace(".fasta", "_aligned.fasta")
-        realign_sequences_with_mafft(predict_alignment_path, aligned_predict_path, threads=1)  # Fixar threads=1
+        realign_sequences_with_mafft(predict_alignment_path, aligned_predict_path, threads=1)  # Fix threads=1
         predict_alignment_path = aligned_predict_path
     else:
-        logging.info(f"Arquivo alinhado para predição encontrado ou sequências já alinhadas: {predict_alignment_path}")
+        logging.info(f"Aligned file for prediction found or sequences already aligned: {predict_alignment_path}")
 
-    # Inicializar ProteinEmbedding para predição, sem necessidade da tabela
+    # Update progress
+    current_step += 1
+    progress = min(current_step / total_steps, 1.0)
+    progress_bar.progress(progress)
+    progress_text.markdown(f"<span style='color:white'>Progress: {int(progress * 100)}%</span>", unsafe_allow_html=True)
+    time.sleep(0.1)
+
+    # Initialize ProteinEmbedding for prediction, no need for the table
     protein_embedding_predict = ProteinEmbeddingGenerator(
         predict_alignment_path, 
         table_data=None,
-        aggregation_method=args.aggregation_method  # Passando o método de agregação
+        aggregation_method=args.aggregation_method  # Passing the aggregation method
     )
-    # Gerar embeddings usando o mesmo min_kmers do treinamento
     protein_embedding_predict.generate_embeddings(
         k=args.kmer_size,
         step_size=args.step_size,
         word2vec_model_path=args.word2vec_model,
         model_dir=model_dir,
-        min_kmers=min_kmers_training  # Usando o mesmo min_kmers
+        min_kmers=min_kmers_loaded  # Use the same min_kmers as training
     )
-    logging.info(f"Número de embeddings para predição gerados: {len(protein_embedding_predict.embeddings)}")
+    logging.info(f"Number of embeddings for prediction generated: {len(protein_embedding_predict.embeddings)}")
 
-    # Obter embeddings para predição
+    # Get embeddings for prediction
     X_predict = np.array([entry['embedding'] for entry in protein_embedding_predict.embeddings])
 
-    # Verificar se todas as embeddings têm a mesma forma
-    embedding_shapes_predict = set(embedding.shape for embedding in X_predict)
-    if len(embedding_shapes_predict) != 1:
-        logging.error(f"Inconsistent embedding shapes detected in prediction data: {embedding_shapes_predict}")
-        raise ValueError("Embeddings have inconsistent shapes in prediction data.")
-    else:
-        logging.info(f"All prediction embeddings have shape: {embedding_shapes_predict.pop()}")
-
-    # Carregar o scaler
+    # Load the scaler
     scaler_full_path = os.path.join(model_dir, args.scaler)
     if os.path.exists(scaler_full_path):
         scaler = joblib.load(scaler_full_path)
-        logging.info(f"Scaler carregado de {scaler_full_path}")
+        logging.info(f"Scaler loaded from {scaler_full_path}")
     else:
-        logging.error(f"Scaler não encontrado em {scaler_full_path}")
+        logging.error(f"Scaler not found at {scaler_full_path}")
         sys.exit(1)
     X_predict_scaled = scaler.transform(X_predict)
 
-    # Realizar predições nas novas sequências
+    # Update progress
+    current_step += 1
+    progress = min(current_step / total_steps, 1.0)
+    progress_bar.progress(progress)
+    progress_text.markdown(f"<span style='color:white'>Progress: {int(progress * 100)}%</span>", unsafe_allow_html=True)
+    time.sleep(0.1)
+
+    # Make predictions on new sequences
+
+    # Check feature size before prediction
+    if X_predict_scaled.shape[1] > calibrated_model_target.base_estimator_.n_features_in_:
+        logging.info(f"Reducing number of features from {X_predict_scaled.shape[1]} to {calibrated_model_target.base_estimator_.n_features_in_} to match the model input size.")
+        X_predict_scaled = X_predict_scaled[:, :calibrated_model_target.base_estimator_.n_features_in_]
+
+    # Make prediction for target_variable
     predictions_target = calibrated_model_target.predict(X_predict_scaled)
+
+    # Check and adjust feature size for associated_variable
+    if X_predict_scaled.shape[1] > calibrated_model_associated.base_estimator_.n_features_in_:
+        logging.info(f"Reducing number of features from {X_predict_scaled.shape[1]} to {calibrated_model_associated.base_estimator_.n_features_in_} to match the model input size for associated_variable.")
+        X_predict_scaled = X_predict_scaled[:, :calibrated_model_associated.base_estimator_.n_features_in_]
+
+    # Make prediction for associated_variable
     predictions_associated = calibrated_model_associated.predict(X_predict_scaled)
 
-    # Obter rankings de classe
+    # Get class rankings
     rankings_target = get_class_rankings_global(calibrated_model_target, X_predict_scaled)
     rankings_associated = get_class_rankings_global(calibrated_model_associated, X_predict_scaled)
 
-    # Processar e salvar os resultados
+    # Process and save the results
     results = {}
     for entry, pred_target, pred_associated, ranking_target, ranking_associated in zip(protein_embedding_predict.embeddings, predictions_target, predictions_associated, rankings_target, rankings_associated):
         sequence_id = entry['protein_accession']
@@ -1168,14 +1263,14 @@ def main(args):
             "associated_ranking": ranking_associated
         }
 
-    # Salvar os resultados em um arquivo
+    # Save the results to a file
     with open(args.results_file, 'w') as f:
         f.write("Protein_ID\tTarget_Prediction\tAssociated_Prediction\tTarget_Ranking\tAssociated_Ranking\n")
         for seq_id, result in results.items():
             f.write(f"{seq_id}\t{result['target_prediction']}\t{result['associated_prediction']}\t{'; '.join(result['target_ranking'])}\t{'; '.join(result['associated_ranking'])}\n")
             logging.info(f"{seq_id} - Target Variable: {result['target_prediction']}, Associated Variable: {result['associated_prediction']}, Target Ranking: {'; '.join(result['target_ranking'])}, Associated Ranking: {'; '.join(result['associated_ranking'])}")
 
-    # Formatar resultados
+    # Format results
     formatted_results = []
 
     for sequence_id, info in results.items():
@@ -1183,93 +1278,283 @@ def main(args):
         formatted_prob_sums = format_and_sum_probabilities(associated_rankings)
         formatted_results.append([sequence_id, formatted_prob_sums])
 
-    # Registro para verificar o conteúdo de formatted_results
+    # Log to check the content of formatted_results
     logging.info("Formatted Results:")
     for result in formatted_results:
         logging.info(result)
 
-    # Imprimir os resultados em uma tabela formatada
+    # Print results in a formatted table
     headers = ["Protein Accession", "Associated Prob. Rankings"]
     logging.info(tabulate(formatted_results, headers=headers, tablefmt="grid"))
 
-    # Salvar os resultados em um arquivo Excel
+    # Save the results to an Excel file
     df = pd.DataFrame(formatted_results, columns=headers)
     df.to_excel(args.excel_output, index=False)
-    logging.info(f"Resultados salvos em {args.excel_output}")
+    logging.info(f"Results saved in {args.excel_output}")
 
-    # Salvar a tabela no formato tabulado
+    # Save the table in tabulated format
     with open(args.formatted_results_table, 'w') as f:
         f.write(tabulate(formatted_results, headers=headers, tablefmt="grid"))
-    logging.info(f"Tabela formatada salva em {args.formatted_results_table}")
+    logging.info(f"Formatted table saved in {args.formatted_results_table}")
 
-    # Gerar o Scatterplot das Previsões
-    logging.info("Gerando scatterplot das previsões das novas sequências...")
+    # Generate the Scatterplot of Predictions
+    logging.info("Generating scatterplot of new sequences predictions...")
     plot_predictions_scatterplot_custom(results, args.scatterplot_output)
-    logging.info(f"Scatterplot salvo em {args.scatterplot_output}")
+    logging.info(f"Scatterplot saved at {args.scatterplot_output}")
 
-    logging.info("Processamento concluído.")
+    logging.info("Processing completed.")
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Análise de Embeddings de Proteínas e Classificação com Random Forest")
+    # Update progress to 100%
+    progress_bar.progress(1.0)
+    progress_text.markdown("<span style='color:white'>Progress: 100%</span>", unsafe_allow_html=True)
+    time.sleep(0.1)
 
-    # Argumentos de entrada
-    parser.add_argument('--train_fasta', required=True, help='Caminho para o arquivo .fasta de treinamento')
-    parser.add_argument('--train_table', required=True, help='Caminho para a tabela de dados de treinamento (CSV ou TSV)')
-    parser.add_argument('--predict_fasta', required=True, help='Caminho para o arquivo .fasta para classificação')
 
-    # Argumentos para k-mer
-    parser.add_argument('--kmer_size', type=int, default=3, help='Tamanho do k-mer (default: 3)')
-    parser.add_argument('--step_size', type=int, default=1, help='Tamanho do passo para geração de k-mers (default: 1)')
+# ============================================
+# Streamlit Configuration and Interface
+# ============================================
 
-    # Argumento para método de agregação
-    parser.add_argument('--aggregation_method', type=str, choices=['none', 'mean', 'median', 'sum', 'max'], default='none',
-                        help='Método de agregação para os embeddings (default: none)')
+# Streamlit Configuration
+st.set_page_config(
+    page_title="FAAL_Pred",
+    page_icon="ðŸ§¬",  # DNA symbol
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
-    # Argumento de saída para resultados principais
-    parser.add_argument('-o', '--results_file', required=True, help='Caminho para salvar os resultados de predição (TSV)')
-    parser.add_argument('--output_dir', required=True, help='Caminho para o diretório onde os arquivos de saída serão salvos')
+# Custom CSS for dark navy blue background and white text
+st.markdown(
+    """
+    <style>
+    /* Define the main app background and text color */
+    .stApp {
+        background-color: #0B3C5D;
+        color: white;
+    }
+    /* Define the sidebar background and text color */
+    [data-testid="stSidebar"] {
+        background-color: #0B3C5D !important;
+        color: white !important;
+    }
+    /* Ensure all elements inside the sidebar have blue background and white text */
+    [data-testid="stSidebar"] * {
+        background-color: #0B3C5D !important;
+        color: white !important;
+    }
+    /* Customize input elements inside the sidebar */
+    [data-testid="stSidebar"] input,
+    [data-testid="stSidebar"] select,
+    [data-testid="stSidebar"] textarea,
+    [data-testid="stSidebar"] button,
+    [data-testid="stSidebar"] .stButton,
+    [data-testid="stSidebar"] .stFileUploader,
+    [data-testid="stSidebar"] .stSelectbox,
+    [data-testid="stSidebar"] .stNumberInput,
+    [data-testid="stSidebar"] .stTextInput,
+    [data-testid="stSidebar"] .stCheckbox,
+    [data-testid="stSidebar"] .stRadio,
+    [data-testid="stSidebar"] .stSlider {
+        background-color: #1E3A8A !important;
+        color: white !important;
+    }
+    /* Customize file uploader drag and drop area */
+    [data-testid="stSidebar"] div[data-testid="stFileUploader"] div {
+        background-color: #1E3A8A !important;
+        color: white !important;
+    }
+    /* Customize select dropdown options */
+    [data-testid="stSidebar"] .stSelectbox [role="listbox"] {
+        background-color: #1E3A8A !important;
+        color: white !important;
+    }
+    /* Remove borders and shadows */
+    [data-testid="stSidebar"] .stButton > button,
+    [data-testid="stSidebar"] .stFileUploader,
+    [data-testid="stSidebar"] .stSelectbox,
+    [data-testid="stSidebar"] .stNumberInput,
+    [data-testid="stSidebar"] .stTextInput,
+    [data-testid="stSidebar"] .stCheckbox,
+    [data-testid="stSidebar"] .stRadio,
+    [data-testid="stSidebar"] .stSlider {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    /* Customize checkbox and radio buttons */
+    [data-testid="stSidebar"] .stCheckbox input[type="checkbox"] + div:first-of-type,
+    [data-testid="stSidebar"] .stRadio input[type="radio"] + div:first-of-type {
+        background-color: #1E3A8A !important;
+    }
+    /* Customize slider track and thumb */
+    [data-testid="stSidebar"] .stSlider > div:first-of-type {
+        color: white !important;
+    }
+    [data-testid="stSidebar"] .stSlider .st-bo {
+        background-color: #1E3A8A !important;
+    }
+    /* Ensure headers are white */
+    h1, h2, h3, h4, h5, h6 {
+        color: white !important;
+    }
+    /* Ensure alert messages (st.info, st.error, etc.) have white text */
+    div[role="alert"] p {
+        color: white !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
-    # Argumentos de saída para gráficos e outros arquivos
-    parser.add_argument('--accuracy_pie_chart_png', required=False, help='Caminho para salvar o gráfico de pizza de precisão (PNG)')
-    parser.add_argument('--accuracy_pie_chart_svg', required=False, help='Caminho para salvar o gráfico de pizza de precisão (SVG)')
-    parser.add_argument('--associated_variable_scatterplot_png', required=False, help='Caminho para salvar o scatterplot de variáveis associadas (PNG)')
-    parser.add_argument('--associated_variable_scatterplot_svg', required=False, help='Caminho para salvar o scatterplot de variáveis associadas (SVG)')
-    
-    # Novo argumento para Scatterplot das Previsões
-    parser.add_argument('--scatterplot_output', required=True, help='Caminho para salvar o scatterplot das previsões das novas sequências (PNG)')
-    parser.add_argument('--excel_output', required=True, help='Caminho para salvar os resultados em Excel')
-    parser.add_argument('--formatted_results_table', required=True, help='Caminho para salvar a tabela de resultados formatados (TXT)')
-    parser.add_argument('--roc_curve_target', required=True, help='Caminho para salvar a curva ROC para a variável alvo (PNG)')
-    parser.add_argument('--roc_curve_associated', required=True, help='Caminho para salvar a curva ROC para a variável associada (PNG)')
-    parser.add_argument('--learning_curve_target', required=True, help='Caminho para salvar a curva de aprendizado para a variável alvo (PNG)')
-    parser.add_argument('--learning_curve_associated', required=True, help='Caminho para salvar a curva de aprendizado para a variável associada (PNG)')
-    parser.add_argument('--roc_values_target', required=True, help='Caminho para salvar os valores ROC para a variável alvo (CSV)')
-    parser.add_argument('--rf_model_target', required=True, help='Nome do arquivo para salvar o modelo Random Forest para a variável alvo (PKL)')
-    parser.add_argument('--rf_model_associated', required=True, help='Nome do arquivo para salvar o modelo Random Forest para a variável associada (PKL)')
-    parser.add_argument('--word2vec_model', required=True, help='Nome do arquivo para salvar o modelo Word2Vec (BIN)')
-    parser.add_argument('--scaler', required=True, help='Nome do arquivo para salvar o StandardScaler (PKL)')
-    parser.add_argument('--model_dir', required=True, help='Diretório onde os modelos estão localizados ou serão salvos')
+# Title and description
+st.title("FAAL-Pred: Predicting Fatty Acid Activation and Length")
+st.write("""
+**Protein Embedding and Classification Tool** Ã© uma ferramenta abrangente de bioinformÃ¡tica projetada para prever a ativaÃ§Ã£o e o comprimento de Ã¡cidos graxos usando tÃ©cnicas avanÃ§adas de aprendizado de mÃ¡quina. A ferramenta integra redes neurais, mÃ©todos de bioinformÃ¡tica e algoritmos de aprendizado de mÃ¡quina para fornecer previsÃµes precisas e visualizaÃ§Ãµes perspicazes.
+""")
 
-    args = parser.parse_args()
+# Sidebar for input parameters
+st.sidebar.header("ParÃ¢metros de Entrada")
 
-    # Criar o diretório de saída para todos os arquivos, se necessário
-    output_dirs = set()
-    for arg in vars(args):
-        value = getattr(args, arg)
-        if isinstance(value, str) and ('/' in value or '\\' in value):
-            dir_path = os.path.dirname(value)
-            if dir_path and dir_path not in output_dirs:
-                if not os.path.exists(dir_path):
-                    os.makedirs(dir_path)
-                    logging.info(f"Diretório criado para {dir_path}")
-                output_dirs.add(dir_path)
+# Function to save uploaded files
+def save_uploaded_file(uploaded_file, save_path):
+    try:
+        with open(save_path, 'wb') as f:
+            f.write(uploaded_file.getbuffer())
+        return save_path
+    except Exception as e:
+        st.error(f"Falha ao salvar o arquivo carregado {uploaded_file.name}: {e}")
+        logging.error(f"Falha ao salvar o arquivo carregado {uploaded_file.name}: {e}")
+        st.stop()
 
-    # Criar o diretório de modelos, se necessário
-    if not os.path.exists(args.model_dir):
-        os.makedirs(args.model_dir)
-        logging.info(f"Diretório de modelos criado em {args.model_dir}")
+# Input options
+use_default_train = st.sidebar.checkbox("Usar dados de treinamento padrÃ£o", value=True)
+if not use_default_train:
+    train_fasta_file = st.sidebar.file_uploader("Carregar Arquivo FASTA de Treinamento", type=["fasta", "fa", "fna"])
+    train_table_file = st.sidebar.file_uploader("Carregar Arquivo de Tabela de Treinamento (TSV)", type=["tsv"])
+else:
+    train_fasta_file = None
+    train_table_file = None
+
+predict_fasta_file = st.sidebar.file_uploader("Carregar Arquivo FASTA para PrediÃ§Ã£o", type=["fasta", "fa", "fna"])
+
+kmer_size = st.sidebar.number_input("Tamanho do K-mer", min_value=1, max_value=10, value=3, step=1)
+step_size = st.sidebar.number_input("Tamanho do Passo", min_value=1, max_value=10, value=1, step=1)
+aggregation_method = st.sidebar.selectbox(
+    "MÃ©todo de AgregaÃ§Ã£o",
+    options=['none', 'mean', 'median', 'sum', 'max'],
+    index=0
+)
+
+# Output directory
+output_dir = "results"
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
+
+# Button to start processing
+if st.sidebar.button("Executar AnÃ¡lise"):
+    # Paths for internal data
+    internal_train_fasta = "data/train.fasta"
+    internal_train_table = "data/train_table.tsv"
+
+    # Handling training data
+    if use_default_train:
+        train_fasta_path = internal_train_fasta
+        train_table_path = internal_train_table
+        st.markdown("<span style='color:white'>Usando dados de treinamento padrÃ£o.</span>", unsafe_allow_html=True)
     else:
-        logging.info(f"Diretório de modelos encontrado: {args.model_dir}")
+        if train_fasta_file is not None and train_table_file is not None:
+            train_fasta_path = os.path.join(output_dir, "uploaded_train.fasta")
+            train_table_path = os.path.join(output_dir, "uploaded_train_table.tsv")
+            save_uploaded_file(train_fasta_file, train_fasta_path)
+            save_uploaded_file(train_table_file, train_table_path)
+            st.markdown("<span style='color:white'>Dados de treinamento carregados serÃ£o usados.</span>", unsafe_allow_html=True)
+        else:
+            st.error("Por favor, carregue tanto o arquivo FASTA de treinamento quanto o arquivo de tabela TSV.")
+            st.stop()
 
-    main(args)
+    # Handling prediction data
+    if predict_fasta_file is not None:
+        predict_fasta_path = os.path.join(output_dir, "uploaded_predict.fasta")
+        save_uploaded_file(predict_fasta_file, predict_fasta_path)
+    else:
+        st.error("Por favor, carregue um arquivo FASTA para prediÃ§Ã£o.")
+        st.stop()
+
+    # Remaining parameters
+    args = {
+        "train_fasta": train_fasta_path,
+        "train_table": train_table_path,
+        "predict_fasta": predict_fasta_path,
+        "kmer_size": kmer_size,
+        "step_size": step_size,
+        "aggregation_method": aggregation_method,
+        "results_file": os.path.join(output_dir, "predictions.tsv"),
+        "output_dir": output_dir,
+        "scatterplot_output": os.path.join(output_dir, "scatterplot_predictions.png"),
+        "excel_output": os.path.join(output_dir, "results.xlsx"),
+        "formatted_results_table": os.path.join(output_dir, "formatted_results.txt"),
+        "roc_curve_target": os.path.join(output_dir, "roc_curve_target.png"),
+        "roc_curve_associated": os.path.join(output_dir, "roc_curve_associated.png"),
+        "learning_curve_target": os.path.join(output_dir, "learning_curve_target.png"),
+        "learning_curve_associated": os.path.join(output_dir, "learning_curve_associated.png"),
+        "roc_values_target": os.path.join(output_dir, "roc_values_target.csv"),
+        "rf_model_target": "rf_model_target.pkl",
+        "rf_model_associated": "rf_model_associated.pkl",
+        "word2vec_model": "word2vec_model.bin",
+        "scaler": "scaler.pkl",
+        "model_dir": os.path.join(output_dir, "models")
+    }
+
+    # Create model directory if it doesn't exist
+    if not os.path.exists(args["model_dir"]):
+        os.makedirs(args["model_dir"])
+
+    # Run the main analysis function with error handling
+    st.markdown("<span style='color:white'>Processando dados e executando anÃ¡lise...</span>", unsafe_allow_html=True)
+    try:
+        # Convert args to Namespace if main expects argparse.Namespace
+        from types import SimpleNamespace
+        args_namespace = SimpleNamespace(**args)
+        main(args_namespace)
+
+        st.success("AnÃ¡lise concluÃ­da com sucesso!")
+
+        # Display scatterplot
+        st.header("Scatterplot das PrediÃ§Ãµes")
+        if os.path.exists(args["scatterplot_output"]):
+            st.image(args["scatterplot_output"], use_column_width=True)
+        else:
+            st.warning("Imagem do scatterplot nÃ£o encontrada.")
+
+        # Display formatted results table
+        st.header("Tabela de Resultados Formatados")
+        if os.path.exists(args["formatted_results_table"]):
+            with open(args["formatted_results_table"], 'r') as f:
+                formatted_table = f.read()
+            st.text(formatted_table)
+        else:
+            st.warning("Tabela de resultados formatados nÃ£o encontrada.")
+
+        # Prepare results.zip file
+        zip_buffer = BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+            for folder_name, subfolders, filenames in os.walk(output_dir):
+                for filename in filenames:
+                    file_path = os.path.join(folder_name, filename)
+                    zip_file.write(file_path, arcname=os.path.relpath(file_path, output_dir))
+        zip_buffer.seek(0)
+
+        # Provide download link
+        st.header("Baixar Resultados")
+        st.download_button(
+            label="Baixar Todos os Resultados como results.zip",
+            data=zip_buffer,
+            file_name="results.zip",
+            mime="application/zip"
+        )
+
+        # Credits
+        st.markdown("<span style='color:white'>CIIMAR - Pedro LeÃ£o @CNP - 2024 - Todos os direitos reservados.</span>", unsafe_allow_html=True)
+    except Exception as e:
+        st.error(f"Ocorreu um erro durante o processamento: {e}")
+        logging.error(f"Ocorreu um erro: {e}")
+
 
