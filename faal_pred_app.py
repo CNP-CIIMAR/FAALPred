@@ -859,44 +859,45 @@ def generate_accuracy_pie_chart(formatted_results, table_data, output_path):
     plt.savefig(output_path, facecolor='#0B3C5D')  # Match the background color
     plt.close()
 
+import logging
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 
-def plot_predictions_scatterplot_custom(results, output_path):
+def plot_predictions_scatterplot_custom(results, output_path, top_n=3):
     """
-    Generates a scatter plot of the predictions for the new sequences.
+    Generates a scatter plot of the top N predictions for the new sequences.
 
     Y-axis: Protein accession ID
-    X-axis: Specificities from 2 to 18
-    Each point represents the corresponding specificity for the protein
-    Lines connect the points of each protein
-    Points are represented in grayscale, indicating the associated percentage.
+    X-axis: Specificities from C2 to C18 (fixed scale)
+    Each point represents the corresponding specificity for the protein.
+    Only the top N predictions are plotted.
+    Points are colored in a single uniform color, styled for scientific publication.
     """
     # Prepare data
     protein_specificities = {}
-
+    
     for seq_id, info in results.items():
-        rankings = info['associated_ranking']
-        specificity_probs = {}
+        rankings = info.get('associated_ranking', [])
+        if not rankings:
+            logging.warning(f"No associated ranking data for protein {seq_id}. Skipping...")
+            continue
 
-        for ranking in rankings:
+        specificity_probs = {}
+        for ranking in rankings[:top_n]:
             try:
+                # Split and extract data
                 category, prob = ranking.split(": ")
                 prob = float(prob.replace("%", ""))
-                # Extract numbers from categories, assuming they are in the format 'C4-C6-C8'
-                specs = [int(s.strip('C')) for s in category.split('-') if s.startswith('C')]
-                for spec in specs:
-                    if spec in specificity_probs:
-                        specificity_probs[spec] += prob  # Sum probabilities if already exists
-                    else:
-                        specificity_probs[spec] = prob
-            except ValueError:
-                logging.error(f"Error processing ranking: {ranking} for protein {seq_id}")
+
+                # Extract the first number from the category
+                if category.startswith('C'):
+                    # Extract only the first number before the colon or any other separator
+                    spec = int(category.split(':')[0].strip('C'))
+                    specificity_probs[spec] = prob
+            except ValueError as e:
+                logging.error(f"Error processing ranking: {ranking} for protein {seq_id}. Error: {e}")
 
         if specificity_probs:
-            # Normalize probabilities for each specificity
-            total_prob = sum(specificity_probs.values())
-            if total_prob > 0:
-                for spec in specificity_probs:
-                    specificity_probs[spec] = (specificity_probs[spec] / total_prob) * 100
             protein_specificities[seq_id] = specificity_probs
 
     if not protein_specificities:
@@ -907,37 +908,61 @@ def plot_predictions_scatterplot_custom(results, output_path):
     unique_proteins = sorted(protein_specificities.keys())
     protein_order = {protein: idx for idx, protein in enumerate(unique_proteins)}
 
-    plt.figure(figsize=(20, max(10, len(unique_proteins) * 0.5)))  # Adjust height based on the number of proteins
+    # Create figure
+    fig, ax = plt.subplots(figsize=(12, len(unique_proteins) * 0.5))  # Adjust height based on the number of proteins
+
+    # Fixed scale for x-axis from C2 to C18
+    x_values = list(range(2, 19))
 
     for protein, specs in protein_specificities.items():
         y = protein_order[protein]
-        x = sorted(specs.keys())
-        probs = [specs[spec] for spec in x]
+        
+        # Prepare data for plotting (ensure we only plot the specified top N predictions)
+        x = []
+        probs = []
+        for spec in x_values:
+            if spec in specs:
+                x.append(spec)
+                probs.append(specs[spec])
 
-        # Normalize probabilities to [0,1] for grayscale
-        probs_normalized = [p / 100.0 for p in probs]
+        if not x:
+            logging.warning(f"No valid data to plot for protein {protein}. Skipping...")
+            continue
 
-        # Map probabilities to grayscale colors (1 - p so that higher probability is darker)
-        colors = [str(1 - p) for p in probs_normalized]
-
-        # Plot points
-        plt.scatter(x, [y] * len(x), c=colors, cmap='gray', edgecolors='w', s=100)
+        # Plot points in a fixed color (e.g., dark blue)
+        ax.scatter(x, [y] * len(x), color='#1f78b4', edgecolors='black', linewidth=0.5, s=100, label='_nolegend_')
 
         # Connect points with lines
-        plt.plot(x, [y] * len(x), color='gray', linestyle='-', linewidth=0.5, alpha=0.5)
+        if len(x) > 1:
+            ax.plot(x, [y] * len(x), color='#1f78b4', linestyle='-', linewidth=1.0, alpha=0.7)
 
-    plt.xlabel('Specificity', fontsize=12, fontweight='bold', color='white')
-    plt.ylabel('Proteins', fontsize=12, fontweight='bold', color='white')
-    plt.title('Scatterplot of New Sequences Predictions', fontsize=14, fontweight='bold', color='white')
+    # Customize the plot for better publication quality
+    ax.set_xlabel('Specificity (C2 to C18)', fontsize=14, fontweight='bold')
+    ax.set_ylabel('Proteins', fontsize=14, fontweight='bold')
+    ax.set_title('Scatterplot of New Sequences Predictions (Top Rankings)', fontsize=16, fontweight='bold', pad=20)
 
-    plt.yticks(ticks=range(len(unique_proteins)), labels=unique_proteins, fontsize=8, color='white')
-    plt.xticks(ticks=range(2, 19), fontsize=10, color='white')
-    plt.grid(True, axis='x', linestyle='--', alpha=0.5, color='white')
+    # Set fixed x-axis scale and formatting
+    ax.set_xticks(x_values)
+    ax.set_xticklabels([f'C{spec}' for spec in x_values], fontsize=12)
+    ax.set_yticks(range(len(unique_proteins)))
+    ax.set_yticklabels(unique_proteins, fontsize=10)
 
-    plt.gca().set_facecolor('#0B3C5D')  # Match the background color
-    plt.savefig(output_path, facecolor='#0B3C5D', dpi=300)  # Match the background color
+    # Set grid and remove unnecessary spines for a clean look
+    ax.grid(True, axis='x', linestyle='--', alpha=0.5, color='gray')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+    # Minor ticks on x-axis for improved visibility
+    ax.xaxis.set_minor_locator(ticker.AutoMinorLocator())
+    ax.grid(which='minor', axis='x', linestyle=':', linewidth=0.5, alpha=0.6)
+
+    # Adjust layout to avoid label cut-off
+    plt.tight_layout()
+
+    # Save figure in high quality for publication
+    plt.savefig(output_path, facecolor='white', dpi=600, bbox_inches='tight')
     plt.close()
-
+    logging.info(f"Scatterplot saved at {output_path}")
 
 def adjust_predictions_global(predicted_proba, method='normalize', alpha=1.0):
     """
@@ -1313,6 +1338,7 @@ def main(args):
 
     # Generate the Scatterplot of Predictions
     logging.info("Generating scatterplot of new sequences predictions...")
+    print (results)
     plot_predictions_scatterplot_custom(results, args.scatterplot_output)
     logging.info(f"Scatterplot saved at {args.scatterplot_output}")
 
@@ -1525,7 +1551,9 @@ if st.sidebar.button("Run Analysis"):
 
         # Display scatterplot
         st.header("Scatterplot of Predictions")
-        st.image(args.scatterplot_output, use_column_width=True)
+       # st.image(args.scatterplot_output, use_column_width=True)
+        st.image('results/scatterplot_predictions.png', use_container_width=True)
+
 
         # Display formatted results table
         st.header("Formatted Results Table")
@@ -1562,3 +1590,4 @@ if st.sidebar.button("Run Analysis"):
 # ===========
 
 # ============================================
+
