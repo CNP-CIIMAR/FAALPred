@@ -652,7 +652,7 @@ class ProteinEmbeddingGenerator:
                 sg=1,
                 hs=1,  # Hierarchical softmax enabled
                 negative=0,  # Negative sampling disabled
-                epochs=2500,  # Fix number of epochs for reproducibility
+                epochs=2,  # Fix number of epochs for reproducibility
                 seed=SEED  # Fix seed for reproducibility
             )
 
@@ -1243,20 +1243,23 @@ def main(args):
 
     # Make predictions on new sequences
 
-    # Check feature size before prediction
-    if X_predict_scaled.shape[1] > calibrated_model_target.base_estimator_.n_features_in_:
-        logging.info(f"Reducing number of features from {X_predict_scaled.shape[1]} to {calibrated_model_target.base_estimator_.n_features_in_} to match the model input size.")
-        X_predict_scaled = X_predict_scaled[:, :calibrated_model_target.base_estimator_.n_features_in_]
+    # Realizar predições nas novas sequências
 
-    # Make prediction for target_variable
+    # Verificar o tamanho das features antes da predição
+# Verifique o número de características em relação ao estimador original do CalibratedClassifierCV
+    if X_predict_scaled.shape[1] > calibrated_model_target.estimator.n_features_in_:
+        logging.info(f"Reducing number of features from {X_predict_scaled.shape[1]} to {calibrated_model_target.estimator.n_features_in_} to match the model input size.")
+        X_predict_scaled = X_predict_scaled[:, :calibrated_model_target.estimator.n_features_in_]
+
+
     predictions_target = calibrated_model_target.predict(X_predict_scaled)
 
-    # Check and adjust feature size for associated_variable
-    if X_predict_scaled.shape[1] > calibrated_model_associated.base_estimator_.n_features_in_:
+    # Verificar e ajustar o tamanho das features para associated_variable
+    if X_predict_scaled.shape[1] > calibrated_model_associated.estimator.n_features_in_:
         logging.info(f"Reducing number of features from {X_predict_scaled.shape[1]} to {calibrated_model_associated.base_estimator_.n_features_in_} to match the model input size for associated_variable.")
-        X_predict_scaled = X_predict_scaled[:, :calibrated_model_associated.base_estimator_.n_features_in_]
+        X_predict_scaled = X_predict_scaled[:, :calibrated_model_associated.estimator_.n_features_in_]
 
-    # Make prediction for associated_variable
+    # Realizar a predição para associated_variable
     predictions_associated = calibrated_model_associated.predict(X_predict_scaled)
 
     # Get class rankings
@@ -1559,9 +1562,3 @@ if st.sidebar.button("Run Analysis"):
 # ===========
 
 # ============================================
-# End of Code
-# ============================================
-
-
-
-
