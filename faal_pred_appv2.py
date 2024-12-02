@@ -8,6 +8,7 @@ from collections import Counter
 from io import BytesIO
 import shutil
 import time
+import traceback
 import argparse 
 import numpy as np
 import pandas as pd
@@ -31,13 +32,10 @@ from tabulate import tabulate
 from sklearn.calibration import CalibratedClassifierCV
 from PIL import Image
 from matplotlib import ticker
-from sklearn.manifold import TSNE  # Import para t-SNE
-import umap  # Import para UMAP
+import umap.umap_ as umap
 import base64
 from plotly.graph_objs import Figure
 import streamlit as st
-import plotly.express as px
-import plotly.graph_objects as go
 from sklearn.cluster import DBSCAN, KMeans
 from sklearn.utils import resample
 from sklearn.metrics import adjusted_rand_score
@@ -113,7 +111,7 @@ def realign_sequences_with_mafft(input_path, output_path, threads=8):
 
 
 # Função para realizar o clustering
-def perform_clustering(data, method="DBSCAN", eps=0.5, min_samples=5, n_clusters=3):
+def execute_clustering(data, method="DBSCAN", eps=0.5, min_samples=5, n_clusters=3):
     """
     Executa clustering nos dados usando DBSCAN ou K-Means.
 
@@ -317,27 +315,54 @@ class Support:
             "ccp_alpha": [0.001],
         }
 
-    def _oversample_single_sample_classes(self, X, y):
+
+    def _oversample_single_sample_classes(self, X, y, target_min=5):
         """
-        Customizes oversampling to avoid oversampling extremely rare classes.
+        Oversamples classes to ensure each has at least target_min samples.
+        First uses RandomOverSampler to bring classes with < target_min to target_min.
+        Then uses SMOTE to balance all classes to the size of the majority class.
+    
+        Parameters:
+        - X: Features.
+        - y: Labels.
+        - target_min: Minimum number of samples per class after RandomOverSampler.
+    
+        Returns:
+        - X_smote, y_smote: Oversampled features and labels.
         """
         counter = Counter(y)
-        classes_to_oversample = [cls for cls, count in counter.items() if count >= 2]
+        logging.info(f"Original class distribution: {counter}")
 
-        # Apply RandomOverSampler only to classes with at least 2 samples
-        ros = RandomOverSampler(random_state=self.seed)
-        X_ros, y_ros = ros.fit_resample(X, y)
+        # Identificar classes com menos de target_min
+        classes_under_min = [cls for cls, count in counter.items() if count < target_min]
+        logging.info(f"Classes a serem oversampled para atingir pelo menos {target_min} amostras: {classes_under_min}")
 
-        # Apply SMOTE to classes that can be synthesized
-        smote = SMOTE(random_state=self.seed)
+        # Definir a estratégia para RandomOverSampler
+        strategy_ros = {cls: target_min for cls in classes_under_min}
+
+        if strategy_ros:
+            ros = RandomOverSampler(sampling_strategy=strategy_ros, random_state=self.seed)
+            X_ros, y_ros = ros.fit_resample(X, y)
+            logging.info(f"Classe após RandomOverSampler: {Counter(y_ros)}")
+        else:
+            X_ros, y_ros = X, y  # Nenhuma classe precisa de oversampling via ROS
+
+        # Agora, aplicar SMOTE para balancear todas as classes até a maior classe
+        counter_ros = Counter(y_ros)
+        max_class_count = max(counter_ros.values())
+        logging.info(f"Máximo número de amostras em uma classe após RandomOverSampler: {max_class_count}")
+
+        # Definir a estratégia para SMOTE: todas as classes para o tamanho da maior
+        strategy_smote = {cls: max_class_count for cls in counter_ros.keys()}
+
+        smote = SMOTE(sampling_strategy=strategy_smote, random_state=self.seed)
         X_smote, y_smote = smote.fit_resample(X_ros, y_ros)
+        logging.info(f"Classe após SMOTE: {Counter(y_smote)}")
 
-        sample_counts = Counter(y_smote)
-        logging.info(f"Class distribution after oversampling: {sample_counts}")
-
+        # Registrar a distribuição final
         with open("oversampling_counts.txt", "a") as f:
             f.write("Class Distribution after Oversampling:\n")
-            for cls, count in sample_counts.items():
+            for cls, count in Counter(y_smote).items():
                 f.write(f"{cls}: {count}\n")
 
         return X_smote, y_smote
@@ -348,7 +373,7 @@ class Support:
         X = np.array(X)
         y = np.array(y)
 
-        X_smote, y_smote = self._oversample_single_sample_classes(X, y)
+        X_smote, y_smote = self._oversample_single_sample_classes(X, y, target_min=5)
 
         sample_counts = Counter(y_smote)
         logging.info(f"Sample counts after oversampling for {model_name_prefix}: {sample_counts}")
@@ -358,11 +383,18 @@ class Support:
             for cls, count in sample_counts.items():
                 f.write(f"{cls}: {count}\n")
 
-        if any(count < self.cv for count in sample_counts.values()):
-            raise ValueError(f"There are classes with fewer members than the number of folds after oversampling for {model_name_prefix}.")
-
+        # Ajuste dinâmico de cv
         min_class_count = min(sample_counts.values())
+        old_cv = self.cv
         self.cv = min(self.cv, min_class_count)
+
+        # Log a mudança de cv
+        if old_cv != self.cv:
+            logging.info(f"Adjusted cv from {old_cv} to {self.cv} based on class distribution for {model_name_prefix}.")
+
+        # Assegurar que cv não seja menor que 2
+        if self.cv < 2:
+            raise ValueError(f"Adjusted cv={self.cv} is less than 2 for {model_name_prefix}. Cannot perform cross-validation.")
 
         self.train_scores = []
         self.test_scores = []
@@ -381,7 +413,7 @@ class Support:
             fold_class_distribution = dict(zip(unique, counts_fold))
             logging.info(f"Fold {fold_number} [{model_name_prefix}]: Test set class distribution: {fold_class_distribution}")
 
-            X_train_resampled, y_train_resampled = self._oversample_single_sample_classes(X_train, y_train)
+            X_train_resampled, y_train_resampled = self._oversample_single_sample_classes(X_train, y_train, target_min=5)
 
             train_sample_counts = Counter(y_train_resampled)
             logging.info(f"Fold {fold_number} [{model_name_prefix}]: Training set class distribution after oversampling: {train_sample_counts}")
@@ -400,13 +432,13 @@ class Support:
             self.train_scores.append(train_score)
             self.test_scores.append(test_score)
 
-            # Calculate F1-score and Precision-Recall AUC
+        # Calculate F1-score and Precision-Recall AUC
             y_pred = self.model.predict(X_test)
             y_pred_proba = self.model.predict_proba(X_test)
 
             f1 = f1_score(y_test, y_pred, average='weighted')
             self.f1_scores.append(f1)
-
+ 
             if len(np.unique(y_test)) > 1:
                 pr_auc = average_precision_score(y_test, y_pred_proba, average='macro')
             else:
@@ -416,7 +448,7 @@ class Support:
             logging.info(f"Fold {fold_number} [{model_name_prefix}]: F1 Score: {f1}")
             logging.info(f"Fold {fold_number} [{model_name_prefix}]: Precision-Recall AUC: {pr_auc}")
 
-            # Calculate ROC AUC
+        # Calculate ROC AUC
             try:
                 if len(np.unique(y_test)) == 2:
                     fpr, tpr, thresholds = roc_curve(y_test, y_pred_proba[:, 1])
@@ -429,7 +461,7 @@ class Support:
             except ValueError:
                 logging.warning(f"Unable to calculate ROC AUC for fold {fold_number} [{model_name_prefix}] due to insufficient class representation.")
 
-            # Perform grid search and save the best model
+        # Perform grid search and save the best model
             best_model, best_params = self._perform_grid_search(X_train_resampled, y_train_resampled)
             self.model = best_model
             self.best_params = best_params
@@ -451,7 +483,7 @@ class Support:
             else:
                 logging.warning(f"No best parameters found from grid search for {model_name_prefix}.")
 
-            # Integrate Probability Calibration
+        # Integrate Probability Calibration
             calibrator = CalibratedClassifierCV(self.model, method='isotonic', cv=5, n_jobs=self.n_jobs)
             calibrator.fit(X_train_resampled, y_train_resampled)
 
@@ -466,10 +498,11 @@ class Support:
 
             fold_number += 1
 
-            # Allow Streamlit to update the UI
+        # Allow Streamlit to update the UI
             time.sleep(0.1)
 
         return self.model
+
 
     def _perform_grid_search(self, X_train_resampled, y_train_resampled):
         skf = StratifiedKFold(n_splits=self.cv, random_state=self.seed, shuffle=True)
@@ -489,6 +522,19 @@ class Support:
     def get_best_param(self, param_name, default=None):
         return self.best_params.get(param_name, default)
 
+    def plot_learning_curve(self, output_path):
+        plt.figure()
+        plt.plot(self.train_scores, label='Training score')
+        plt.plot(self.test_scores, label='Cross-validation score')
+        plt.plot(self.f1_scores, label='F1 Score')
+        plt.plot(self.pr_auc_scores, label='Precision-Recall AUC')
+        plt.title("Learning Curve", color='white')
+        plt.xlabel("Fold", fontsize=12, fontweight='bold', color='white')
+        plt.ylabel("Score", fontsize=12, fontweight='bold', color='white')
+        plt.legend(loc="best")
+        plt.grid(color='white', linestyle='--', linewidth=0.5)
+        plt.savefig(output_path, facecolor='#0B3C5D')  # Match the background color
+        plt.close()
 
     def get_class_rankings(self, X):
         """
@@ -508,6 +554,7 @@ class Support:
             class_rankings.append(formatted_rankings)
 
         return class_rankings
+
 
     def test_best_RF(self, X, y, scaler_dir='.'):
         """
@@ -562,7 +609,7 @@ class Support:
 
         # Retorna o score, melhores parâmetros, modelo treinado e conjuntos de teste
         return score, f1, pr_auc, self.best_params, calibrated_model, X_test, y_test
-
+        
     def _calculate_score(self, y_pred, y_test):
         """
         Calculates the score (e.g., ROC AUC) based on predictions and actual labels.
@@ -576,7 +623,6 @@ class Support:
         else:
             logging.warning(f"Unexpected shape or number of classes: y_pred shape: {y_pred.shape}, number of classes: {n_classes}")
             return 0
-
     def plot_roc_curve(self, y_true, y_pred_proba, title, save_as=None, classes=None):
         """
         Plots ROC curve for binary or multiclass classifications.
@@ -620,34 +666,38 @@ class Support:
         """
         Plots and saves the learning curve.
         """
-        train_sizes, train_scores, test_scores = learning_curve(estimator, X, y, cv=5, n_jobs=-1)
+        try:
+            train_sizes, train_scores, test_scores = learning_curve(estimator, X, y, cv=self.cv, n_jobs=-1)
 
-        train_scores_mean = np.mean(train_scores, axis=1)
-        train_scores_std = np.std(train_scores, axis=1)
-        test_scores_mean = np.mean(test_scores, axis=1)
-        test_scores_std = np.std(test_scores, axis=1)
+            train_scores_mean = np.mean(train_scores, axis=1)
+            train_scores_std = np.std(train_scores, axis=1)
+            test_scores_mean = np.mean(test_scores, axis=1)
+            test_scores_std = np.std(test_scores, axis=1)
 
-        plt.figure()
-        plt.title(title)
-        plt.xlabel("Training examples")
-        plt.ylabel("Score")
+            plt.figure()
+            plt.title(title)
+            plt.xlabel("Training examples")
+            plt.ylabel("Score")
 
         # Plot the learning curve
-        plt.grid()
-        plt.fill_between(train_sizes, train_scores_mean - train_scores_std,
-                         train_scores_mean + train_scores_std, alpha=0.1, color="r")
-        plt.fill_between(train_sizes, test_scores_mean - test_scores_std,
-                         test_scores_mean + test_scores_std, alpha=0.1, color="g")
-        plt.plot(train_sizes, train_scores_mean, 'o-', color="r", label="Training score")
-        plt.plot(train_sizes, test_scores_mean, 'o-', color="g", label="Cross-validation score")
+            plt.grid()
+            plt.fill_between(train_sizes, train_scores_mean - train_scores_std,
+                             train_scores_mean + train_scores_std, alpha=0.1, color="r")
+            plt.fill_between(train_sizes, test_scores_mean - test_scores_std,
+                             test_scores_mean + test_scores_std, alpha=0.1, color="g")
+            plt.plot(train_sizes, train_scores_mean, 'o-', color="r", label="Training score")
+            plt.plot(train_sizes, test_scores_mean, 'o-', color="g", label="Cross-validation score")
 
-        plt.legend(loc="best")
+            plt.legend(loc="best")
 
         # Save the plot if output path is specified
-        if output_path:
-            plt.savefig(output_path)
+            if output_path:
+                plt.savefig(output_path)
 
-        plt.show()
+            plt.show()
+        except Exception as e:
+            logging.error(f"An error occurred while plotting the learning curve: {e}")
+            raise
 
 
 class ProteinEmbeddingGenerator:
@@ -917,6 +967,7 @@ class ProteinEmbeddingGenerator:
             joblib.dump(scaler, scaler_full_path)
             logging.info(f"StandardScaler saved at {scaler_full_path}")
 
+
     def get_embeddings_and_labels(self, label_type='target_variable'):
         """
         Returns embeddings and associated labels (target_variable or associated_variable).
@@ -939,6 +990,7 @@ def compute_perplexity(n_samples):
 # Função para calcular a perplexidade dinamicamente
 def compute_perplexity_tsne(n_samples):
     return max(5, min(50, n_samples // 100))
+
 
 # Função para plotar os gráficos
 def plot_dual_tsne_3d(train_embeddings, train_labels, train_protein_ids, 
@@ -1068,10 +1120,6 @@ def plot_dual_tsne_3d(train_embeddings, train_labels, train_protein_ids,
 
     return fig_train, fig_predict
 
-
-import umap.umap_ as umap
-import plotly.graph_objects as go
-import plotly.express as px
 
 def plot_dual_umap(train_embeddings, train_labels, train_protein_ids,
                    predict_embeddings, predict_labels, predict_protein_ids, output_dir, top_n=3, class_rankings=None):
@@ -1624,7 +1672,7 @@ def main(args):
 
         # Executar clustering nos embeddings de treinamento
         if clustering_method == "DBSCAN":
-            labels_train = perform_clustering(
+            labels_train = execute_clustering(
                 data=X_target,
                 method=clustering_method,
                 eps=args.eps,
@@ -1632,7 +1680,7 @@ def main(args):
                 n_clusters=None  # Not used in DBSCAN
             )
         else:
-            labels_train = perform_clustering(
+            labels_train = execute_clustering(
                 data=X_target,
                 method=clustering_method,
                 eps=None,
@@ -1643,7 +1691,7 @@ def main(args):
 
         # Executar clustering nos embeddings de predição
         if clustering_method == "DBSCAN":
-            labels_predict = perform_clustering(
+            labels_predict = execute_clustering(
                 data=X_associated,
                 method=clustering_method,
                 eps=args.eps,
@@ -1651,7 +1699,7 @@ def main(args):
                 n_clusters=None  # Not used in DBSCAN
             )
         else:
-            labels_predict = perform_clustering(
+            labels_predict = execute_clustering(
                 data=X_associated,
                 method=clustering_method,
                 eps=None,
@@ -1678,7 +1726,7 @@ def main(args):
             X_resampled, y_resampled = resample(X_target, labels_train, replace=True, random_state=SEED + i)
             # Reaplicar clustering
             if clustering_method == "DBSCAN":
-                labels_resampled = perform_clustering(
+                labels_resampled = execute_clustering(
                     data=X_resampled,
                     method=clustering_method,
                     eps=args.eps,
@@ -1686,7 +1734,7 @@ def main(args):
                     n_clusters=None
                 )
             else:
-                labels_resampled = perform_clustering(
+                labels_resampled = execute_clustering(
                     data=X_resampled,
                     method=clustering_method,
                     eps=None,
@@ -1815,18 +1863,17 @@ def main(args):
     time.sleep(0.1)
 
     # Make predictions on new sequences
-
-    # Verificar o tamanho das features antes da predição
     # Verifique o número de características em relação ao estimador original do CalibratedClassifierCV
-    if X_predict_scaled.shape[1] > calibrated_model_target.estimator_.n_features_in_:
-        logging.info(f"Reducing number of features from {X_predict_scaled.shape[1]} to {calibrated_model_target.estimator_.n_features_in_} to match the model input size.")
-        X_predict_scaled = X_predict_scaled[:, :calibrated_model_target.estimator_.n_features_in_]
+    if X_predict_scaled.shape[1] > calibrated_model_target.base_estimator_.n_features_in_:
+        logging.info(f"Reducing number of features from {X_predict_scaled.shape[1]} to {calibrated_model_target.base_estimator_.n_features_in_} to match the model input size.")
+        X_predict_scaled = X_predict_scaled[:, :calibrated_model_target.base_estimator_.n_features_in_]
 
-    # Realizar a predição para target_variable
     predictions_target = calibrated_model_target.predict(X_predict_scaled)
 
-    # Realizar a predição para associated_variable
-    predictions_associated = calibrated_model_associated.predict(X_predict_scaled)  # Alteração
+    # Verificar e ajustar o tamanho das features para associated_variable
+    if X_predict_scaled.shape[1] > calibrated_model_associated.base_estimator_.n_features_in_:
+        logging.info(f"Reducing number of features from {X_predict_scaled.shape[1]} to {calibrated_model_associated.base_estimator_.n_features_in_} to match the model input size for associated_variable.")
+        X_predict_scaled = X_predict_scaled[:, :calibrated_model_associated.base_estimator_.n_features_in_]
 
     # Get class rankings
     rankings_target = get_class_rankings_global(calibrated_model_target, X_predict_scaled)
@@ -2200,7 +2247,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-
 # Sidebar for input parameters
 st.sidebar.header("Input Parameters")
 
@@ -2423,6 +2469,7 @@ if st.sidebar.button("Run Analysis"):
     except Exception as e:
         st.error(f"An error occurred during processing: {e}")
         logging.error(f"An error occurred: {e}")
+        logging.error(traceback.format_exc())
 
 
 # Função para carregar e redimensionar imagens com ajuste de DPI
@@ -2515,7 +2562,9 @@ img_tags = "".join(
 # Renderizar o rodapé
 st.markdown(footer_html.format(img_tags), unsafe_allow_html=True)
 # ===========
+    
 
 # ============================================
 # End of Code
 # ============================================
+
