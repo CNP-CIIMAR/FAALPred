@@ -2327,7 +2327,7 @@ if perform_clustering:
         min_samples = st.sidebar.slider("DBSCAN Min Samples", min_value=1, max_value=20, step=1, value=5)
         n_clusters = None  # Not used in DBSCAN
     else:
-        n_clusters = st.sidebar.slider("K-Means Number of Clusters", min_value=2, max_value=10, step=1, value=3)
+        n_clusters = st.sidebar.slider("K-Means Number of Clusters", min_value=2, max_value=15, step=1, value=3)
         eps = None  # Not used in K-Means
         min_samples = None  # Not used in K-Means
     bootstrap_iterations = st.sidebar.number_input("Bootstrap Iterations for Cluster Significance", min_value=10, max_value=1000, value=100, step=10)
@@ -2590,3 +2590,4 @@ img_tags = "".join(
 
 # Renderizar o rodapÃ©
 st.markdown(footer_html.format(img_tags), unsafe_allow_html=True)
+
