@@ -185,7 +185,7 @@ def plot_roc_curve_global(y_true, y_pred_proba, title, save_as=None, classes=Non
 
 def get_class_rankings_global(model, X):
     """
-    Gets class rankings based on the probabilities predicted by the model.
+    Gets class rankings for the given data.
     """
     if model is None:
         raise ValueError("Model not fitted yet. Please fit the model first.")
@@ -321,12 +321,12 @@ class Support:
         Oversamples classes to ensure each has at least target_min samples.
         First uses RandomOverSampler to bring classes with < target_min to target_min.
         Then uses SMOTE to balance all classes to the size of the majority class.
-    
+
         Parameters:
         - X: Features.
         - y: Labels.
         - target_min: Minimum number of samples per class after RandomOverSampler.
-    
+
         Returns:
         - X_smote, y_smote: Oversampled features and labels.
         """
@@ -360,7 +360,6 @@ class Support:
         k_neighbors = min(min_class_size - 1, 5) if min_class_size > 1 else 1
         smote = SMOTE(sampling_strategy=strategy_smote, k_neighbors=k_neighbors, random_state=self.seed)
         logging.info(f"Using k_neighbors={k_neighbors} for SMOTE based on minimum class size={min_class_size}")
-
 
         X_smote, y_smote = smote.fit_resample(X_ros, y_ros)
         logging.info(f"Classe após SMOTE: {Counter(y_smote)}")
@@ -438,7 +437,7 @@ class Support:
             self.train_scores.append(train_score)
             self.test_scores.append(test_score)
 
-        # Calculate F1-score and Precision-Recall AUC
+            # Calculate F1-score and Precision-Recall AUC
             y_pred = self.model.predict(X_test)
             y_pred_proba = self.model.predict_proba(X_test)
 
@@ -446,15 +445,17 @@ class Support:
             self.f1_scores.append(f1)
 
             if len(np.unique(y_test)) > 1:
-                pr_auc = average_precision_score(y_test, y_pred_proba, average='macro')
+                # Binarize y_test for multiclass average_precision_score
+                y_test_bin = label_binarize(y_test, classes=self.model.classes_)
+                pr_auc = average_precision_score(y_test_bin, y_pred_proba, average='macro')
             else:
-                pr_auc = 0.0  # Cannot calculate PR AUC for a single class
+                pr_auc = average_precision_score(y_test, y_pred_proba, average='macro')  # Binary case
             self.pr_auc_scores.append(pr_auc)
 
             logging.info(f"Fold {fold_number} [{model_name_prefix}]: F1 Score: {f1}")
             logging.info(f"Fold {fold_number} [{model_name_prefix}]: Precision-Recall AUC: {pr_auc}")
 
-        # Calculate ROC AUC
+            # Calculate ROC AUC
             try:
                 if len(np.unique(y_test)) == 2:
                     fpr, tpr, thresholds = roc_curve(y_test, y_pred_proba[:, 1])
@@ -467,7 +468,7 @@ class Support:
             except ValueError:
                 logging.warning(f"Unable to calculate ROC AUC for fold {fold_number} [{model_name_prefix}] due to insufficient class representation.")
 
-        # Perform grid search and save the best model
+            # Perform grid search and save the best model
             best_model, best_params = self._perform_grid_search(X_train_resampled, y_train_resampled)
             self.model = best_model
             self.best_params = best_params
@@ -489,7 +490,7 @@ class Support:
             else:
                 logging.warning(f"No best parameters found from grid search for {model_name_prefix}.")
 
-        # Integrate Probability Calibration
+            # Integrate Probability Calibration
             calibrator = CalibratedClassifierCV(self.model, method='isotonic', cv=5, n_jobs=self.n_jobs)
             calibrator.fit(X_train_resampled, y_train_resampled)
 
@@ -504,7 +505,7 @@ class Support:
 
             fold_number += 1
 
-        # Allow Streamlit to update the UI
+            # Allow Streamlit to update the UI
             time.sleep(0.1)
 
         return self.model
@@ -517,7 +518,7 @@ class Support:
             self.parameters,
             cv=skf,
             n_jobs=self.n_jobs,
-            scoring='roc_auc_ovo',
+            scoring='roc_auc_ovo',  # Ensure scoring is compatible with multiclass
             verbose=1
         )
 
@@ -525,8 +526,10 @@ class Support:
         logging.info(f"Best parameters from grid search: {grid_search.best_params_}")
         return grid_search.best_estimator_, grid_search.best_params_
 
+
     def get_best_param(self, param_name, default=None):
         return self.best_params.get(param_name, default)
+
 
     def plot_learning_curve(self, output_path):
         plt.figure()
@@ -541,6 +544,7 @@ class Support:
         plt.grid(color='white', linestyle='--', linewidth=0.5)
         plt.savefig(output_path, facecolor='#0B3C5D')  # Match the background color
         plt.close()
+
 
     def get_class_rankings(self, X):
         """
@@ -609,7 +613,7 @@ class Support:
         y_pred_classes = calibrated_model.predict(X_test)
         f1 = f1_score(y_test, y_pred_classes, average='weighted')
         if len(np.unique(y_test)) > 1:
-            pr_auc = average_precision_score(y_test, y_pred_proba, average='macro')
+            pr_auc = average_precision_score(label_binarize(y_test, classes=model.classes_), y_pred_proba, average='macro')
         else:
             pr_auc = 0.0  # Não pode calcular PR AUC para uma única classe
 
@@ -1866,6 +1870,9 @@ def main(args):
         logging.info(f"Reducing number of features from {X_predict_scaled.shape[1]} to {calibrated_model_associated.base_estimator_.n_features_in_} to match the model input size for associated_variable.")
         X_predict_scaled = X_predict_scaled[:, :calibrated_model_associated.base_estimator_.n_features_in_]
 
+    # Make predictions for associated_variable
+    predictions_associated = calibrated_model_associated.predict(X_predict_scaled)
+
     # Get class rankings
     rankings_target = get_class_rankings_global(calibrated_model_target, X_predict_scaled)
     rankings_associated = get_class_rankings_global(calibrated_model_associated, X_predict_scaled)  # Alteração
@@ -2418,8 +2425,13 @@ if st.sidebar.button("Run Analysis"):
         else:
             st.error(f"Formatted results table not found or is empty: {formatted_table_path}")
 
+        # Generate the Scatterplot of Predictions
+        logging.info("Generating scatterplot of new sequences predictions...")
+        plot_predictions_scatterplot_custom(results, args.scatterplot_output)
+        logging.info(f"Scatterplot saved at {args.scatterplot_output}")
+
         # =============================
-        # STEP 4: Clustering Visualization (Opcional)
+        # STEP 4: Dimensionality Reduction e Plotagem t-SNE & UMAP
         # =============================
 
         if args.perform_clustering:
@@ -2554,7 +2566,6 @@ img_tags = "".join(
 st.markdown(footer_html.format(img_tags), unsafe_allow_html=True)
 # ===========
     
-
 # ============================================
 # End of Code
 # ============================================
