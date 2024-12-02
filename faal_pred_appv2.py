@@ -355,7 +355,13 @@ class Support:
         # Definir a estratégia para SMOTE: todas as classes para o tamanho da maior
         strategy_smote = {cls: max_class_count for cls in counter_ros.keys()}
 
-        smote = SMOTE(sampling_strategy=strategy_smote, random_state=self.seed)
+#        smote = SMOTE(sampling_strategy=strategy_smote, random_state=self.seed)
+        min_class_size = min(counter_ros.values())
+        k_neighbors = min(min_class_size - 1, 5) if min_class_size > 1 else 1
+        smote = SMOTE(sampling_strategy=strategy_smote, k_neighbors=k_neighbors, random_state=self.seed)
+        logging.info(f"Using k_neighbors={k_neighbors} for SMOTE based on minimum class size={min_class_size}")
+
+
         X_smote, y_smote = smote.fit_resample(X_ros, y_ros)
         logging.info(f"Classe após SMOTE: {Counter(y_smote)}")
 
