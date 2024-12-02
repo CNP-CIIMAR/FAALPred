@@ -68,7 +68,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-
 def are_sequences_aligned(fasta_file):
     """
     Checks if all sequences in a FASTA file have the same length.
@@ -77,7 +76,6 @@ def are_sequences_aligned(fasta_file):
     for record in SeqIO.parse(fasta_file, "fasta"):
         lengths.add(len(record.seq))
     return len(lengths) == 1  # Returns True if all sequences have the same length
-
 
 def create_unique_model_directory(base_dir, aggregation_method):
     """
@@ -95,10 +93,9 @@ def create_unique_model_directory(base_dir, aggregation_method):
         os.makedirs(model_dir)
     return model_dir
 
-
 def realign_sequences_with_mafft(input_path, output_path, threads=8):
     """
-    Realigns sequences using MAFFT.
+    Realinha sequÃªncias usando MAFFT.
     """
     mafft_command = ['mafft', '--thread', str(threads), '--maxiterate', '1000', '--localpair', input_path]
     try:
@@ -109,9 +106,6 @@ def realign_sequences_with_mafft(input_path, output_path, threads=8):
         logging.error(f"Error running MAFFT: {e.stderr.decode()}")
         sys.exit(1)
 
-
-# FunÃ§Ã£o para realizar o clustering
-# FunÃ§Ã£o para realizar o clustering
 def execute_clustering(data, method="DBSCAN", eps=0.5, min_samples=5, n_clusters=3):
     """
     Executa clustering nos dados usando DBSCAN ou K-Means.
@@ -137,7 +131,6 @@ def execute_clustering(data, method="DBSCAN", eps=0.5, min_samples=5, n_clusters
 
     labels = clustering_model.fit_predict(data)
     return labels
-
 
 def plot_roc_curve_global(y_true, y_pred_proba, title, save_as=None, classes=None):
     """
@@ -183,7 +176,6 @@ def plot_roc_curve_global(y_true, y_pred_proba, title, save_as=None, classes=Non
         plt.savefig(save_as, bbox_inches='tight', facecolor='#0B3C5D')  # Match the background color
     plt.close()
 
-
 def get_class_rankings_global(model, X):
     """
     Gets class rankings for the given data.
@@ -202,7 +194,6 @@ def get_class_rankings_global(model, X):
         class_rankings.append(formatted_rankings)
 
     return class_rankings
-
 
 def calculate_roc_values(model, X_test, y_test):
     """
@@ -228,7 +219,6 @@ def calculate_roc_values(model, X_test, y_test):
 
     roc_df = pd.DataFrame(list(roc_auc.items()), columns=['Class', 'ROC AUC'])
     return roc_df
-
 
 def format_and_sum_probabilities(associated_rankings):
     """
@@ -265,7 +255,6 @@ def format_and_sum_probabilities(associated_rankings):
     formatted_results = [f"{category} ({sum_prob:.2f}%)" for category, sum_prob in sorted_results if sum_prob > 0]
 
     return " - ".join(formatted_results)
-
 
 class Support:
     """
@@ -316,7 +305,6 @@ class Support:
             "ccp_alpha": [0.001],
         }
 
-
     def _oversample_single_sample_classes(self, X, y, target_min=5):
         """
         Oversamples classes to ensure each has at least target_min samples.
@@ -356,7 +344,6 @@ class Support:
         # Definir a estratÃ©gia para SMOTE: todas as classes para o tamanho da maior
         strategy_smote = {cls: max_class_count for cls in counter_ros.keys()}
 
-#        smote = SMOTE(sampling_strategy=strategy_smote, random_state=self.seed)
         min_class_size = min(counter_ros.values())
         k_neighbors = min(min_class_size - 1, 5) if min_class_size > 1 else 1
         smote = SMOTE(sampling_strategy=strategy_smote, k_neighbors=k_neighbors, random_state=self.seed)
@@ -511,7 +498,6 @@ class Support:
 
         return self.model
 
-
     def _perform_grid_search(self, X_train_resampled, y_train_resampled):
         skf = StratifiedKFold(n_splits=self.cv, random_state=self.seed, shuffle=True)
         grid_search = GridSearchCV(
@@ -525,12 +511,10 @@ class Support:
 
         grid_search.fit(X_train_resampled, y_train_resampled)
         logging.info(f"Best parameters from grid search: {grid_search.best_params_}")
-        return grid_search.best_estimator_, grid_search.best_params_
-
+        return grid_search.best_estimator, grid_search.best_params_
 
     def get_best_param(self, param_name, default=None):
         return self.best_params.get(param_name, default)
-
 
     def plot_learning_curve(self, output_path):
         plt.figure()
@@ -545,7 +529,6 @@ class Support:
         plt.grid(color='white', linestyle='--', linewidth=0.5)
         plt.savefig(output_path, facecolor='#0B3C5D')  # Match the background color
         plt.close()
-
 
     def get_class_rankings(self, X):
         """
@@ -565,7 +548,6 @@ class Support:
             class_rankings.append(formatted_rankings)
 
         return class_rankings
-
 
     def test_best_RF(self, X, y, scaler_dir='.'):
         """
@@ -620,7 +602,7 @@ class Support:
 
         # Retorna o score, melhores parÃ¢metros, modelo treinado e conjuntos de teste
         return score, f1, pr_auc, self.best_params, calibrated_model, X_test, y_test
-        
+
     def _calculate_score(self, y_pred, y_test):
         """
         Calculates the score (e.g., ROC AUC) based on predictions and actual labels.
@@ -691,7 +673,7 @@ class Support:
             plt.xlabel("Training examples")
             plt.ylabel("Score")
 
-        # Plot the learning curve
+            # Plot the learning curve
             plt.grid()
             plt.fill_between(train_sizes, train_scores_mean - train_scores_std,
                              train_scores_mean + train_scores_std, alpha=0.1, color="r")
@@ -702,7 +684,7 @@ class Support:
 
             plt.legend(loc="best")
 
-        # Save the plot if output path is specified
+            # Save the plot if output path is specified
             if output_path:
                 plt.savefig(output_path)
 
@@ -710,7 +692,6 @@ class Support:
         except Exception as e:
             logging.error(f"An error occurred while plotting the learning curve: {e}")
             raise
-
 
 class ProteinEmbeddingGenerator:
     def __init__(self, sequences_path, table_data=None, aggregation_method='none'):
@@ -992,18 +973,15 @@ class ProteinEmbeddingGenerator:
 
         return np.array(embeddings), np.array(labels)
 
-
 SEED = 42  # Define a seed for reproducibility
 
 # Ajustar perplexidade dinamicamente
 def compute_perplexity(n_samples):
     return min(max(n_samples // 10, 5), 50)
 
-
 # FunÃ§Ã£o para calcular a perplexidade dinamicamente
 def compute_perplexity_tsne(n_samples):
     return max(5, min(50, n_samples // 100))
-
 
 # FunÃ§Ã£o para plotar os grÃ¡ficos
 def plot_dual_tsne_3d(train_embeddings, train_labels, train_protein_ids, 
@@ -1133,7 +1111,6 @@ def plot_dual_tsne_3d(train_embeddings, train_labels, train_protein_ids,
 
     return fig_train, fig_predict
 
-
 def plot_dual_umap(train_embeddings, train_labels, train_protein_ids,
                    predict_embeddings, predict_labels, predict_protein_ids, output_dir, top_n=3, class_rankings=None):
     """
@@ -1254,7 +1231,6 @@ def plot_dual_umap(train_embeddings, train_labels, train_protein_ids,
 
     return fig_train, fig_predict
 
-
 def generate_accuracy_pie_chart(formatted_results, table_data, output_path):
     """
     Generates a pie chart showing accuracy by category.
@@ -1297,7 +1273,6 @@ def generate_accuracy_pie_chart(formatted_results, table_data, output_path):
     plt.tight_layout()
     plt.savefig(output_path, facecolor='#0B3C5D')  # Match the background color
     plt.close()
-
 
 def plot_predictions_scatterplot_custom(results, output_path, top_n=3):
     """
@@ -1400,7 +1375,6 @@ def plot_predictions_scatterplot_custom(results, output_path, top_n=3):
     plt.close()
     logging.info(f"Scatterplot saved at {output_path}")
 
-
 def adjust_predictions_global(predicted_proba, method='normalize', alpha=1.0):
     """
     Adjusts the predicted probabilities from the model.
@@ -1425,7 +1399,6 @@ def adjust_predictions_global(predicted_proba, method='normalize', alpha=1.0):
         adjusted_proba = predicted_proba.copy()
 
     return adjusted_proba
-
 
 def main(args):
     model_dir = args.model_dir  # This should be 'results/models_none' or similar based on aggregation_method
@@ -1522,6 +1495,7 @@ def main(args):
         # Model training for target_variable
         support_model_target = Support()
         calibrated_model_target = support_model_target.fit(X_target, y_target, model_name_prefix='target', model_dir=model_dir, min_kmers=min_kmers)
+
         logging.info("Training and calibration for target_variable completed.")
 
         # Save the calibrated model
@@ -1591,6 +1565,7 @@ def main(args):
         # Model training for associated_variable
         support_model_associated = Support()
         calibrated_model_associated = support_model_associated.fit(X_associated, y_associated, model_name_prefix='associated', model_dir=model_dir, min_kmers=min_kmers)
+
         logging.info("Training and calibration for associated_variable completed.")
 
         # Save the calibrated model
@@ -1793,8 +1768,6 @@ def main(args):
     # =============================
     # STEP 3: Classifying New Sequences
     # =============================
-   # STEP 3: Classifying New Sequences
-    # =============================
 
     # Load min_kmers
     min_kmers_path = os.path.join(model_dir, 'min_kmers.txt')
@@ -1879,10 +1852,13 @@ def main(args):
 
     # Check feature size before prediction
     try:
-        base_estimator_target = getattr(calibrated_model_target, 'base_estimator_', getattr(calibrated_model_target, 'estimator_', None))
-        base_estimator_associated = getattr(calibrated_model_associated, 'base_estimator_', getattr(calibrated_model_associated, 'estimator_', None))
+        base_estimator_target = getattr(calibrated_model_target, 'estimator', None)
+        base_estimator_associated = getattr(calibrated_model_associated, 'estimator', None)
+       # base_estimator_target = getattr(calibrated_model_target, 'estimator', None)
+       # base_estimator_associated = getattr(calibrated_model_associated, 'estimator', None)
+
     except AttributeError:
-        logging.error("Could not access base estimator from calibrated models.")
+        logging.error("Could not access estimator from calibrated models.")
         sys.exit(1)
 
     if base_estimator_target is not None and X_predict_scaled.shape[1] > base_estimator_target.n_features_in_:
@@ -1952,7 +1928,7 @@ def main(args):
     # Generate the Scatter Plot of Predictions
     logging.info("Generating scatter plot of predictions for new sequences...")
     plot_predictions_scatterplot_custom(results, args.scatterplot_output)
-    logging.info(f"Scatter plot saved at {args.scatterplot_output}")
+    logging.info(f"Scatterplot saved at {args.scatterplot_output}")
 
     # =============================
     # STEP 4: Dimensionality Reduction e Plotagem t-SNE & UMAP
@@ -2026,15 +2002,35 @@ def main(args):
         sys.exit(1)
 
     # =============================
+    # STEP 4: Displaying the Results Table Before Graphs
+    # =============================
+
+    # Display formatted results table in Streamlit
+    st.header("Formatted Results Table")
+    # Verificar se o arquivo existe e nÃ£o estÃ¡ vazio
+    formatted_table_path = args.formatted_results_table
+
+    if os.path.exists(formatted_table_path) and os.path.getsize(formatted_table_path) > 0:
+        try:
+            # Abrir e ler o conteÃºdo do arquivo
+            with open(formatted_table_path, 'r') as f:
+                formatted_table = f.read()
+
+            # Exibir o conteÃºdo no Streamlit
+            st.text(formatted_table)
+        except Exception as e:
+            st.error(f"An error occurred while reading the formatted results table: {e}")
+    else:
+        st.error(f"Formatted results table not found or is empty: {formatted_table_path}")
+
+    # =============================
     # STEP 5: ImplementaÃ§Ã£o das Novas Funcionalidades
     # =============================
     # ImplementaÃ§Ã£o 2: Selecionar os kmers consenso e gerar arquivo tabular
     # Extrair feature importances
     logging.info("Extracting feature importances for associated_variable...")
-    feature_importances = calibrated_model_associated.base_estimator_.feature_importances_
-    #    feature_importances = calibrated_model_associated.estimator_.feature_importances_
-    #base_estimator_
-    kmer_list = [f"kmer_{i}" for i in range(len(feature_importances))]  # Assuming kmers are named as kmer_0, kmer_1, etc.
+    feature_importances = calibrated_model_associated.estimator_.feature_importances_
+    # base_estimator_
 
     # Map feature indices to actual kmers
     # Assuming that the order of features corresponds to the order of kmers used in training
@@ -2049,7 +2045,7 @@ def main(args):
     if args.aggregation_method == 'none':
         # Concatenated embeddings: features are multiple kmers
         # Need to extract feature importances per kmer by averaging across concatenated parts
-        vector_size = calibrated_model_associated.base_estimator_.n_features_in_ // min_kmers_loaded
+        vector_size = calibrated_model_associated.estimator_.n_features_in_ // min_kmers_loaded
         kmer_importances = {}
         for i in range(min_kmers_loaded):
             start = i * vector_size
@@ -2127,11 +2123,10 @@ def main(args):
         mime="application/zip"
     )
 
-    #ok Update progress to 100%
+    # Update progress to 100%
     progress_bar.progress(1.0)
     progress_text.markdown("<span style='color:black'>Progress: 100%</span>", unsafe_allow_html=True)
     time.sleep(0.1)
-
 
 # Custom CSS for dark navy blue background and white text
 st.markdown(
@@ -2429,11 +2424,6 @@ if st.sidebar.button("Run Analysis"):
         scatterplot_path = os.path.join(args.output_dir, "scatterplot_predictions.png")
         st.image(scatterplot_path, use_column_width=True)
 
-        # Display formatted results table
-        # st.header("Formatted Results Table")
-        # with open(args.formatted_results_table, 'r') as f:
-        #     formatted_table = f.read()
-        # st.text(formatted_table)
     # Caminho do arquivo formatado
         formatted_table_path = args.formatted_results_table
 
@@ -2465,7 +2455,8 @@ if st.sidebar.button("Run Analysis"):
 
             # Carregar labels de clustering para treinamento e prediÃ§Ã£o
             labels_train = [entry.get('clustering_label', None) for entry in protein_embedding_train.embeddings]
-            labels_predict = [entry.get('clustering_label', None) for entry in protein_embedding_train.embeddings]  # CorreÃ§Ã£o: agora iterando sobre associated embeddings
+            labels_predict = [entry.get('clustering_label', None) for entry in protein_embedding_predict.embeddings]
+
 
             # Exibir distribuiÃ§Ã£o dos clusters no treinamento
             cluster_counts_train = Counter(labels_train)
@@ -2499,7 +2490,6 @@ if st.sidebar.button("Run Analysis"):
         st.error(f"An error occurred during processing: {e}")
         logging.error(f"An error occurred: {e}")
         logging.error(traceback.format_exc())
-
 
 # FunÃ§Ã£o para carregar e redimensionar imagens com ajuste de DPI
 def load_and_resize_image_with_dpi(image_path, base_width, dpi=300):
