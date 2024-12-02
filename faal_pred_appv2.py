@@ -438,7 +438,7 @@ class Support:
 
             f1 = f1_score(y_test, y_pred, average='weighted')
             self.f1_scores.append(f1)
- 
+
             if len(np.unique(y_test)) > 1:
                 pr_auc = average_precision_score(y_test, y_pred_proba, average='macro')
             else:
@@ -572,7 +572,7 @@ class Support:
         X_scaled = scaler.transform(X)
 
         # Aplica oversampling em todo o conjunto de dados antes da divisão
-        X_resampled, y_resampled = self._oversample_single_sample_classes(X_scaled, y)
+        X_resampled, y_resampled = self._oversample_single_sample_classes(X_scaled, y, target_min=5)
 
         # Divide em treinamento e teste
         X_train, X_test, y_train, y_test = train_test_split(
@@ -623,6 +623,7 @@ class Support:
         else:
             logging.warning(f"Unexpected shape or number of classes: y_pred shape: {y_pred.shape}, number of classes: {n_classes}")
             return 0
+
     def plot_roc_curve(self, y_true, y_pred_proba, title, save_as=None, classes=None):
         """
         Plots ROC curve for binary or multiclass classifications.
@@ -808,14 +809,14 @@ class ProteinEmbeddingGenerator:
             # Train Word2Vec model using all k-mers
             model = Word2Vec(
                 sentences=all_kmers,
-                vector_size=125,  # change to 100 if necessary
+                size=125,  # changed from vector_size to size
                 window=10,
                 min_count=1,
                 workers=8,
                 sg=1,
                 hs=1,  # Hierarchical softmax enabled
                 negative=0,  # Negative sampling disabled
-                epochs=2500,  # Fix number of epochs for reproducibility
+                iter=2500,  # changed from epochs to iter
                 seed=SEED  # Fix seed for reproducibility
             )
 
@@ -967,7 +968,6 @@ class ProteinEmbeddingGenerator:
             joblib.dump(scaler, scaler_full_path)
             logging.info(f"StandardScaler saved at {scaler_full_path}")
 
-
     def get_embeddings_and_labels(self, label_type='target_variable'):
         """
         Returns embeddings and associated labels (target_variable or associated_variable).
@@ -981,6 +981,8 @@ class ProteinEmbeddingGenerator:
 
         return np.array(embeddings), np.array(labels)
 
+
+SEED = 42  # Define a seed for reproducibility
 
 # Ajustar perplexidade dinamicamente
 def compute_perplexity(n_samples):
@@ -1456,47 +1458,30 @@ def main(args):
     progress_text.markdown(f"<span style='color:white'>Progress: {int(progress * 100)}%</span>", unsafe_allow_html=True)
     time.sleep(0.1)
 
-    # Initialize and generate embeddings para target_variable
-    protein_embedding_train_target = ProteinEmbeddingGenerator(
+    # Initialize and generate embeddings for training
+    protein_embedding_train = ProteinEmbeddingGenerator(
         train_alignment_path, 
         train_table_data, 
         aggregation_method=args.aggregation_method  # Passing the aggregation method
     )
-    protein_embedding_train_target.generate_embeddings(
+    protein_embedding_train.generate_embeddings(
         k=args.kmer_size,
         step_size=args.step_size,
         word2vec_model_path=args.word2vec_model,
         model_dir=model_dir,
-        min_kmers=args.min_kmers,  # Ensuring consistent min_kmers
         save_min_kmers=True  # Save min_kmers after training
     )
-    logging.info(f"Number of training embeddings generated for target_variable: {len(protein_embedding_train_target.embeddings)}")
-
-    # Initialize and generate embeddings para associated_variable
-    protein_embedding_train_associated = ProteinEmbeddingGenerator(
-        train_alignment_path, 
-        train_table_data, 
-        aggregation_method=args.aggregation_method  # Passing the aggregation method
-    )
-    protein_embedding_train_associated.generate_embeddings(
-        k=args.kmer_size,
-        step_size=args.step_size,
-        word2vec_model_path=args.word2vec_model,
-        model_dir=model_dir,
-        min_kmers=args.min_kmers,  # Ensuring consistent min_kmers
-        save_min_kmers=True  # Save min_kmers after training
-    )
-    logging.info(f"Number of training embeddings generated for associated_variable: {len(protein_embedding_train_associated.embeddings)}")
+    logging.info(f"Number of training embeddings generated: {len(protein_embedding_train.embeddings)}")
 
     # Save min_kmers to ensure consistency
-    min_kmers = protein_embedding_train_target.min_kmers
+    min_kmers = protein_embedding_train.min_kmers
 
     # Get embeddings e labels para target_variable
-    X_target, y_target = protein_embedding_train_target.get_embeddings_and_labels(label_type='target_variable')
+    X_target, y_target = protein_embedding_train.get_embeddings_and_labels(label_type='target_variable')
     logging.info(f"X_target shape: {X_target.shape}")
 
     # Get embeddings e labels para associated_variable
-    X_associated, y_associated = protein_embedding_train_associated.get_embeddings_and_labels(label_type='associated_variable')
+    X_associated, y_associated = protein_embedding_train.get_embeddings_and_labels(label_type='associated_variable')
     logging.info(f"X_associated shape: {X_associated.shape}")
 
     # Full paths para modelos target_variable
@@ -1709,11 +1694,11 @@ def main(args):
         logging.info(f"Clustering labels for prediction data: {labels_predict}")
 
         # Atualizar resultados com labels de clustering
-        for i, entry in enumerate(protein_embedding_train_target.embeddings):
-            protein_embedding_train_target.embeddings[i]['clustering_label'] = labels_train[i]
+        for i, entry in enumerate(protein_embedding_train.embeddings):
+            protein_embedding_train.embeddings[i]['clustering_label'] = labels_train[i]
 
-        for i, entry in enumerate(protein_embedding_train_associated.embeddings):  # Correção: agora iterando sobre associated embeddings
-            protein_embedding_train_associated.embeddings[i]['clustering_label'] = labels_predict[i]
+        for i, entry in enumerate(protein_embedding_train.embeddings):  # Correção: agora iterando sobre associated embeddings
+            protein_embedding_train.embeddings[i]['clustering_label'] = labels_predict[i]
 
         # Análise de Bootstrap para Significância dos Clusters
         logging.info("Starting bootstrap analysis for cluster significance...")
@@ -1939,9 +1924,9 @@ def main(args):
         logging.info("Generating dual t-SNE and UMAP 3D plots for training data and predictions...")
 
         # Coletar embeddings e labels para dados de treinamento
-        combined_embeddings_train = np.array([entry['embedding'] for entry in protein_embedding_train_target.embeddings])
-        combined_labels_train = [entry['associated_variable'] for entry in protein_embedding_train_target.embeddings]
-        combined_protein_ids_train = [entry['protein_accession'] for entry in protein_embedding_train_target.embeddings]
+        combined_embeddings_train = np.array([entry['embedding'] for entry in protein_embedding_train.embeddings])
+        combined_labels_train = [entry['associated_variable'] for entry in protein_embedding_train.embeddings]
+        combined_protein_ids_train = [entry['protein_accession'] for entry in protein_embedding_train.embeddings]
 
         # Coletar embeddings e labels para predições
         combined_embeddings_predict = X_predict_scaled
@@ -2025,7 +2010,7 @@ def main(args):
     if args.aggregation_method == 'none':
         # Concatenated embeddings: features are multiple kmers
         # Need to extract feature importances per kmer by averaging across concatenated parts
-        vector_size = calibrated_model_associated.estimator_.n_features_in_ // min_kmers_loaded
+        vector_size = calibrated_model_associated.base_estimator_.n_features_in_ // min_kmers_loaded
         kmer_importances = {}
         for i in range(min_kmers_loaded):
             start = i * vector_size
@@ -2046,7 +2031,7 @@ def main(args):
 
     # Map kmers to protein IDs
     kmer_to_proteins = {kmer: [] for kmer in top_n_kmers}
-    for entry in protein_embedding_train_associated.embeddings:
+    for entry in protein_embedding_train.embeddings:
         protein_id = entry['protein_accession']
         kmers = entry.get('kmers', [])
         for kmer in kmers:
@@ -2435,8 +2420,8 @@ if st.sidebar.button("Run Analysis"):
             st.header("Clustering Results")
 
             # Carregar labels de clustering para treinamento e predição
-            labels_train = [entry.get('clustering_label', None) for entry in protein_embedding_train_target.embeddings]
-            labels_predict = [entry.get('clustering_label', None) for entry in protein_embedding_train_associated.embeddings]
+            labels_train = [entry.get('clustering_label', None) for entry in protein_embedding_train.embeddings]
+            labels_predict = [entry.get('clustering_label', None) for entry in protein_embedding_train.embeddings]  # Correção: agora iterando sobre associated embeddings
 
             # Exibir distribuição dos clusters no treinamento
             cluster_counts_train = Counter(labels_train)
@@ -2567,4 +2552,3 @@ st.markdown(footer_html.format(img_tags), unsafe_allow_html=True)
 # ============================================
 # End of Code
 # ============================================
-
