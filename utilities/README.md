@@ -1,3 +1,226 @@
+
+Script 1: title: "Protein HMM Search Tool": protein_hmm_search.py
+
+# description: 
+  A Python-based tool designed to execute HMMER's `hmmsearch` on multiple FASTA (.faa) files using a set of HMM (.hmm) models.
+  The tool automates the search process, parses the results, and consolidates them into organized TSV files for further analysis.
+
+# features:
+  - Executes `hmmsearch` for multiple HMM models against multiple FASTA files.
+  - Parses HMMER output (`tblout`) and extracts relevant information into structured TSV files.
+  - Supports specifying custom E-value thresholds for domain searches.
+  - Automatically organizes output files based on models and genome accessions.
+  - Handles errors gracefully and provides informative messages for troubleshooting.
+
+# dependencies:
+  - Anaconda 3.x
+  - Python 3.8 or higher
+  - pandas
+  - HMMER 3.3 or higher
+
+# installation:
+  prerequisites:
+    - Download and install [Anaconda](https://www.anaconda.com/products/distribution) for your operating system.
+    - Ensure that the HMMER suite is installed. You can install it via conda:
+      ```bash
+      conda install -c bioconda hmmer
+      ```
+
+  # steps:
+    - Clone the repository:
+      ```bash
+      git clone https://github.com/yourusername/proteinHMM.git
+      cd proteinHMM
+      ```
+
+    - Create the Anaconda environment named `proteinHMM`:
+      ```bash
+      conda create -n proteinHMM python=3.8
+      ```
+
+    - Activate the environment:
+      ```bash
+      conda activate proteinHMM
+      ```
+
+    - Install the required Python packages:
+      ```bash
+      pip install pandas
+      ```
+
+    - (Optional) If additional dependencies are required, install them as needed:
+      ```bash
+      pip install [package_name]
+      ```
+
+usage:
+  description: >
+    The script processes multiple FASTA files containing protein sequences (.faa) against a set of HMM models (.hmm).
+    It performs domain searches using `hmmsearch`, parses the results, and compiles them into consolidated TSV files.
+
+  command:
+    ```bash
+    python3 protein_hmm_search.py <models_dir> <fastas_dir> <output_dir>
+    ```
+
+  arguments:
+    - `<models_dir>`: 
+        description: "Path to the directory containing HMM model files (.hmm)."
+        example: "models/"
+    - `<fastas_dir>`: 
+        description: "Path to the directory containing FASTA files (.faa) to be searched."
+        example: "fastas/"
+    - `<output_dir>`: 
+        description: "Path to the directory where output results will be saved."
+        example: "results/"
+
+  example:
+    ```bash
+    python3 protein_hmm_search.py models/ fastas/ results/
+    ```
+
+  arguments_details:
+    models_dir:
+      - Ensure that the directory contains valid HMM model files with a `.hmm` extension.
+      - Example files: `model1.hmm`, `model2.hmm`, etc.
+    fastas_dir:
+      - Ensure that the directory contains valid FASTA files with a `.faa` extension.
+      - Example files: `genome1.faa`, `genome2.faa`, etc.
+    output_dir:
+      - If the directory does not exist, it will be created automatically.
+      - Results will be saved as `modelName_genomeAccession_tblout.txt` and consolidated into `modelName_all_results.tsv`.
+
+model_hmm_query:
+  description: >
+    The HMM models used as queries should represent the protein families or domains of interest.
+    These models can be custom-built or sourced from established databases.
+
+  creating_hmm_profiles:
+    steps:
+      - Collect a multiple sequence alignment (MSA) for the protein family of interest.
+      - Use HMMER's `hmmbuild` to create an HMM profile from the MSA.
+        ```bash
+        hmmbuild modelName.hmm alignment.sto
+        ```
+      - Validate the created HMM model to ensure its accuracy.
+
+  download_hmmer_profile_databases:
+    description: >
+      Pre-built HMM profiles can be downloaded from various sources for commonly studied protein families.
+
+    sources:
+      - NCBI CDD (Conserved Domain Database):
+          url: "https://www.ncbi.nlm.nih.gov/Structure/cdd/cdd.shtml"
+          description: "Provides a comprehensive collection of well-annotated multiple sequence alignment models for ancient domains and full-length proteins."
+      - Pfam:
+          url: "https://pfam.xfam.org/"
+          description: "A large collection of protein families, each represented by multiple sequence alignments and profile hidden Markov models."
+      - TIGRFAMs:
+          url: "http://www.jcvi.org/cgi-bin/tigrfams/main"
+          description: "Protein families developed by the Joint Genome Institute."
+
+    example_download_command:
+      ```bash
+      wget -O pfam-A.hmm.gz ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam-A.hmm.gz
+      gunzip pfam-A.hmm.gz
+      ```
+
+environment_setup:
+  description: >
+    Instructions to create and activate the Anaconda environment named `proteinHMM`, and install all necessary dependencies.
+
+  steps:
+    - Open your terminal or command prompt.
+    - Create the Anaconda environment:
+      ```bash
+      conda create -n proteinHMM python=3.8
+      ```
+    - Activate the environment:
+      ```bash
+      conda activate proteinHMM
+      ```
+    - Install HMMER via conda:
+      ```bash
+      conda install -c bioconda hmmer
+      ```
+    - Install required Python packages:
+      ```bash
+      pip install pandas
+      ```
+    - Verify installations:
+      ```bash
+      python --version
+      hmmsearch -h
+      ```
+
+output:
+  description: >
+    The script generates output files containing the results of the HMM searches. These include detailed search results for each model and a consolidated summary.
+
+  files_generated:
+    - `<modelName>_<genomeAccession>_tblout.txt`:
+        description: "Detailed HMMER `tblout` results for each model and genome accession, including all hits with E-values below the specified threshold."
+    - `<modelName>_all_results.tsv`:
+        description: "Consolidated TSV file aggregating all hits across different genome accessions for a specific HMM model."
+
+contributing:
+  guidelines: >
+    Contributions are welcome! Please follow these steps to contribute:
+      1. Fork the repository.
+      2. Create a new branch for your feature or bugfix.
+      3. Commit your changes with clear and descriptive messages.
+      4. Push to your forked repository.
+      5. Open a pull request detailing your changes and the rationale behind them.
+
+    Ensure that your code follows the existing style and includes appropriate documentation and tests.
+
+license:
+  name: "MIT License"
+  url: "https://opensource.org/licenses/MIT"
+
+contact:
+  name: "Your Name"
+  email: "your.email@example.com"
+  url: "https://github.com/yourusername/proteinHMM"
+
+faq:
+  question: "What is HMMER and why is it used?"
+  answer: >
+    HMMER is a suite of tools for sequence analysis using profile hidden Markov models (HMMs). It is widely used for identifying protein or nucleotide sequences that belong to a specific family or domain based on their statistical profiles.
+
+  question: "How do I interpret the `tblout` results?"
+  answer: >
+    The `tblout` format provides a tabular summary of HMMER search results, including information such as target name, query name, E-values, scores, and biases for each hit. You can use these results to assess the significance and quality of the matches.
+
+  question: "Can I customize the E-value threshold?"
+  answer: >
+    Yes, the script uses a predefined E-value threshold (`EVALUE = "0.00000000000000000001"`). You can modify this value within the script to adjust the stringency of the search results based on your requirements.
+
+troubleshooting:
+  issue: "HMMER commands not found"
+  solution: >
+    Ensure that HMMER is installed and properly added to your system's PATH. If installed via conda, activate the `proteinHMM` environment:
+      ```bash
+      conda activate proteinHMM
+      ```
+    Verify installation by running:
+      ```bash
+      hmmsearch -h
+      ```
+
+  issue: "No data found for the given parameters"
+  solution: >
+    - Verify that the input directories (`models_dir` and `fastas_dir`) contain the correct file types (.hmm and .faa respectively).
+    - Check that the FASTA files are properly formatted.
+    - Ensure that the HMM models are compatible with the FASTA sequences.
+    - Adjust the E-value threshold if necessary.
+
+support:
+  description: >
+    If you encounter any issues or have questions, feel free to reach out via the contact information provided above or open an issue in the repository.
+
+
+
 # Script 4: FAALs Taxonomic Analysis: barplot_normalized_counts.py
 
 This repository contains a Python script for analyzing Fatty Acyl AMP Ligases (FAALs) across different taxonomic groups. The script processes input data tables, filters and aggregates FAAL counts, normalizes the data, and generates informative visualizations to help understand the distribution and prevalence of FAALs in various taxonomic levels.
