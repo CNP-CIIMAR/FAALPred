@@ -1,5 +1,5 @@
 
-Script 1: title: "Protein HMM Search Tool": protein_hmm_search.py
+# Script 1: title: "Protein HMM Search Tool": protein_hmm_search.py
 
 # description: 
   A Python-based tool designed to execute HMMER's `hmmsearch` on multiple FASTA (.faa) files using a set of HMM (.hmm) models.
@@ -54,7 +54,7 @@ Script 1: title: "Protein HMM Search Tool": protein_hmm_search.py
       ```
 
 usage:
-  description: >
+  description: 
     The script processes multiple FASTA files containing protein sequences (.faa) against a set of HMM models (.hmm).
     It performs domain searches using `hmmsearch`, parses the results, and compiles them into consolidated TSV files.
 
@@ -78,7 +78,6 @@ usage:
     ```bash
     python3 protein_hmm_search.py models/ fastas/ results/
     ```
-
   arguments_details:
     models_dir:
       - Ensure that the directory contains valid HMM model files with a `.hmm` extension.
@@ -104,7 +103,7 @@ model_hmm_query:
         ```
       - Validate the created HMM model to ensure its accuracy.
 
-  download_hmmer_profile_databases:
+#   download_hmmer_profile_databases:
     description: >
       Pre-built HMM profiles can be downloaded from various sources for commonly studied protein families.
 
@@ -124,9 +123,8 @@ model_hmm_query:
       wget -O pfam-A.hmm.gz ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam-A.hmm.gz
       gunzip pfam-A.hmm.gz
       ```
-
-environment_setup:
-  description: >
+# environment_setup:
+  description: 
     Instructions to create and activate the Anaconda environment named `proteinHMM`, and install all necessary dependencies.
 
   steps:
@@ -163,7 +161,7 @@ output:
     - `<modelName>_all_results.tsv`:
         description: "Consolidated TSV file aggregating all hits across different genome accessions for a specific HMM model."
 
-contributing:
+# contributing:
   guidelines: >
     Contributions are welcome! Please follow these steps to contribute:
       1. Fork the repository.
@@ -174,29 +172,8 @@ contributing:
 
     Ensure that your code follows the existing style and includes appropriate documentation and tests.
 
-license:
-  name: "MIT License"
-  url: "https://opensource.org/licenses/MIT"
 
-contact:
-  name: "Your Name"
-  email: "your.email@example.com"
-  url: "https://github.com/yourusername/proteinHMM"
-
-faq:
-  question: "What is HMMER and why is it used?"
-  answer: >
-    HMMER is a suite of tools for sequence analysis using profile hidden Markov models (HMMs). It is widely used for identifying protein or nucleotide sequences that belong to a specific family or domain based on their statistical profiles.
-
-  question: "How do I interpret the `tblout` results?"
-  answer: >
-    The `tblout` format provides a tabular summary of HMMER search results, including information such as target name, query name, E-values, scores, and biases for each hit. You can use these results to assess the significance and quality of the matches.
-
-  question: "Can I customize the E-value threshold?"
-  answer: >
-    Yes, the script uses a predefined E-value threshold (`EVALUE = "0.00000000000000000001"`). You can modify this value within the script to adjust the stringency of the search results based on your requirements.
-
-troubleshooting:
+# troubleshooting:
   issue: "HMMER commands not found"
   solution: >
     Ensure that HMMER is installed and properly added to your system's PATH. If installed via conda, activate the `proteinHMM` environment:
@@ -214,12 +191,6 @@ troubleshooting:
     - Check that the FASTA files are properly formatted.
     - Ensure that the HMM models are compatible with the FASTA sequences.
     - Adjust the E-value threshold if necessary.
-
-support:
-  description: >
-    If you encounter any issues or have questions, feel free to reach out via the contact information provided above or open an issue in the repository.
-
-
 
 # Script 4: FAALs Taxonomic Analysis: barplot_normalized_counts.py
 
