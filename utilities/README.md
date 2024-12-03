@@ -188,7 +188,7 @@ Libraries:
 
 # contact:
   name: "Leandro de Mattos Pereira"
-  email: "your.email@example.com"
+  email: "lmattos@ciimar.up.pt"
   url: "[https://github.com/yourusername/repository](https://github.com/CNP-CIIMAR/FAALPred)"
 
 # License
