@@ -114,13 +114,6 @@ Libraries:
 - numpy
 # Ensure all dependencies are installed before running the script.
 
-# License
-
-This project is licensed under the MIT License.
-
-
-# README
-
 # Scriot 5: "Taxonomic Analysis and Visualization Tool" : scatterplot_mean_faal_genome.py 
 
   A Python script designed to process genomic assembly data, perform taxonomic classification,
@@ -176,13 +169,13 @@ This project is licensed under the MIT License.
     python3 scatterplot_counts_faal.py data/assemblies.tsv Eukaryota Genus 10 300
     ```
 
-output:
+# output:
   - `taxonomic_analysis_plot.png`: PNG image of the generated scatter plot.
   - `taxonomic_analysis_plot.svg`: SVG vector image of the generated scatter plot.
   - `taxonomic_analysis_plot.jpeg`: JPEG image of the generated scatter plot.
 
-script_details:
-  description: >
+# script_details:
+  description: 
     The script performs the following steps:
       1. Reads the input TSV file containing genomic assembly data.
       2. Updates the taxonomic lineage information using ete3 if the domain is Eukaryota.
@@ -193,22 +186,14 @@ script_details:
       7. Selects the top N taxonomic groups based on mean FAAL counts.
       8. Generates and saves scatter plots visualizing the data.
 
-contributing:
-  guidelines: >
-    Contributions are welcome! Please fork the repository and submit a pull request with your changes.
-    Ensure that your code follows the existing style and includes appropriate documentation.
+# contact:
+  name: "Leandro de Mattos Pereira"
+  email: "your.email@example.com"
+  url: "[https://github.com/yourusername/repository](https://github.com/CNP-CIIMAR/FAALPred)"
 
-license:
+# License
   name: "MIT License"
   url: "https://opensource.org/licenses/MIT"
-
-contact:
-  name: "Your Name"
-  email: "your.email@example.com"
-  url: "https://github.com/yourusername/repository"
-
-
-
 
 # Acknowledgements
 - ETE Toolkit: For providing tools to work with phylogenetic trees and taxonomy.
