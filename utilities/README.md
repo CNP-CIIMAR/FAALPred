@@ -192,6 +192,216 @@ output:
     - Ensure that the HMM models are compatible with the FASTA sequences.
     - Adjust the E-value threshold if necessary.
 
+# Script 2: title: "NCBI Assembly Metadata Enrichment Tool":  get_genome_metadata.py
+
+# description: 
+  A Python script designed to process NCBI assembly IDs, retrieve comprehensive taxonomic lineages,
+  and fetch additional metadata from the NCBI BioSample database. The tool enriches assembly data with
+  geographic and biome distribution information, outputting both comprehensive and filtered datasets
+  for further analysis.
+
+# features:
+  - Retrieves taxonomic lineage information using NCBITaxa from the ete3 library.
+  - Fetches additional metadata from the NCBI BioSample database using Biopython's Entrez module.
+  - Parses XML responses to extract geographic locations, biome distributions, and latitude/longitude coordinates.
+  - Categorizes biome descriptions based on GOLD standards.
+  - Generates both comprehensive and filtered TSV output files containing enriched assembly data.
+  - Provides summary statistics on the number of assemblies with specific metadata fields populated.
+
+# dependencies:
+  - Anaconda 3.x
+  - Python 3.8 or higher
+  - pandas
+  - ete3
+  - biopython
+
+# installation:
+  prerequisites:
+    - Download and install [Anaconda](https://www.anaconda.com/products/distribution) for your operating system.
+    - Ensure you have access to the internet for downloading NCBI databases and fetching metadata.
+
+  steps:
+    - Clone the repository:
+      ```bash
+      git clone https://github.com/yourusername/yourrepository.git
+      cd yourrepository
+      ```
+    
+    - Create the Anaconda environment named `ncbi_metadata`:
+      ```bash
+      conda create -n ncbi_metadata python=3.8
+      ```
+    
+    - Activate the environment:
+      ```bash
+      conda activate ncbi_metadata
+      ```
+    
+    - Install the required Python packages:
+      ```bash
+      pip install pandas ete3 biopython
+      ```
+    
+    - Initialize the NCBI taxonomy database for ete3:
+      ```bash
+      python -m ete3 ncbiupdate
+      ```
+# usage:
+  description: >
+    The script processes a tab-separated input file containing NCBI assembly IDs, retrieves taxonomic lineages,
+    fetches additional metadata from the BioSample database, and outputs enriched data files. An additional
+    filtered output file includes only assemblies with specific biome distributions and geographic coordinates.
+
+  command:
+    ```bash
+    python3 script.py <input_file_with_assembly_ids> <output_file>
+    ```
+
+  arguments:
+    - `<input_file_with_assembly_ids>`:
+        description: "Path to the input TSV file containing assembly IDs. The file should have a header and assembly IDs in the first column."
+        example: "data/assembly_ids.tsv"
+    - `<output_file>`:
+        description: "Path to the output TSV file where enriched assembly data will be saved."
+        example: "results/enriched_assemblies.tsv"
+
+  example:
+    ```bash
+    python3 script.py data/assembly_ids.tsv results/enriched_assemblies.tsv
+    ```
+
+  arguments_details:
+    input_file_with_assembly_ids:
+      - Ensure the input file is a TSV with a header row.
+      - Assembly IDs should be listed in the first column.
+      - Example:
+        ```
+        Assembly_ID	Other_Column
+        GCF_000001405.39	...
+        GCF_000002035.6	...
+        ```
+    output_file:
+      - The script will generate two output files:
+        - `<output_file>`: Comprehensive enriched data.
+        - `filtered_<output_file>`: Filtered data with specific biome and geographic information.
+      - If the specified output directory does not exist, it will be created automatically.
+
+environment_setup:
+  description: >
+    Instructions to create and activate the Anaconda environment named `ncbi_metadata`, and install all necessary dependencies.
+
+  steps:
+    - Open your terminal or command prompt.
+    - Create the Anaconda environment:
+      ```bash
+      conda create -n ncbi_metadata python=3.8
+      ```
+    - Activate the environment:
+      ```bash
+      conda activate ncbi_metadata
+      ```
+    - Install required Python packages:
+      ```bash
+      pip install pandas ete3 biopython
+      ```
+    - Initialize ete3's NCBI taxonomy database:
+      ```bash
+      python -m ete3 ncbiupdate
+      ```
+    - Verify installations:
+      ```bash
+      python --version
+      ```
+      ```bash
+      hmmsearch -h  # If HMMER is also used
+      ```
+script_details:
+  description: >
+    The script performs the following operations:
+      1. Reads assembly IDs from the input TSV file.
+      2. For each assembly ID:
+          - Executes external commands to retrieve assembly summary information.
+          - Parses the output to extract relevant fields.
+          - Retrieves the taxonomic lineage using NCBITaxa.
+          - Fetches additional metadata from the BioSample database, including geographic location and biome distribution.
+      3. Enriches the assembly data with the retrieved metadata.
+      4. Writes the enriched data to the specified output file.
+      5. Generates a filtered output file containing only assemblies with known biome distributions and geographic coordinates.
+      6. Prints summary statistics on the number of assemblies processed and metadata retrieved.
+
+# troubleshooting:
+  issue: "Script exits with usage error."
+  solution: >
+    Ensure you are providing the required arguments when running the script. The correct usage is:
+    ```bash
+    python3 script.py <input_file_with_assembly_ids> <output_file>
+    ```
+    Example:
+    ```bash
+    python3 script.py data/assembly_ids.tsv results/enriched_assemblies.tsv
+    ```
+
+  issue: "Error retrieving lineage information."
+  solution: >
+    - Verify that the Tax ID is valid and exists in the NCBI taxonomy database.
+    - Ensure that the ete3 taxonomy database is properly initialized and updated.
+    - Check your internet connection, as the script requires access to NCBI servers.
+
+  issue: "Entrez fetch fails or returns no data."
+  solution: >
+    - Ensure that the assembly accession IDs are correct and exist in the NCBI Assembly database.
+    - Verify that your email is correctly set in the script.
+    - Respect NCBI's rate limits to avoid being temporarily blocked.
+
+  issue: "Latitude and Longitude not parsed correctly."
+  solution: >
+    - Check the format of the `lat_lon` attribute in the BioSample data.
+    - Ensure that the script's `parse_latitude_longitude` function matches the format of the latitude and longitude data.
+    - Modify the parsing logic if the data format differs.
+
+# support:
+  description: >
+    If you encounter any issues or have questions, feel free to reach out via the contact information provided above or open an issue in the repository. Contributions and feedback are highly appreciated!
+
+example_input:
+  description: >
+    An example of the input TSV file (`assembly_ids.tsv`) structure:
+    ```
+    Assembly_ID	Other_Info
+    GCF_000001405.39	...
+    GCF_000002035.6	...
+    ```
+
+# output:
+  description: >
+    The script generates two output files:
+      - `<output_file>`: Contains enriched assembly data with taxonomic lineages and additional metadata.
+      - `filtered_<output_file>`: Contains only assemblies with known biome distributions and geographic coordinates.
+
+  files_generated:
+    - `<output_file>`:
+        description: "Comprehensive TSV file with enriched assembly data, including taxonomic lineage, location, biome distribution, latitude, and longitude."
+    - `filtered_<output_file>`:
+        description: "Filtered TSV file containing assemblies with specific biome and geographic information for targeted analysis."
+
+additional_resources:
+  - name: "NCBI Taxonomy Database"
+    url: "https://www.ncbi.nlm.nih.gov/taxonomy"
+    description: "Provides authoritative taxonomic information for all organisms recognized by the National Center for Biotechnology Information."
+  
+  - name: "NCBI BioSample Database"
+    url: "https://www.ncbi.nlm.nih.gov/biosample/"
+    description: "Stores descriptive metadata about biological samples used in various NCBI databases."
+
+  - name: "ETE Toolkit Documentation"
+    url: "http://etetoolkit.org/docs/latest/index.html"
+    description: "Comprehensive documentation for the ete3 library, including usage of NCBITaxa."
+
+  - name: "Biopython Documentation"
+    url: "https://biopython.org/wiki/Documentation"
+    description: "Documentation for Biopython, a set of tools for biological computation in Python."
+    
+
 # Script 4: FAALs Taxonomic Analysis: barplot_normalized_counts.py
 
 This repository contains a Python script for analyzing Fatty Acyl AMP Ligases (FAALs) across different taxonomic groups. The script processes input data tables, filters and aggregates FAAL counts, normalizes the data, and generates informative visualizations to help understand the distribution and prevalence of FAALs in various taxonomic levels.
