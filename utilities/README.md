@@ -1,8 +1,8 @@
 # FAALs Taxonomic Analysis: barplot_normalized_counts.py
 
 This repository contains a Python script for analyzing Fatty Acyl AMP Ligases (FAALs) across different taxonomic groups. The script processes input data tables, filters and aggregates FAAL counts, normalizes the data, and generates informative visualizations to help understand the distribution and prevalence of FAALs in various taxonomic levels.
+ Load and Update Taxonomic Data: Reads two input TSV files containing organism and assembly information, updates taxonomic lineages using the NCBI taxonomy database via the ete3 library.
 
-# Load and Update Taxonomic Data: Reads two input TSV files containing organism and assembly information, updates taxonomic lineages using the NCBI taxonomy database via the ete3 library.
 - Filter Data: Filters organisms based on specified domain and taxonomic level criteria.
 - Aggregate Counts: Calculates the total number of FAALs and unique genomes per taxonomic group.
 - Normalize Data: Normalizes FAAL counts per genome to account for varying genome sizes across taxonomic groups.
