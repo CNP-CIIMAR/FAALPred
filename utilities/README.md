@@ -401,6 +401,241 @@ additional_resources:
     url: "https://biopython.org/wiki/Documentation"
     description: "Documentation for Biopython, a set of tools for biological computation in Python."
     
+# Script 3: title: "FASTA Sequence Filter Tool" : fasta_sequence_filter.py
+
+# description: 
+  A Python script designed to filter sequences in FASTA files based on a list of sequence IDs.
+  Whether you need to keep or exclude specific sequences, this tool provides a straightforward
+  command-line interface to efficiently process large FASTA datasets for bioinformatics analyses.
+
+# features:
+  - Filters FASTA files to keep or exclude sequences based on a provided list of IDs.
+  - Utilizes Biopython's SeqIO for efficient parsing and writing of FASTA files.
+  - Supports mutually exclusive options to either keep or exclude specified sequences.
+  - Provides informative output on the number of sequences processed and filtered.
+  - Easy integration into bioinformatics pipelines for preprocessing sequence data.
+
+# dependencies:
+  - Anaconda 3.x
+  - Python 3.8 or higher
+  - Biopython
+
+# installation:
+  prerequisites:
+    - Download and install [Anaconda](https://www.anaconda.com/products/distribution) for your operating system.
+  
+  steps:
+    - Clone the repository:
+      ```bash
+      git clone https://github.com/yourusername/yourrepository.git
+      cd yourrepository
+      ```
+    
+    - Create the Anaconda environment named `filter_sequences`:
+      ```bash
+      conda create -n filter_sequences python=3.8
+      ```
+    
+    - Activate the environment:
+      ```bash
+      conda activate filter_sequences
+      ```
+    
+    - Install the required Python packages:
+      ```bash
+      pip install biopython
+      ```
+    
+    - (Optional) If additional dependencies are needed, install them as required:
+      ```bash
+      pip install [package_name]
+      ```
+# usage:
+  description: >
+    The script filters sequences in an input FASTA file based on a list of sequence IDs provided.
+    You can choose to either keep only the specified sequences or exclude them from the output.
+
+  command:
+    ```bash
+    python3 filter_fasta.py <input_fasta> <output_fasta> <ids_file> (--keep | --exclude)
+    ```
+
+  arguments:
+    - `<input_fasta>`:
+        description: "Path to the input FASTA file containing sequences to be filtered."
+        example: "data/input_sequences.fasta"
+    - `<output_fasta>`:
+        description: "Path to the output FASTA file where filtered sequences will be saved."
+        example: "results/filtered_sequences.fasta"
+    - `<ids_file>`:
+        description: "Path to the file containing sequence IDs to keep or exclude. Each ID should be on a separate line."
+        example: "data/sequence_ids.txt"
+    - `--keep`:
+        description: "Keep only the sequences with IDs specified in the IDs file."
+    - `--exclude`:
+        description: "Exclude the sequences with IDs specified in the IDs file."
+
+#  example:
+    ```bash
+    python3 filter_fasta.py data/input_sequences.fasta results/kept_sequences.fasta data/sequence_ids.txt --keep
+    ```
+    ```bash
+    python3 filter_fasta.py data/input_sequences.fasta results/excluded_sequences.fasta data/sequence_ids.txt --exclude
+    ```
+# arguments_details:
+  input_fasta:
+    - Ensure the input file is in proper FASTA format.
+    - Supports large FASTA files efficiently using Biopython's SeqIO.
+  output_fasta:
+    - The script will create this file if it does not exist.
+    - If the file exists, it will be overwritten with the filtered sequences.
+  ids_file:
+    - Should be a plain text file with one sequence ID per line.
+    - No headers or additional formatting required.
+  --keep:
+    - When this option is used, only sequences with IDs present in the `ids_file` will be written to the `output_fasta`.
+  --exclude:
+    - When this option is used, sequences with IDs present in the `ids_file` will be excluded from the `output_fasta`.
+
+# environment_setup:
+  description: >
+    Instructions to create and activate the Anaconda environment named `filter_sequences`, and install all necessary dependencies.
+
+  steps:
+    - Open your terminal or command prompt.
+    - Create the Anaconda environment:
+      ```bash
+      conda create -n filter_sequences python=3.8
+      ```
+    - Activate the environment:
+      ```bash
+      conda activate filter_sequences
+      ```
+    - Install required Python packages:
+      ```bash
+      pip install biopython
+      ```
+    - Verify installations:
+      ```bash
+      python --version
+      ```
+      ```bash
+      python -c "import Bio; print(Bio.__version__)"
+      ```
+# script_details:
+  description: >
+    The script performs the following operations:
+      1. Parses command-line arguments to determine input and output files, IDs file, and filter mode.
+      2. Reads the list of sequence IDs from the provided `ids_file`.
+      3. Iterates through the input FASTA file, filtering sequences based on the specified mode:
+          - **Keep Mode (`--keep`)**: Retains only sequences whose IDs are in the `ids_file`.
+          - **Exclude Mode (`--exclude`)**: Removes sequences whose IDs are in the `ids_file`.
+      4. Writes the filtered sequences to the `output_fasta` file.
+      5. Outputs summary information on the number of sequences processed and filtered.
+
+# faq:
+  - question: "What is the purpose of this script?"
+    answer: >
+      The script is designed to filter sequences in FASTA files based on a list of sequence IDs.
+      It allows users to either keep only the specified sequences or exclude them from the output,
+      facilitating targeted analyses in bioinformatics workflows.
+
+  - question: "How do I prepare the IDs file?"
+    answer: >
+      The IDs file should be a plain text file with one sequence ID per line. Ensure there are no
+      headers or additional formatting. For example:
+      ```
+      seq1
+      seq2
+      seq3
+      ```
+
+  - question: "Can I use this script with large FASTA files?"
+    answer: >
+      Yes, the script utilizes Biopython's SeqIO for efficient parsing, allowing it to handle large
+      FASTA files effectively. However, ensure that your system has sufficient memory and storage
+      resources for processing large datasets.
+
+  - question: "What happens if a sequence ID in the IDs file is not found in the FASTA file?"
+    answer: >
+      The script will process all sequences in the FASTA file and apply the filtering criteria.
+      Sequence IDs in the IDs file that do not match any sequences in the FASTA file will have no
+      effect on the output.
+
+  - question: "Can I use this script to filter sequences based on partial IDs or patterns?"
+    answer: >
+      Currently, the script filters sequences based on exact matches of sequence IDs. For partial
+      matches or pattern-based filtering, you would need to modify the script to incorporate regular
+      expressions or other matching criteria.
+
+# troubleshooting:
+  issue: "Script exits with usage error."
+  solution: >
+    Ensure you are providing the required arguments when running the script. The correct usage is:
+    ```bash
+    python3 filter_fasta.py <input_fasta> <output_fasta> <ids_file> (--keep | --exclude)
+    ```
+    Example:
+    ```bash
+    python3 filter_fasta.py data/input_sequences.fasta results/filtered_sequences.fasta data/sequence_ids.txt --keep
+    ```
+
+  issue: "No sequences are being written to the output file."
+  solution: >
+    - Verify that the IDs in the `ids_file` match the sequence IDs in the `input_fasta`.
+    - Ensure that you are using the correct mode (`--keep` or `--exclude`) based on your filtering needs.
+    - Check for any leading/trailing whitespaces in the `ids_file` that might prevent matching.
+
+  issue: "Biopython is not installed or not found."
+  solution: >
+    Ensure that you have activated the correct Anaconda environment (`filter_sequences`) and installed Biopython:
+    ```bash
+    conda activate filter_sequences
+    pip install biopython
+    ```
+    Verify installation by running:
+    ```bash
+    python -c "import Bio; print(Bio.__version__)"
+    ```
+
+  issue: "Permission denied when creating or writing to the output file."
+  solution: >
+    Ensure that you have the necessary write permissions for the directory where you are trying to save the `output_fasta`.
+    You can change the directory permissions or choose a different directory with appropriate permissions.
+
+support:
+  description: >
+    If you encounter any issues or have questions, feel free to reach out via the contact information provided above or open an issue in the repository. Contributions and feedback are highly appreciated!
+
+example_input:
+  description: >
+    An example of the input IDs file (`sequence_ids.txt`) structure:
+    ```
+    seq1
+    seq2
+    seq3
+    ```
+
+output:
+  description: >
+    The script generates an output FASTA file containing the filtered sequences based on the provided IDs and selected mode (keep or exclude).
+
+  files_generated:
+    - `<output_fasta>`:
+        description: "FASTA file containing the filtered sequences. Depending on the selected mode, it either includes only the specified sequences or excludes them from the original set."
+
+additional_resources:
+  - name: "Biopython Documentation"
+    url: "https://biopython.org/wiki/Documentation"
+    description: "Comprehensive documentation for Biopython, including the SeqIO module used for parsing and writing FASTA files."
+  
+  - name: "FASTA Format Specification"
+    url: "https://en.wikipedia.org/wiki/FASTA_format"
+    description: "Detailed information about the FASTA file format used for representing nucleotide or peptide sequences."
+
+  - name: "Anaconda Documentation"
+    url: "https://docs.anaconda.com/anaconda/"
+    description: "Official documentation for Anaconda, a distribution of Python and R for scientific computing."
 
 # Script 4: FAALs Taxonomic Analysis: barplot_normalized_counts.py
 
