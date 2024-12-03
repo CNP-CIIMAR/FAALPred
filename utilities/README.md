@@ -1,5 +1,5 @@
 
-# Script 1: title: "Protein HMM Search Tool": protein_hmm_search.py
+# Script 1: title: "ProteinHMMSearch Tool": protein_hmm_search.py
 
 # description: 
   A Python-based tool designed to execute HMMER's `hmmsearch` on multiple FASTA (.faa) files using a set of HMM (.hmm) models.
