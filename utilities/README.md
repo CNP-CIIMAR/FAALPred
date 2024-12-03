@@ -825,6 +825,47 @@ Libraries:
       7. Selects the top N taxonomic groups based on mean FAAL counts.
       8. Generates and saves scatter plots visualizing the data.
 
+# Script 6: name: CAL Domain and GenBank Analyzer
+# description: 
+  A Python script to analyze subdirectories containing `.gbk` files for the presence of `CAL_domain` and optionally `AMP-binding` domains. The script calculates the total size of `.gbk` files, checks disk space availability, and copies identified files to a filtered directory with the genome ID as a prefix.
+usage: |
+  python filter_count_CAA_AMP.py <input_dir> <log_file> [--search-amp-binding]
+  
+  - `input_dir`: Path to the input directory containing subdirectories with `.gbk` files.
+  - `log_file`: Path to the log file where processing information will be stored.
+  - `--search-amp-binding`: Optional flag to search for `AMP-binding` domains in addition to `CAL_domain`.
+# features:
+  - Analyzes `.gbk` files in subdirectories for specified domains.
+  - Extracts genome IDs from subdirectory names.
+  - Calculates the total size of `.gbk` files in megabases and gigabases.
+  - Checks for available disk space before copying files.
+  - Copies `.gbk` files containing `CAL_domain` to a filtered directory with a genome ID prefix.
+  - Generates a summary CSV file with detailed results.
+  - Provides a detailed log file for troubleshooting and analysis.
+dependencies:
+  - Python >= 3.7
+  - Biopython
+arguments:
+  input_dir:
+    description: Path to the input directory containing subdirectories with `.gbk` files.
+    required: true
+  log_file:
+    description: Path to the log file where processing information will be stored.
+    required: true
+  search_amp_binding:
+    description: Optional flag to include `AMP-binding` domain in the search.
+    required: false
+output:
+  - Summary CSV file: A report summarizing the analysis for each subdirectory.
+  - Log file: A detailed log of the processing steps and outcomes.
+  - Filtered files: `.gbk` files containing `CAL_domain`, copied to a filtered directory.
+example_usage: |
+  # Analyze `.gbk` files for `CAL_domain` only:
+  python script.py /path/to/input_dir /path/to/log_file.log
+  
+  # Analyze `.gbk` files for both `CAL_domain` and `AMP-binding`:
+  python filter_count_CAL_AMP.py /path/to/input_dir /path/to/log_file.log --search-amp-binding
+  
 # contact:
   name: "Leandro de Mattos Pereira"
   email: "lmattos@ciimar.up.pt"
