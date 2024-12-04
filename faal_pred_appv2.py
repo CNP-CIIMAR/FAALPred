@@ -117,7 +117,7 @@ def realign_sequences_with_mafft(input_path, output_path, threads=8):
 
 def execute_clustering(data, method="DBSCAN", eps=0.5, min_samples=5, n_clusters=3):
     """
-    Executes clustering on the data using DBSCAN ou K-Means.
+    Executes clustering on the data using DBSCAN or K-Means.
 
     Parameters:
     - data: np.ndarray com dados para clustering.
@@ -527,7 +527,7 @@ class Support:
 
     def plot_learning_curve_result(self, estimator, X, y, output_path, title='Learning Curve'):
         """
-        Plots and saves the learning curve.
+        Plota e salva a curva de aprendizado.
         """
         try:
             train_sizes, train_scores, test_scores = learning_curve(estimator, X, y, cv=self.cv, n_jobs=-1)
@@ -809,20 +809,23 @@ class ProteinEmbeddingGenerator:
             kmers = self.generate_kmers(seq, k=k, step=step_size)
             all_kmers.append(kmers)
 
+        # Update word2vec_model_path to include model_dir
+        word2vec_model_full_path = os.path.join(model_dir, word2vec_model_path)
+
         # Train or load Word2Vec model
-        if os.path.exists(word2vec_model_path):
-            logging.info(f"Loading existing Word2Vec model from {word2vec_model_path}")
-            word2vec_model = Word2Vec.load(word2vec_model_path)
+        if os.path.exists(word2vec_model_full_path):
+            logging.info(f"Loading existing Word2Vec model from {word2vec_model_full_path}")
+            word2vec_model = Word2Vec.load(word2vec_model_full_path)
         else:
             logging.info("Training new Word2Vec model...")
             word2vec_model = Word2Vec(sentences=all_kmers, size=100, window=5, min_count=1, workers=4, iter=iter_epochs)  # Substituído 'vector_size' por 'size'
-            word2vec_model.save(word2vec_model_path)
-            logging.info(f"Word2Vec model saved at {word2vec_model_path}")
+            word2vec_model.save(word2vec_model_full_path)
+            logging.info(f"Word2Vec model saved at {word2vec_model_full_path}")
 
         # Generate embeddings
         for protein_id, kmers, assoc_var, target_var in zip(protein_ids, all_kmers, associated_variables, target_variables):
             if len(kmers) < min_kmers:
-                logging.warning(f"Protein {protein_id} skipped due to insufficient k-mers ({len(kmers)} found, minimum {min_kmers})")
+                logging.warning(f"Protein {protein_id} skipped devido a k-mers insuficientes ({len(kmers)} encontrados, mínimo {min_kmers})")
                 continue
 
             if self.aggregation_method == 'mean':
@@ -904,7 +907,7 @@ def plot_dual_tsne_3d(train_embeddings, train_labels, train_protein_ids,
     n_samples_predict = predict_embeddings.shape[0]
     dynamic_perplexity_predict = compute_perplexity_tsne(n_samples_predict)
 
-    # Inicializar t-SNE com perplexidade ajustada para previsões
+    # Initialize t-SNE com perplexidade ajustada para previsões
     tsne_predict = TSNE(n_components=3, random_state=42, perplexity=dynamic_perplexity_predict, n_iter=1000)
     tsne_predict_result = tsne_predict.fit_transform(predict_embeddings)
 
@@ -1405,7 +1408,7 @@ def main(args):
         logging.info(f"Calibrated Random Forest model for target_variable saved at {calibrated_model_target_full_path}")
 
         # Test the model
-        best_score, best_f1, best_pr_auc, best_params, best_model_target, X_test_target, y_test_target = support_model_target.test_best_random_forest(X_target, y_target, scaler_dir=args.model_dir)
+        best_score, best_f1, best_pr_auc, best_params, best_model_target, X_test_target, y_test_target = support_model_target.test_best_random_forest(X_target, y_target, scaler_dir=model_dir)
 
         logging.info(f"Best ROC AUC for target_variable: {best_score}")
         logging.info(f"Best F1 Score for target_variable: {best_f1}")
@@ -1478,7 +1481,7 @@ def main(args):
         logging.info(f"Calibrated Random Forest model for associated_variable saved at {calibrated_model_associated_full_path}")
 
         # Test the model
-        best_score_assoc, best_f1_assoc, best_pr_auc_assoc, best_params_assoc, best_model_associated, X_test_associated, y_test_associated = support_model_associated.test_best_random_forest(X_associated, y_associated, scaler_dir=args.model_dir)
+        best_score_assoc, best_f1_assoc, best_pr_auc_assoc, best_params_assoc, best_model_associated, X_test_associated, y_test_associated = support_model_associated.test_best_random_forest(X_associated, y_associated, scaler_dir=model_dir)
 
         logging.info(f"Best ROC AUC for associated_variable: {best_score_assoc}")
         logging.info(f"Best F1 Score for associated_variable: {best_f1_assoc}")
@@ -1772,8 +1775,8 @@ def main(args):
 
     # Check feature size before prediction
     try:
-        n_features_target = calibrated_model_target.base_estimator_.n_features_in_
-        n_features_associated = calibrated_model_associated.base_estimator_.n_features_in_
+        n_features_target = calibrated_model_target.estimator.n_features_in_
+        n_features_associated = calibrated_model_associated.estimator.n_features_in_
     except AttributeError:
         logging.error("Could not access n_features_in_ from calibrated models.")
         st.error("Could not access n_features_in_ from calibrated models.")
@@ -1937,7 +1940,7 @@ def main(args):
     logging.info("Extracting feature importances for associated_variable...")
     try:
         # Access the base estimator directly from CalibratedClassifierCV
-        base_estimator_associated = calibrated_model_associated.base_estimator_
+        base_estimator_associated = calibrated_model_associated.estimator
         feature_importances = base_estimator_associated.feature_importances_
     except AttributeError:
         logging.error("Could not access feature_importances_ from the base estimator of calibrated_model_associated.")
@@ -1946,7 +1949,6 @@ def main(args):
 
     # Map feature indices to actual kmers
     # Assuming that the order of features corresponds to the order of kmers used in training
-    # This requires that the embedding generator maintains a consistent feature ordering
     # For Word2Vec embeddings, each kmer is represented by its vector, so features are concatenated or aggregated
     # Thus, to map back, need to know the aggregation method
 
@@ -1954,7 +1956,7 @@ def main(args):
     if args.aggregation_method == 'none':
         # Concatenated embeddings: features são múltiplos kmers
         # Need to extract feature importances per kmer by averaging across concatenated parts
-        vector_size = calibrated_model_associated.base_estimator_.n_features_in_ // min_kmers_loaded
+        vector_size = base_estimator_associated.n_features_in_ // min_kmers_loaded
         kmer_importances = {}
         for i in range(min_kmers_loaded):
             start = i * vector_size
@@ -2533,9 +2535,6 @@ image_paths = [
 images = [load_and_resize_image_with_dpi(path, base_width=150, dpi=300) for path in image_paths]
 
 # Codificar imagens em base64
-import base64
-from io import BytesIO
-
 def encode_image(image):
     """
     Encodes a PIL Image to a base64 string.
@@ -2605,6 +2604,7 @@ img_tags = "".join(
 
 # Renderizar o rodapé
 st.markdown(footer_html.format(img_tags), unsafe_allow_html=True)
+
 
 
 
