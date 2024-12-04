@@ -22,19 +22,16 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import auc, roc_auc_score, roc_curve, f1_score, average_precision_score
 from sklearn.model_selection import GridSearchCV, StratifiedKFold, train_test_split
 from sklearn.preprocessing import StandardScaler, label_binarize
-from tabulate import tabulate
 from sklearn.calibration import CalibratedClassifierCV
+from sklearn.cluster import DBSCAN, KMeans
+from tabulate import tabulate
 from PIL import Image
 from matplotlib import ticker
-from sklearn.manifold import TSNE  # Import para t-SNE
-import umap  # Import para UMAP
 import base64
-from plotly.graph_objs import Figure
 import streamlit as st
-import matplotlib.pyplot as plt
-import logging
 import plotly.express as px
 import plotly.graph_objects as go
+
 # ============================================
 # Definitions of Functions and Classes
 # ============================================
@@ -111,6 +108,30 @@ def realign_sequences_with_mafft(input_path, output_path, threads=8):
 from sklearn.cluster import DBSCAN, KMeans
 from sklearn.preprocessing import StandardScaler
 
+# Função para realizar o clustering
+def perform_clustering(data, method="DBSCAN", eps=0.5, min_samples=5, n_clusters=3):
+    """
+    Executa clustering nos dados usando DBSCAN ou K-Means.
+
+    Parâmetros:
+    - data: np.ndarray com os dados para clustering.
+    - method: "DBSCAN" ou "K-Means".
+    - eps: Parâmetro para DBSCAN (epsilon).
+    - min_samples: Parâmetro para DBSCAN.
+    - n_clusters: Número de clusters para K-Means.
+
+    Retorna:
+    - labels: Labels gerados pelo método de clustering.
+    """
+    if method == "DBSCAN":
+        clustering_model = DBSCAN(eps=eps, min_samples=min_samples)
+    elif method == "K-Means":
+        clustering_model = KMeans(n_clusters=n_clusters, random_state=42)
+    else:
+        raise ValueError(f"Método de clustering inválido: {method}")
+
+    labels = clustering_model.fit_predict(data)
+    return labels
 
 def plot_roc_curve_global(y_true, y_pred_proba, title, save_as=None, classes=None):
     """
@@ -852,7 +873,6 @@ class ProteinEmbeddingGenerator:
 
 
 
-
 SEED = 42  # Define a seed for reproducibility
 
 # Ajustar perplexidade dinamicamente
@@ -1084,7 +1104,6 @@ def plot_dual_umap(train_embeddings, train_labels, train_protein_ids,
 
 
 
-
 def plot_predictions_scatterplot_custom(results, output_path, top_n=3):
     """
     Generates a scatter plot of the top N predictions for the new sequences.
@@ -1222,7 +1241,7 @@ def main(args):
     model_dir = args.model_dir
 
     # Initialize progress variables
-    total_steps = 10
+    total_steps = 8  # Atualizado após remoção das etapas de redução de dimensionalidade e visualização
     current_step = 0
     progress_bar = st.progress(0)
     progress_text = st.empty()
@@ -1502,8 +1521,8 @@ def main(args):
 
     # Verificar e ajustar o tamanho das features para associated_variable
     if X_predict_scaled.shape[1] > calibrated_model_associated.estimator.n_features_in_:
-        logging.info(f"Reducing number of features from {X_predict_scaled.shape[1]} to {calibrated_model_associated.base_estimator_.n_features_in_} to match the model input size for associated_variable.")
-        X_predict_scaled = X_predict_scaled[:, :calibrated_model_associated.estimator_.n_features_in_]
+        logging.info(f"Reducing number of features from {X_predict_scaled.shape[1]} to {calibrated_model_associated.estimator.n_features_in_} to match the model input size for associated_variable.")
+        X_predict_scaled = X_predict_scaled[:, :calibrated_model_associated.estimator.n_features_in_]
 
     # Realizar a predição para associated_variable
     predictions_associated = calibrated_model_associated.predict(X_predict_scaled)
@@ -1562,8 +1581,19 @@ def main(args):
     print(results)
     plot_predictions_scatterplot_custom(results, args.scatterplot_output)
     logging.info(f"Scatterplot saved at {args.scatterplot_output}")
+
     logging.info("Processing completed.")
  
+   # ============================================
+    # STEP 3: Dimensionality Reduction and Plotting t-SNE & UMAP
+    # ============================================
+    # Parte removida conforme solicitado
+
+    #ok Update progress to 100%
+    progress_bar.progress(1.0)
+    progress_text.markdown("<span style='color:white'>Progress: 100%</span>", unsafe_allow_html=True)
+    time.sleep(0.1)
+
 
 # Custom CSS for dark navy blue background and white text
 st.markdown(
@@ -1728,7 +1758,7 @@ kmer_size = st.sidebar.number_input("K-mer Size", min_value=1, max_value=10, val
 step_size = st.sidebar.number_input("Step Size", min_value=1, max_value=10, value=1, step=1)
 aggregation_method = st.sidebar.selectbox(
     "Aggregation Method",
-    options=['none', 'mean'],
+    options=['none', 'mean'],  # Removido 'median', 'sum', 'max'
     index=0
 )
 
@@ -1775,7 +1805,7 @@ if st.sidebar.button("Run Analysis"):
             save_uploaded_file(train_table_file, train_table_path)
             st.markdown("<span style='color:white'>Uploaded training data will be used.</span>", unsafe_allow_html=True)
         else:
-            st.error("Please upload both the training FASTA file and the training table TSV file.")
+            st.warning("Please upload both the training FASTA file and the training table TSV file.")
             st.stop()
 
     # Handling prediction data
@@ -1829,7 +1859,7 @@ if st.sidebar.button("Run Analysis"):
        # st.image(args.scatterplot_output, use_column_width=True)
       #  st.image('results/scatterplot_predictions.png', use_container_width=True)
         scatterplot_path = os.path.join(args.output_dir, "scatterplot_predictions.png")
-        st.image(scatterplot_path, use_container_width=True)
+        st.image(scatterplot_path,  use_container_width =True)
 
 
 
@@ -1847,7 +1877,7 @@ if st.sidebar.button("Run Analysis"):
         # Abrir e ler o conteúdo do arquivo
                 with open(formatted_table_path, 'r') as f:
                     formatted_table = f.read()
-        
+
         # Exibir o conteúdo no Streamlit
                 st.text(formatted_table)
             except Exception as e:
@@ -1878,21 +1908,6 @@ if st.sidebar.button("Run Analysis"):
         logging.error(f"An error occurred: {e}")
 
 # Função para carregar e redimensionar imagens com ajuste de DPI
-# Função para carregar e redimensionar imagens com ajuste de DPI
-def load_and_resize_image_with_dpi(image_path, base_width, dpi=300):
-    try:
-        # Carrega a imagem
-        image = Image.open(image_path)
-        # Calcula a nova altura proporcional
-        w_percent = (base_width / float(image.size[0]))
-        h_size = int((float(image.size[1]) * float(w_percent)))
-        # Redimensiona a imagem
-        resized_image = image.resize((base_width, h_size), Image.Resampling.LANCZOS)
-        return resized_image
-    except FileNotFoundError:
-        logging.error(f"Image not found at {image_path}.")
-        return None
-
 # Função para carregar e redimensionar imagens com ajuste de DPI
 def load_and_resize_image_with_dpi(image_path, base_width, dpi=300):
     try:
@@ -1971,7 +1986,7 @@ footer_html = """
     {}
 </div>
 <div class="footer-text">
-    CIIMAR - Pedro Leão @CNP - 2024 - Leandro de Mattos Pereira (developer) - All rights reserved.
+    CIIMAR - Pedro Leão @CNP - 2024 - All rights reserved.
 </div>
 """
 
