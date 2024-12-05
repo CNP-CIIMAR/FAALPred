@@ -366,8 +366,7 @@ class Support:
             "bootstrap": [True, False],
             "ccp_alpha": [0.0, 0.001, 0.01],
         }
-
-    def _oversample_with_smote_on_duplicates(self, X, y):
+    def _oversample_single_sample_classes(self, X, y):
         """
         Applies RandomOverSampler to balance classes by duplicating samples,
         and then applies SMOTE only on the duplicated samples to generate synthetic samples.
@@ -449,12 +448,6 @@ class Support:
                 f.write(f"{cls}: {count}\n")
 
         return X_final, y_final
-
-    def _oversample_single_sample_classes(self, X, y):
-        """
-        Replaces the existing function to apply oversampling with SMOTE on duplicates.
-        """
-        return self._oversample_with_smote_on_duplicates(X, y)
 
     def fit(self, X, y, model_name_prefix='model', model_dir=None, min_kmers=None):
         """
