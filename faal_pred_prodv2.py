@@ -83,10 +83,33 @@ def create_unique_model_directory(base_dir, aggregation_method):
         os.makedirs(model_dir)
     return model_dir
 
+def is_mafft_installed():
+    """
+    Checks if MAFFT is installed and accessible in the system's PATH.
+    
+    Returns:
+    - bool: True if MAFFT is installed, False otherwise.
+    """
+    try:
+        subprocess.run(['mafft', '--version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
 def realign_sequences_with_mafft(input_path, output_path, threads=8):
     """
     Realigns sequences using MAFFT.
+    
+    Parameters:
+    - input_path (str): Path to the input FASTA file.
+    - output_path (str): Path where the aligned FASTA file will be saved.
+    - threads (int): Number of threads to use for MAFFT.
     """
+    if not is_mafft_installed():
+        logging.error("MAFFT is not installed or not found in PATH.")
+        st.error("MAFFT is required but not installed. Por favor, instale o MAFFT e tente novamente.")
+        sys.exit(1)
+    
     mafft_command = ['mafft', '--thread', str(threads), '--maxiterate', '1000', '--localpair', input_path]
     try:
         with open(output_path, "w") as outfile:
@@ -94,10 +117,8 @@ def realign_sequences_with_mafft(input_path, output_path, threads=8):
         logging.info(f"Realigned sequences saved to {output_path}")
     except subprocess.CalledProcessError as e:
         logging.error(f"Error executing MAFFT: {e.stderr.decode()}")
+        st.error("Ocorreu um erro ao executar o MAFFT. Verifique os logs para mais detalhes.")
         sys.exit(1)
-
-from sklearn.cluster import DBSCAN, KMeans
-from sklearn.preprocessing import StandardScaler
 
 def perform_clustering(data, method="DBSCAN", eps=0.5, min_samples=5, n_clusters=3):
     """
@@ -126,18 +147,28 @@ def perform_clustering(data, method="DBSCAN", eps=0.5, min_samples=5, n_clusters
 def plot_roc_curve_global(y_true, y_pred_proba, title, save_as=None, classes=None):
     """
     Plots the ROC curve for binary or multiclass classifications.
+    
+    Parameters:
+    - y_true (array-like): True labels.
+    - y_pred_proba (array-like): Predicted probabilities.
+    - title (str): Title of the plot.
+    - save_as (str): Path to save the plot image.
+    - classes (list): List of class labels.
     """
     lw = 2  # Line width
 
-    # Check if it is binary or multiclass classification
     unique_classes = np.unique(y_true)
-    if len(unique_classes) == 2:  # Binary classification
+    n_classes = len(unique_classes)
+
+    if n_classes == 2:
+        # Binary classification
         fpr, tpr, _ = roc_curve(y_true, y_pred_proba[:, 1])
         roc_auc = auc(fpr, tpr)
 
         plt.figure()
-        plt.plot(fpr, tpr, color='darkorange', lw=lw, label='ROC Curve (area = %0.2f)' % roc_auc)
-    else:  # Multiclass classification
+        plt.plot(fpr, tpr, color='darkorange', lw=lw, label=f'ROC Curve (area = {roc_auc:.2f})')
+    else:
+        # Multiclass classification
         y_bin = label_binarize(y_true, classes=unique_classes)
         n_classes = y_bin.shape[1]
 
@@ -170,9 +201,16 @@ def plot_roc_curve_global(y_true, y_pred_proba, title, save_as=None, classes=Non
 def get_class_rankings_global(model, X):
     """
     Obtains class rankings based on the probabilities predicted by the model.
+    
+    Parameters:
+    - model: Trained and calibrated classifier.
+    - X (array-like): Feature data.
+
+    Returns:
+    - class_rankings (list): List of class rankings for each sample.
     """
     if model is None:
-        raise ValueError("Model not trained yet. Please train the model first.")
+        raise ValueError("Model not trained yet. Por favor, treine o modelo primeiro.")
 
     # Obtain probabilities for each class
     y_pred_proba = model.predict_proba(X)
@@ -189,20 +227,40 @@ def get_class_rankings_global(model, X):
 def calculate_roc_values(model, X_test, y_test):
     """
     Calculates ROC AUC values for each class.
+    
+    Parameters:
+    - model: Trained and calibrated classifier.
+    - X_test (array-like): Test feature data.
+    - y_test (array-like): True labels for the test data.
+
+    Returns:
+    - roc_df (pd.DataFrame): DataFrame containing ROC AUC for each class.
     """
-    n_classes = len(np.unique(y_test))
+    unique_classes = np.unique(y_test)
+    n_classes = len(unique_classes)
     y_pred_proba = model.predict_proba(X_test)
+
+    if n_classes <= 1:
+        logging.error("Não há classes suficientes para calcular ROC AUC.")
+        return pd.DataFrame()
+
+    # Binarize the output
+    y_bin = label_binarize(y_test, classes=unique_classes)
+    if y_bin.shape[1] == 1:
+        # Only one class present
+        logging.error("Formato multiclasses não suportado. Apenas uma classe encontrada.")
+        return pd.DataFrame()
 
     fpr = dict()
     tpr = dict()
     roc_auc = dict()
 
     for i in range(n_classes):
-        fpr[i], tpr[i], _ = roc_curve(y_test, y_pred_proba[:, i], pos_label=i)
+        fpr[i], tpr[i], _ = roc_curve(y_bin[:, i], y_pred_proba[:, i])
         roc_auc[i] = auc(fpr[i], tpr[i])
 
         # Logging ROC values
-        logging.info(f"For class {i}:")
+        logging.info(f"For class {unique_classes[i]}:")
         logging.info(f"False Positive Rate: {fpr[i]}")
         logging.info(f"True Positive Rate: {tpr[i]}")
         logging.info(f"ROC AUC: {roc_auc[i]}")
@@ -214,6 +272,12 @@ def calculate_roc_values(model, X_test, y_test):
 def format_and_sum_probabilities(associated_rankings):
     """
     Formats and sums probabilities for each category.
+    
+    Parameters:
+    - associated_rankings (list): List of ranking strings.
+
+    Returns:
+    - formatted_results (str): Formatted string of summed probabilities.
     """
     category_sums = {}
     categories = ['C4-C6-C8', 'C6-C8-C10', 'C8-C10-C12', 'C10-C12-C14', 'C12-C14-C16', 'C14-C16-C18']
@@ -352,7 +416,11 @@ class Support:
             logging.info("No duplicated samples to apply SMOTE.")
             X_final, y_final = original_X, original_y
         else:
-            smote = SMOTE(random_state=self.seed)
+            # Determine k_neighbors dynamically based on the number of samples
+            n_samples_duplicates = duplicates_X.shape[0]
+            # SMOTE requires n_neighbors <= n_samples - 1
+            k_neighbors = min(5, n_samples_duplicates - 1) if n_samples_duplicates > 1 else 1
+            smote = SMOTE(random_state=self.seed, k_neighbors=k_neighbors)
             try:
                 X_synthetic, y_synthetic = smote.fit_resample(duplicates_X, duplicates_y)
                 logging.info(f"Number of synthetic samples generated by SMOTE: {len(X_synthetic)}")
@@ -382,6 +450,19 @@ class Support:
         return self._oversample_with_smote_on_duplicates(X, y)
 
     def fit(self, X, y, model_name_prefix='model', model_dir=None, min_kmers=None):
+        """
+        Trains the Random Forest model with cross-validation, oversampling, grid search, and calibration.
+        
+        Parameters:
+        - X (array-like): Feature data.
+        - y (array-like): Labels.
+        - model_name_prefix (str): Prefix for saving models.
+        - model_dir (str): Directory to save models.
+        - min_kmers (int): Minimum number of k-mers.
+        
+        Returns:
+        - model (CalibratedClassifierCV): Trained and calibrated model.
+        """
         logging.info(f"Starting fit method for {model_name_prefix}...")
 
         X = np.array(X)
@@ -447,7 +528,7 @@ class Support:
             self.f1_scores.append(f1)
 
             if len(np.unique(y_test)) > 1:
-                pr_auc = average_precision_score(y_test, y_pred_proba, average='macro')
+                pr_auc = average_precision_score(label_binarize(y_test, classes=self.model.classes_), y_pred_proba, average='macro')
             else:
                 pr_auc = 0.0  # Cannot calculate PR AUC for a single class
             self.pr_auc_scores.append(pr_auc)
@@ -457,14 +538,8 @@ class Support:
 
             # Calculate ROC AUC
             try:
-                if len(np.unique(y_test)) == 2:
-                    fpr, tpr, thresholds = roc_curve(y_test, y_pred_proba[:, 1])
-                    roc_auc_score_value = auc(fpr, tpr)
-                    self.roc_results.append((fpr, tpr, roc_auc_score_value))
-                else:
-                    y_test_bin = label_binarize(y_test, classes=self.model.classes_)
-                    roc_auc_score_value = roc_auc_score(y_test_bin, y_pred_proba, multi_class='ovo', average='macro')
-                    self.roc_results.append(roc_auc_score_value)
+                roc_df = calculate_roc_values(self.model, X_test, y_test)
+                self.roc_results.append(roc_df)
             except ValueError as e:
                 logging.warning(f"Could not calculate ROC AUC for fold {fold_number} [{model_name_prefix}] due to insufficient class representation: {e}")
 
@@ -511,6 +586,17 @@ class Support:
         return self.model
 
     def _perform_grid_search(self, X_train_resampled, y_train_resampled):
+        """
+        Performs grid search to find the best hyperparameters for the Random Forest model.
+        
+        Parameters:
+        - X_train_resampled (array-like): Resampled training features.
+        - y_train_resampled (array-like): Resampled training labels.
+
+        Returns:
+        - best_model (estimator): Best estimator found by grid search.
+        - best_params (dict): Best parameters found by grid search.
+        """
         skf = StratifiedKFold(n_splits=self.cv, random_state=self.seed, shuffle=True)
         grid_search = GridSearchCV(
             RandomForestClassifier(random_state=self.seed),
@@ -526,9 +612,25 @@ class Support:
         return grid_search.best_estimator_, grid_search.best_params_
 
     def get_best_param(self, param_name, default=None):
+        """
+        Retrieves the best parameter value from grid search.
+        
+        Parameters:
+        - param_name (str): Name of the parameter.
+        - default: Default value if parameter not found.
+
+        Returns:
+        - value: Best parameter value or default.
+        """
         return self.best_params.get(param_name, default)
 
     def plot_learning_curve(self, output_path):
+        """
+        Plots the learning curve based on cross-validation scores.
+        
+        Parameters:
+        - output_path (str): Path to save the learning curve plot.
+        """
         plt.figure()
         plt.plot(self.train_scores, label='Training Score')
         plt.plot(self.test_scores, label='Cross-Validation Score')
@@ -545,9 +647,15 @@ class Support:
     def get_class_rankings(self, X):
         """
         Obtains class rankings for the provided data.
+        
+        Parameters:
+        - X (array-like): Feature data.
+
+        Returns:
+        - class_rankings (list): List of class rankings for each sample.
         """
         if self.model is None:
-            raise ValueError("Model not trained yet. Please train the model first.")
+            raise ValueError("Model not trained yet. Por favor, treine o modelo primeiro.")
 
         # Obtain probabilities for each class
         y_pred_proba = self.model.predict_proba(X)
@@ -564,6 +672,20 @@ class Support:
     def test_best_RF(self, X, y, scaler_dir='.'):
         """
         Tests the best Random Forest model with the provided data.
+        
+        Parameters:
+        - X (array-like): Feature data.
+        - y (array-like): Labels.
+        - scaler_dir (str): Directory where the scaler is saved.
+
+        Returns:
+        - score (float): ROC AUC score.
+        - f1 (float): F1 score.
+        - pr_auc (float): Precision-Recall AUC score.
+        - best_params (dict): Best hyperparameters.
+        - calibrated_model (CalibratedClassifierCV): Trained and calibrated model.
+        - X_test (array-like): Test features.
+        - y_test (array-like): Test labels.
         """
         # Load the scaler
         scaler_path = os.path.join(scaler_dir, 'scaler.pkl') if scaler_dir else 'scaler.pkl'
@@ -572,6 +694,7 @@ class Support:
             logging.info(f"Scaler loaded from {scaler_path}")
         else:
             logging.error(f"Scaler not found in {scaler_path}")
+            st.error(f"Scaler não encontrado em {scaler_path}. Verifique se o treinamento foi concluído com sucesso.")
             sys.exit(1)
 
         X_scaled = scaler.transform(X)
@@ -608,8 +731,8 @@ class Support:
         calibrated_model = calibrator
 
         # Make predictions
-        y_pred = calibrated_model.predict_proba(X_test)
-        y_pred_adjusted = adjust_predictions_global(y_pred, method='normalize')
+        y_pred_proba = calibrated_model.predict_proba(X_test)
+        y_pred_adjusted = adjust_predictions_global(y_pred_proba, method='normalize')
 
         # Calculate the score (e.g., AUC)
         score = self._calculate_score(y_pred_adjusted, y_test)
@@ -618,7 +741,7 @@ class Support:
         y_pred_classes = calibrated_model.predict(X_test)
         f1 = f1_score(y_test, y_pred_classes, average='weighted')
         if len(np.unique(y_test)) > 1:
-            pr_auc = average_precision_score(y_test, y_pred_adjusted, average='macro')
+            pr_auc = average_precision_score(label_binarize(y_test, classes=calibrator.classes_), y_pred_proba, average='macro')
         else:
             pr_auc = 0.0  # Cannot calculate PR AUC for a single class
 
@@ -627,7 +750,14 @@ class Support:
 
     def _calculate_score(self, y_pred, y_test):
         """
-        Calculates the score (e.g., ROC AUC) based on predictions and true labels.
+        Calculates the ROC AUC score based on predictions and true labels.
+        
+        Parameters:
+        - y_pred (array-like): Predicted probabilities.
+        - y_test (array-like): True labels.
+
+        Returns:
+        - score (float): ROC AUC score.
         """
         n_classes = len(np.unique(y_test))
         if y_pred.ndim == 1 or n_classes == 2:
@@ -641,11 +771,14 @@ class Support:
 
     def plot_roc_curve(self, y_true, y_pred_proba, title, save_as=None, classes=None):
         """
-        Plots the ROC curve for binary or multiclass classifications.
+        Plots the ROC curve using the global function.
         """
         plot_roc_curve_global(y_true, y_pred_proba, title, save_as, classes)
 
 class ProteinEmbeddingGenerator:
+    """
+    Class for generating protein embeddings using Word2Vec.
+    """
     def __init__(self, sequences_path, table_data=None, aggregation_method='none'):
         aligned_path = sequences_path
         if not are_sequences_aligned(sequences_path):
@@ -664,6 +797,14 @@ class ProteinEmbeddingGenerator:
     def generate_embeddings(self, k=3, step_size=1, word2vec_model_path="word2vec_model.bin", model_dir=None, min_kmers=None, save_min_kmers=False):
         """
         Generates embeddings for protein sequences using Word2Vec, standardizing the number of k-mers.
+        
+        Parameters:
+        - k (int): Size of the k-mer.
+        - step_size (int): Step size for k-mer generation.
+        - word2vec_model_path (str): Path to save/load the Word2Vec model.
+        - model_dir (str): Directory to save the Word2Vec model.
+        - min_kmers (int): Minimum number of k-mers.
+        - save_min_kmers (bool): Whether to save min_kmers to a file.
         """
         # Define the full path for the Word2Vec model
         if model_dir:
@@ -734,6 +875,7 @@ class ProteinEmbeddingGenerator:
             # Determine the minimum number of k-mers
             if not kmers_counts:
                 logging.error("No k-mers were collected. Please check your sequences and k-mer parameters.")
+                st.error("Nenhum k-mer foi coletado. Verifique suas sequências e parâmetros de k-mer.")
                 sys.exit(1)
 
             if min_kmers is not None:
@@ -753,14 +895,14 @@ class ProteinEmbeddingGenerator:
             # Train the Word2Vec model using all k-mers
             model = Word2Vec(
                 sentences=all_kmers,
-                size=125,  # Kept 'size' as requested
+                vector_size=125,  # Updated parameter name from 'size' to 'vector_size'
                 window=10,
                 min_count=1,
                 workers=8,
                 sg=1,
                 hs=1,  # Hierarchical softmax enabled
                 negative=0,  # Negative sampling disabled
-                iter=2500,  # Kept 'iter' as requested
+                epochs=2500,  # Updated parameter name from 'iter' to 'epochs'
                 seed=SEED  # Fix seed for reproducibility
             )
 
@@ -820,6 +962,7 @@ class ProteinEmbeddingGenerator:
         # Determine the minimum number of k-mers
         if not kmers_counts:
             logging.error("No k-mers were collected. Please check your sequences and k-mer parameters.")
+            st.error("Nenhum k-mer foi coletado. Verifique suas sequências e parâmetros de k-mer.")
             sys.exit(1)
 
         if min_kmers is not None:
@@ -906,6 +1049,13 @@ class ProteinEmbeddingGenerator:
     def get_embeddings_and_labels(self, label_type='target_variable'):
         """
         Returns embeddings and associated labels (target_variable or associated_variable).
+        
+        Parameters:
+        - label_type (str): Type of label to retrieve ('target_variable' or 'associated_variable').
+
+        Returns:
+        - embeddings (np.ndarray): Array of embeddings.
+        - labels (np.ndarray): Array of labels.
         """
         embeddings = []
         labels = []
@@ -918,14 +1068,17 @@ class ProteinEmbeddingGenerator:
 
 # Dynamically adjust perplexity
 def compute_perplexity(n_samples):
+    """
+    Computes a dynamic perplexity value based on the number of samples.
+    
+    Parameters:
+    - n_samples (int): Number of samples.
+
+    Returns:
+    - perplexity (int): Calculated perplexity value.
+    """
     return max(5, min(50, n_samples // 100))
 
-import numpy as np
-import plotly.graph_objects as go
-from sklearn.manifold import TSNE
-import plotly.express as px
-
-# Function to plot the graphs
 def plot_dual_tsne_3d(train_embeddings, train_labels, train_protein_ids, 
                       predict_embeddings, predict_labels, predict_protein_ids, output_dir):
     """
@@ -940,6 +1093,10 @@ def plot_dual_tsne_3d(train_embeddings, train_labels, train_protein_ids,
     - predict_embeddings (np.ndarray): Embeddings of predictions.
     - predict_labels (list or array): Labels associated with predictions.
     - predict_protein_ids (list): Protein IDs in predictions.
+    - output_dir (str): Directory to save the plot images.
+    
+    Returns:
+    - fig_train, fig_predict: Plotly figure objects for training and prediction data.
     """
     # Adjust perplexity dynamically
     n_samples_train = train_embeddings.shape[0]
@@ -1034,10 +1191,6 @@ def plot_dual_tsne_3d(train_embeddings, train_labels, train_protein_ids,
 
     return fig_train, fig_predict
 
-import umap.umap_ as umap
-import plotly.graph_objects as go
-import plotly.express as px
-
 def plot_dual_umap(train_embeddings, train_labels, train_protein_ids,
                    predict_embeddings, predict_labels, predict_protein_ids, output_dir):
     """
@@ -1052,6 +1205,10 @@ def plot_dual_umap(train_embeddings, train_labels, train_protein_ids,
     - predict_embeddings (np.ndarray): Embeddings of predictions.
     - predict_labels (list or array): Labels associated with predictions.
     - predict_protein_ids (list): Protein IDs in predictions.
+    - output_dir (str): Directory to save the plot images.
+    
+    Returns:
+    - fig_train, fig_predict: Plotly figure objects for training and prediction data.
     """
     # Dimensionality reduction for training
     umap_train = umap.UMAP(n_components=3, random_state=42, n_neighbors=15, min_dist=0.1)
@@ -1148,6 +1305,11 @@ def plot_predictions_scatterplot_custom(results, output_path, top_n=3):
     Each point represents the corresponding specificity probability for the protein.
     Only the top N predictions are plotted.
     Points are colored in a single uniform color, styled for scientific publication.
+    
+    Parameters:
+    - results (dict): Dictionary containing prediction results.
+    - output_path (str): Path to save the scatter plot image.
+    - top_n (int): Number of top predictions to display.
     """
     # Prepare the data
     protein_specificities = {}
@@ -1185,7 +1347,7 @@ def plot_predictions_scatterplot_custom(results, output_path, top_n=3):
     protein_order = {protein: idx for idx, protein in enumerate(unique_proteins)}
 
     # Create the figure
-    fig, ax = plt.subplots(figsize=(12, len(unique_proteins) * 0.5))  # Adjust height based on number of proteins
+    fig, ax = plt.subplots(figsize=(12, max(6, len(unique_proteins) * 0.5)))  # Adjust height based on number of proteins
 
     # Fixed scale for the x-axis from C2 to C18
     x_values = list(range(2, 19))
@@ -1243,6 +1405,14 @@ def plot_predictions_scatterplot_custom(results, output_path, top_n=3):
 def adjust_predictions_global(predicted_proba, method='normalize', alpha=1.0):
     """
     Adjusts the probabilities predicted by the model.
+    
+    Parameters:
+    - predicted_proba (array-like): Predicted probabilities from the model.
+    - method (str): Adjustment method ('normalize', 'smoothing', 'none').
+    - alpha (float): Smoothing parameter.
+    
+    Returns:
+    - adjusted_proba (array-like): Adjusted probabilities.
     """
     if method == 'normalize':
         # Normalize probabilities to sum to 1 for each sample
@@ -1266,12 +1436,13 @@ def adjust_predictions_global(predicted_proba, method='normalize', alpha=1.0):
     return adjusted_proba
 
 def main(args):
-    model_dir = args.model_dir  # Should be 'results/models'
-
     """
     Main function that coordinates the workflow.
+    
+    Parameters:
+    - args (argparse.Namespace): Parsed command-line arguments.
     """
-    model_dir = args.model_dir
+    model_dir = args.model_dir  # Should be 'results/models'
 
     # Initialize progress variables
     total_steps = 8  # Updated after removing dimensionality reduction and visualization steps
@@ -1377,15 +1548,19 @@ def main(args):
         n_classes_target = len(np.unique(y_test_target))
         if n_classes_target == 2:
             y_pred_proba_target = best_model_target.predict_proba(X_test_target)[:, 1]
+            unique_classes_target = np.unique(y_test_target)
         else:
             y_pred_proba_target = best_model_target.predict_proba(X_test_target)
             unique_classes_target = np.unique(y_test_target).astype(str)
         plot_roc_curve_global(y_test_target, y_pred_proba_target, 'ROC Curve for Target Variable', save_as=args.roc_curve_target, classes=unique_classes_target)
 
-        # Convert y_test_target to integer labels
-        unique_labels = sorted(set(y_test_target))
-        label_to_int = {label: idx for idx, label in enumerate(unique_labels)}
-        y_test_target_int = [label_to_int[label.strip()] for label in y_test_target]
+        # Convert y_test_target to integer labels if necessary
+        if isinstance(y_test_target[0], str):
+            unique_labels_target = sorted(set(y_test_target))
+            label_to_int_target = {label: idx for idx, label in enumerate(unique_labels_target)}
+            y_test_target_int = [label_to_int_target[label.strip()] for label in y_test_target]
+        else:
+            y_test_target_int = y_test_target
 
         # Calculate and print ROC values for target_variable
         roc_df_target = calculate_roc_values(best_model_target, X_test_target, y_test_target_int)
@@ -1461,10 +1636,25 @@ def main(args):
         n_classes_associated = len(np.unique(y_test_associated))
         if n_classes_associated == 2:
             y_pred_proba_associated = best_model_associated.predict_proba(X_test_associated)[:, 1]
+            unique_classes_associated = np.unique(y_test_associated)
         else:
             y_pred_proba_associated = best_model_associated.predict_proba(X_test_associated)
             unique_classes_associated = np.unique(y_test_associated).astype(str)
         plot_roc_curve_global(y_test_associated, y_pred_proba_associated, 'ROC Curve for Associated Variable', save_as=args.roc_curve_associated, classes=unique_classes_associated)
+
+        # Convert y_test_associated to integer labels if necessary
+        if isinstance(y_test_associated[0], str):
+            unique_labels_associated = sorted(set(y_test_associated))
+            label_to_int_associated = {label: idx for idx, label in enumerate(unique_labels_associated)}
+            y_test_associated_int = [label_to_int_associated[label.strip()] for label in y_test_associated]
+        else:
+            y_test_associated_int = y_test_associated
+
+        # Calculate and print ROC values for associated_variable
+        roc_df_associated = calculate_roc_values(best_model_associated, X_test_associated, y_test_associated_int)
+        logging.info("ROC AUC Scores for associated_variable:")
+        logging.info(roc_df_associated)
+        roc_df_associated.to_csv(args.roc_values_associated, index=False)
 
     # Update progress
     current_step += 1
@@ -1485,6 +1675,7 @@ def main(args):
         logging.info(f"min_kmers loaded: {min_kmers_loaded}")
     else:
         logging.error(f"min_kmers file not found at {min_kmers_path}. Ensure that training was completed successfully.")
+        st.error(f"Arquivo min_kmers não encontrado em {min_kmers_path}. Certifique-se de que o treinamento foi concluído com sucesso.")
         sys.exit(1)
 
     # Load data for prediction
@@ -1531,6 +1722,7 @@ def main(args):
         logging.info(f"Scaler loaded from {scaler_full_path}")
     else:
         logging.error(f"Scaler not found at {scaler_full_path}")
+        st.error(f"Scaler não encontrado em {scaler_full_path}. Verifique se o treinamento foi concluído com sucesso.")
         sys.exit(1)
     X_predict_scaled = scaler.transform(X_predict)
 
@@ -1543,19 +1735,32 @@ def main(args):
 
     # Make predictions on new sequences
 
+    # Load calibrated models
+    calibrated_model_target_path = os.path.join(model_dir, 'calibrated_model_target.pkl')
+    calibrated_model_associated_path = os.path.join(model_dir, 'calibrated_model_associated.pkl')
+
+    if os.path.exists(calibrated_model_target_path) and os.path.exists(calibrated_model_associated_path):
+        calibrated_model_target = joblib.load(calibrated_model_target_path)
+        calibrated_model_associated = joblib.load(calibrated_model_associated_path)
+        logging.info("Calibrated models loaded successfully.")
+    else:
+        logging.error("Calibrated models not found. Verifique se o treinamento foi concluído com sucesso.")
+        st.error("Modelos calibrados não encontrados. Verifique se o treinamento foi concluído com sucesso.")
+        sys.exit(1)
+
     # Check feature size against the original estimator of CalibratedClassifierCV
     if X_predict_scaled.shape[1] > calibrated_model_target.estimator.n_features_in_:
         logging.info(f"Reducing the number of features from {X_predict_scaled.shape[1]} to {calibrated_model_target.estimator.n_features_in_} to match the model's input size.")
         X_predict_scaled = X_predict_scaled[:, :calibrated_model_target.estimator.n_features_in_]
 
+    # Make predictions for target_variable
     predictions_target = calibrated_model_target.predict(X_predict_scaled)
 
-    # Check and adjust feature size for associated_variable
+    # Make predictions for associated_variable
     if X_predict_scaled.shape[1] > calibrated_model_associated.estimator.n_features_in_:
         logging.info(f"Reducing the number of features from {X_predict_scaled.shape[1]} to {calibrated_model_associated.estimator.n_features_in_} to match the model's input size for associated_variable.")
         X_predict_scaled = X_predict_scaled[:, :calibrated_model_associated.estimator.n_features_in_]
 
-    # Make predictions for associated_variable
     predictions_associated = calibrated_model_associated.predict(X_predict_scaled)
 
     # Get class rankings
@@ -1717,7 +1922,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-from PIL import Image
 # Function to convert image to base64
 def get_base64_image(image_path):
     """
@@ -1773,6 +1977,16 @@ st.sidebar.header("Input Parameters")
 
 # Function to save uploaded files
 def save_uploaded_file(uploaded_file, save_path):
+    """
+    Saves the uploaded file to the specified path.
+    
+    Parameters:
+    - uploaded_file (UploadedFile): File uploaded via Streamlit.
+    - save_path (str): Path to save the uploaded file.
+    
+    Returns:
+    - save_path (str): Path where the file was saved.
+    """
     with open(save_path, 'wb') as f:
         f.write(uploaded_file.getbuffer())
     return save_path
@@ -1801,18 +2015,18 @@ st.sidebar.header("Optional Word2Vec Parameters")
 custom_word2vec = st.sidebar.checkbox("Customize Word2Vec Parameters", value=False)
 if custom_word2vec:
     window = st.sidebar.number_input(
-        "Window Size", min_value=5, max_value=20, value=5, step=5
+        "Window Size", min_value=5, max_value=20, value=10, step=1
     )
     workers = st.sidebar.number_input(
-        "Workers", min_value=1, max_value=112, value=8, step=8
+        "Workers", min_value=1, max_value=112, value=8, step=1
     )
-    iter = st.sidebar.number_input(
+    epochs = st.sidebar.number_input(
         "Iterations", min_value=1, max_value=3500, value=2500, step=100
     )
 else:
     window = 10  # Default value
     workers = 8  # Default value
-    iter = 2500  # Default value
+    epochs = 2500  # Default value
 
 # Button to start processing
 if st.sidebar.button("Run Analysis"):
@@ -1864,6 +2078,7 @@ if st.sidebar.button("Run Analysis"):
         learning_curve_target=os.path.join(output_dir, "learning_curve_target.png"),
         learning_curve_associated=os.path.join(output_dir, "learning_curve_associated.png"),
         roc_values_target=os.path.join(output_dir, "roc_values_target.csv"),
+        roc_values_associated=os.path.join(output_dir, "roc_values_associated.csv"),
         rf_model_target="rf_model_target.pkl",
         rf_model_associated="rf_model_associated.pkl",
         word2vec_model="word2vec_model.bin",
@@ -1906,7 +2121,7 @@ if st.sidebar.button("Run Analysis"):
                 st.error(f"An error occurred while reading the formatted results table: {e}")
         else:
             st.error(f"Formatted results table not found or is empty: {formatted_table_path}")
-    
+
         # Prepare the results.zip file
         zip_buffer = BytesIO()
         with zipfile.ZipFile(zip_buffer, "w") as zip_file:
@@ -1935,6 +2150,17 @@ if st.sidebar.button("Run Analysis"):
 
 # Function to load and resize images with DPI adjustment
 def load_and_resize_image_with_dpi(image_path, base_width, dpi=300):
+    """
+    Loads and resizes an image with the specified DPI.
+    
+    Parameters:
+    - image_path (str): Path to the image file.
+    - base_width (int): Desired width of the image.
+    - dpi (int): Dots per inch for the image.
+    
+    Returns:
+    - Image object or None if not found.
+    """
     try:
         # Load the image
         image = Image.open(image_path)
@@ -1963,10 +2189,16 @@ image_paths = [
 images = [load_and_resize_image_with_dpi(path, base_width=150, dpi=300) for path in image_paths]
 
 # Encode images in base64
-import base64
-from io import BytesIO
-
 def encode_image(image):
+    """
+    Encodes a PIL Image to a base64 string.
+    
+    Parameters:
+    - image (Image): PIL Image object.
+    
+    Returns:
+    - base64 string of the image.
+    """
     buffer = BytesIO()
     image.save(buffer, format="PNG")
     img_str = base64.b64encode(buffer.getvalue()).decode()
