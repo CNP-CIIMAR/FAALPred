@@ -245,11 +245,12 @@ def calculate_roc_values(model, X_test, y_test):
     """
     unique_classes = np.unique(y_test)
     n_classes = len(unique_classes)
-    y_pred_proba = model.predict_proba(X_test)
 
     if n_classes <= 1:
         logging.error("Não há classes suficientes para calcular ROC AUC.")
         return pd.DataFrame()
+
+    y_pred_proba = model.predict_proba(X_test)
 
     # Binarize the output
     y_bin = label_binarize(y_test, classes=unique_classes)
@@ -366,6 +367,7 @@ class Support:
             "bootstrap": [True, False],
             "ccp_alpha": [0.0, 0.001, 0.01],
         }
+
     def _oversample_single_sample_classes(self, X, y):
         """
         Applies RandomOverSampler to balance classes by duplicating samples,
@@ -373,12 +375,12 @@ class Support:
         The original samples are kept intact.
 
         Parameters:
-        - X: Features (numpy array or pandas DataFrame).
-        - y: Labels (numpy array or pandas Series).
+        - X: Features (numpy array ou pandas DataFrame).
+        - y: Labels (numpy array ou pandas Series).
 
         Returns:
-        - X_final: Features after applying oversampling and SMOTE.
-        - y_final: Labels after applying oversampling and SMOTE.
+        - X_final: Features após aplicar oversampling e SMOTE.
+        - y_final: Labels após aplicar oversampling e SMOTE.
         """
         # Step 1: Original Data
         original_X, original_y = X.copy(), y.copy()
