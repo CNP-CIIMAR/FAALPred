@@ -31,15 +31,6 @@ import base64
 import streamlit as st
 import plotly.express as px
 
-import joblib
-# from word2vec import Word2Vec
-
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
-
-import streamlit as st
-from tabulate import tabulate
-
 # Logging configurations
 logging.basicConfig(
     level=logging.INFO,
@@ -56,7 +47,7 @@ SEED = 42
 # Helper functions
 def are_sequences_aligned(fasta_path):
     """
-    Checks if the sequences in a FASTA file are aligned.
+    Checks if the sequences in a FASTA file are aligned (i.e., have the same length).
     """
     try:
         alignment = AlignIO.read(fasta_path, 'fasta')
@@ -67,6 +58,7 @@ def are_sequences_aligned(fasta_path):
         return True
     except Exception as e:
         logging.error(f"Error checking alignment: {e}")
+        st.error(f"Error checking alignment: {e}")  # Inform the user
         return False
 
 def realign_sequences_with_mafft(input_fasta, output_fasta, threads=1):
@@ -79,16 +71,25 @@ def realign_sequences_with_mafft(input_fasta, output_fasta, threads=1):
         with open(output_fasta, "w") as handle:
             handle.write(stdout)
         logging.info(f"Realigned sequences saved in {output_fasta}")
+        
+        # Verificar se o realinhamento foi bem-sucedido
+        if are_sequences_aligned(output_fasta):
+            logging.info("Realinhamento bem-sucedido.")
+        else:
+            logging.error("Realinhamento falhou. As sequências ainda não estão alinhadas.")
+            st.error("Realinhamento falhou. As sequências ainda não estão alinhadas.")
+            st.stop()  # Parar o aplicativo Streamlit graciosamente
     except Exception as e:
         logging.error(f"Error realigning sequences with MAFFT: {e}")
-        sys.exit(1)
+        st.error(f"Error realigning sequences with MAFFT: {e}")  # Inform the user
+        st.stop()  # Stop the Streamlit app gracefully
 
 def create_unique_model_directory(base_dir, aggregation_method):
     """
     Creates a unique directory to store models and results.
     """
     timestamp = time.strftime("%Y%m%d-%H%M%S")
-    unique_dir = f"{base_dir}/{aggregation_method}_{timestamp}"
+    unique_dir = os.path.join(base_dir, f"{aggregation_method}_{timestamp}")
     os.makedirs(unique_dir, exist_ok=True)
     logging.info(f"Model directory created: {unique_dir}")
     return unique_dir
@@ -571,7 +572,7 @@ class Support:
         else:
             logging.error(f"Scaler not found at {scaler_path}")
             st.error("Scaler not found.")
-            sys.exit(1)
+            st.stop()  # Gracefully stop the Streamlit app
 
         X_scaled = scaler.transform(X)
 
@@ -618,14 +619,16 @@ class Support:
         y_pred = calibrated_model.predict_proba(X_test)
         y_pred_adjusted = adjust_predictions_global(y_pred, method='normalize')
 
-        # Calculate the score (e.g., AUC)
+        # Calculate the score (e.g., ROC AUC)
         score = self._calculate_score(y_pred_adjusted, y_test)
 
         # Calculate additional metrics
         y_pred_classes = calibrated_model.predict(X_test)
         f1 = f1_score(y_test, y_pred_classes, average='weighted')
         if len(np.unique(y_test)) > 1:
-            pr_auc = average_precision_score(y_test, y_pred_adjusted, average='macro')
+            # Binarize the labels for multiclass average_precision_score
+            y_test_bin = label_binarize(y_test, classes=np.unique(y_test))
+            pr_auc = average_precision_score(y_test_bin, y_pred_adjusted, average='macro')
         else:
             pr_auc = 0.0  # Cannot calculate PR AUC for a single class
 
@@ -750,7 +753,8 @@ class ProteinEmbeddingGenerator:
             # Determine the minimum number of k-mers
             if not kmers_counts:
                 logging.error("No k-mers were collected. Please check your sequences and k-mer parameters.")
-                sys.exit(1)
+                st.error("No k-mers were collected. Please check your sequences and k-mer parameters.")
+                st.stop()  # Gracefully stop the Streamlit app
 
             if min_kmers is not None:
                 self.min_kmers = min_kmers
@@ -769,14 +773,14 @@ class ProteinEmbeddingGenerator:
             # Train the Word2Vec model using all k-mers
             model = Word2Vec(
                 sentences=all_kmers,
-                size=125,  # Kept 'size' as requested
-                window=10,
+                size=125,  # Mantendo 'size' conforme solicitado
+                window=window if 'window' in globals() else 10,  # Use the window from Streamlit inputs if available
                 min_count=1,
-                workers=8,
+                workers=workers if 'workers' in globals() else 8,
                 sg=1,
                 hs=1,  # Hierarchical softmax enabled
                 negative=0,  # Negative sampling disabled
-                iter=2500,  # Kept 'iter' as requested
+                iter=iter if 'iter' in globals() else 2500,  # Mantendo 'iter' conforme solicitado
                 seed=SEED  # Fix seed for reproducibility
             )
 
@@ -794,58 +798,6 @@ class ProteinEmbeddingGenerator:
         kmers_counts = []
         all_kmers = []
 
-        for record in self.alignment:
-            sequence = str(record.seq)
-            protein_accession_alignment = record.id.split()[0]
-
-            # If table_data is not provided, skip matching
-            if self.table_data is not None:
-                matching_rows = self.table_data['Protein.accession'].str.split().str[0] == protein_accession_alignment
-                matching_info = self.table_data[matching_rows]
-
-                if matching_info.empty:
-                    logging.warning(f"No matching data in the training table for {protein_accession_alignment}")
-                    continue  # Skip to the next iteration
-
-                target_variable = matching_info['Target variable'].values[0]
-                associated_variable = matching_info['Associated variable'].values[0]
-
-            else:
-                # If no table, use default values or None
-                target_variable = None
-                associated_variable = None
-
-            kmers = [sequence[i:i + k] for i in range(0, len(sequence) - k + 1, step_size)]
-            kmers = [kmer for kmer in kmers if kmer.count('-') < k]  # Allow k-mers with fewer than k gaps
-
-            if not kmers:
-                logging.warning(f"No valid k-mer for {protein_accession_alignment}")
-                continue
-
-            all_kmers.append(kmers)
-            kmers_counts.append(len(kmers))
-
-            embedding_info = {
-                'protein_accession': protein_accession_alignment,
-                'target_variable': target_variable,
-                'associated_variable': associated_variable,
-                'kmers': kmers
-            }
-            kmer_groups[protein_accession_alignment] = embedding_info
-
-        # Determine the minimum number of k-mers
-        if not kmers_counts:
-            logging.error("No k-mers were collected. Please check your sequences and k-mer parameters.")
-            sys.exit(1)
-
-        if min_kmers is not None:
-            self.min_kmers = min_kmers
-            logging.info(f"Using provided min_kmers: {self.min_kmers}")
-        else:
-            self.min_kmers = min(kmers_counts)
-            logging.info(f"Minimum number of k-mers in any sequence: {self.min_kmers}")
-
-        # Generate standardized embeddings
         for record in self.alignment:
             sequence_id = record.id.split()[0]  # Use consistent sequence IDs
             embedding_info = kmer_groups.get(sequence_id, {})
@@ -902,7 +854,8 @@ class ProteinEmbeddingGenerator:
         embedding_shapes = set(embedding.shape for embedding in [entry['embedding'] for entry in self.embeddings])
         if len(embedding_shapes) != 1:
             logging.error(f"Inconsistent embedding formats detected: {embedding_shapes}")
-            raise ValueError("Embeddings have inconsistent formats.")
+            st.error("Embeddings have inconsistent formats.")
+            st.stop()  # Gracefully stop the Streamlit app
         else:
             logging.info(f"All embeddings have format: {embedding_shapes.pop()}")
 
@@ -1124,10 +1077,10 @@ def plot_dual_umap(train_embeddings, train_labels, train_protein_ids,
     )
 
     # Save the plots as HTML
-    import plotly.io as pio
     umap_train_html = os.path.join(output_dir, "umap_train_3d.html")
     umap_predict_html = os.path.join(output_dir, "umap_predict_3d.html")
     
+    import plotly.io as pio
     pio.write_html(fig_train, file=umap_train_html, auto_open=False)
     pio.write_html(fig_predict, file=umap_predict_html, auto_open=False)
     
@@ -1273,8 +1226,13 @@ def main(args):
         logging.info(f"Aligned training file found or sequences are already aligned: {train_alignment_path}")
 
     # Load training data table
-    train_table_data = pd.read_csv(train_table_data_path, delimiter="\t")
-    logging.info("Training data table loaded successfully.")
+    try:
+        train_table_data = pd.read_csv(train_table_data_path, delimiter="\t")
+        logging.info("Training data table loaded successfully.")
+    except Exception as e:
+        logging.error(f"Error loading training data table: {e}")
+        st.error(f"Error loading training data table: {e}")
+        st.stop()  # Gracefully stop the Streamlit app
 
     # Update progress
     current_step += 1
@@ -1357,6 +1315,7 @@ def main(args):
         n_classes_target = len(np.unique(y_test_target))
         if n_classes_target == 2:
             y_pred_proba_target = best_model_target.predict_proba(X_test_target)[:, 1]
+            unique_classes_target = None
         else:
             y_pred_proba_target = best_model_target.predict_proba(X_test_target)
             unique_classes_target = np.unique(y_test_target).astype(str)
@@ -1439,6 +1398,7 @@ def main(args):
         n_classes_associated = len(np.unique(y_test_associated))
         if n_classes_associated == 2:
             y_pred_proba_associated = best_model_associated.predict_proba(X_test_associated)[:, 1]
+            unique_classes_associated = None
         else:
             y_pred_proba_associated = best_model_associated.predict_proba(X_test_associated)
             unique_classes_associated = np.unique(y_test_associated).astype(str)
@@ -1464,7 +1424,7 @@ def main(args):
     else:
         logging.error(f"min_kmers file not found at {min_kmers_path}.")
         st.error("min_kmers file not found. Ensure that training was completed successfully.")
-        sys.exit(1)
+        st.stop()  # Gracefully stop the Streamlit app
 
     # Load data for prediction
     predict_alignment_path = args.predict_fasta
@@ -1511,7 +1471,7 @@ def main(args):
     else:
         logging.error(f"Scaler not found at {scaler_full_path}.")
         st.error("Scaler not found. Ensure that training was completed successfully.")
-        sys.exit(1)
+        st.stop()  # Gracefully stop the Streamlit app
     X_predict_scaled = scaler.transform(X_predict)
 
     # Update progress
@@ -1771,10 +1731,10 @@ from PIL import Image
 def get_base64_image(image_path):
     """
     Encodes an image file to a base64 string.
-    
+
     Parameters:
     - image_path (str): Path to the image file.
-    
+
     Returns:
     - base64 string of the image.
     """
@@ -1850,10 +1810,10 @@ st.sidebar.header("Optional Word2Vec Parameters")
 custom_word2vec = st.sidebar.checkbox("Customize Word2Vec Parameters", value=False)
 if custom_word2vec:
     window = st.sidebar.number_input(
-        "Window Size", min_value=5, max_value=20, value=5, step=5
+        "Window Size", min_value=5, max_value=20, value=10, step=5
     )
     workers = st.sidebar.number_input(
-        "Workers", min_value=1, max_value=112, value=8, step=8
+        "Workers", min_value=1, max_value=112, value=8, step=1
     )
     iter = st.sidebar.number_input(
         "Number of Iterations", min_value=1, max_value=3500, value=2500, step=100
@@ -1975,8 +1935,13 @@ if st.sidebar.button("Run Analysis"):
         )
 
         # ============================================
-        # Additional Information Below the Footer
+        # STEP 3: Dimensionality Reduction and Plotting (Removed as per request)
         # ============================================
+
+        # Update progress to 100%
+        progress_bar.progress(1.0)
+        progress_text.markdown("<span style='color:white'>Progress: 100%</span>", unsafe_allow_html=True)
+        time.sleep(0.1)
 
     except Exception as e:
         st.error(f"An error occurred during processing: {e}")
