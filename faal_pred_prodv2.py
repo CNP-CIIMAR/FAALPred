@@ -63,9 +63,14 @@ def are_sequences_aligned(fasta_file):
     Checks if all sequences in a FASTA file have the same length.
     """
     lengths = set()
-    for record in SeqIO.parse(fasta_file, "fasta"):
-        lengths.add(len(record.seq))
-    return len(lengths) == 1  # Returns True if all sequences have the same length
+    try:
+        for record in SeqIO.parse(fasta_file, "fasta"):
+            lengths.add(len(record.seq))
+        return len(lengths) == 1  # Returns True if all sequences have the same length
+    except Exception as e:
+        logging.error(f"Error checking alignment: {e}")
+        st.error(f"Error checking alignment: {e}")
+        return False
 
 def create_unique_model_directory(base_dir, aggregation_method):
     """
@@ -107,8 +112,8 @@ def realign_sequences_with_mafft(input_path, output_path, threads=8):
     """
     if not is_mafft_installed():
         logging.error("MAFFT is not installed or not found in PATH.")
-        st.error("MAFFT is required but not installed. Por favor, instale o MAFFT e tente novamente.")
-        sys.exit(1)
+        st.error("MAFFT é necessário, mas não está instalado. Por favor, instale o MAFFT e tente novamente.")
+        st.stop()  # Use st.stop() instead of sys.exit()
     
     mafft_command = ['mafft', '--thread', str(threads), '--maxiterate', '1000', '--localpair', input_path]
     try:
@@ -118,7 +123,7 @@ def realign_sequences_with_mafft(input_path, output_path, threads=8):
     except subprocess.CalledProcessError as e:
         logging.error(f"Error executing MAFFT: {e.stderr.decode()}")
         st.error("Ocorreu um erro ao executar o MAFFT. Verifique os logs para mais detalhes.")
-        sys.exit(1)
+        st.stop()  # Use st.stop() instead of sys.exit()
 
 def perform_clustering(data, method="DBSCAN", eps=0.5, min_samples=5, n_clusters=3):
     """
@@ -695,7 +700,7 @@ class Support:
         else:
             logging.error(f"Scaler not found in {scaler_path}")
             st.error(f"Scaler não encontrado em {scaler_path}. Verifique se o treinamento foi concluído com sucesso.")
-            sys.exit(1)
+            st.stop()
 
         X_scaled = scaler.transform(X)
 
@@ -780,14 +785,6 @@ class ProteinEmbeddingGenerator:
     Class for generating protein embeddings using Word2Vec.
     """
     def __init__(self, sequences_path, table_data=None, aggregation_method='none'):
-        aligned_path = sequences_path
-        if not are_sequences_aligned(sequences_path):
-            realign_sequences_with_mafft(sequences_path, sequences_path.replace(".fasta", "_aligned.fasta"), threads=1)
-            aligned_path = sequences_path.replace(".fasta", "_aligned.fasta")
-        else:
-            logging.info(f"Sequences are already aligned: {sequences_path}")
-
-        self.alignment = AlignIO.read(aligned_path, 'fasta')
         self.table_data = table_data
         self.embeddings = []
         self.models = {}
@@ -824,8 +821,8 @@ class ProteinEmbeddingGenerator:
             all_kmers = []
             kmers_counts = []
 
-            # Generate k-mers
-            for record in self.alignment:
+            # Read and generate k-mers
+            for record in SeqIO.parse(sequences_path, "fasta"):
                 sequence = str(record.seq)
                 seq_len = len(sequence)
                 protein_accession_alignment = record.id.split()[0]
@@ -876,7 +873,7 @@ class ProteinEmbeddingGenerator:
             if not kmers_counts:
                 logging.error("No k-mers were collected. Please check your sequences and k-mer parameters.")
                 st.error("Nenhum k-mer foi coletado. Verifique suas sequências e parâmetros de k-mer.")
-                sys.exit(1)
+                st.stop()
 
             if min_kmers is not None:
                 self.min_kmers = min_kmers
@@ -902,7 +899,7 @@ class ProteinEmbeddingGenerator:
                 sg=1,
                 hs=1,  # Hierarchical softmax enabled
                 negative=0,  # Negative sampling disabled
-                epochs=2500,  # Updated parameter name from 'iter' to 'epochs'
+                epochs=epochs,  # Use 'epochs' from Streamlit input
                 seed=SEED  # Fix seed for reproducibility
             )
 
@@ -915,136 +912,136 @@ class ProteinEmbeddingGenerator:
             self.models['global'] = model
             logging.info(f"Word2Vec model saved at {word2vec_model_full_path}")
 
-        # Generate standardized embeddings
-        kmer_groups = {}
-        kmers_counts = []
-        all_kmers = []
+            # Generate standardized embeddings
+            kmer_groups = {}
+            kmers_counts = []
+            all_kmers = []
 
-        for record in self.alignment:
-            sequence = str(record.seq)
-            protein_accession_alignment = record.id.split()[0]
+            for record in SeqIO.parse(sequences_path, "fasta"):
+                sequence = str(record.seq)
+                protein_accession_alignment = record.id.split()[0]
 
-            # If table data is not provided, skip matching
-            if self.table_data is not None:
-                matching_rows = self.table_data['Protein.accession'].str.split().str[0] == protein_accession_alignment
-                matching_info = self.table_data[matching_rows]
+                # If table data is not provided, skip matching
+                if self.table_data is not None:
+                    matching_rows = self.table_data['Protein.accession'].str.split().str[0] == protein_accession_alignment
+                    matching_info = self.table_data[matching_rows]
 
-                if matching_info.empty:
-                    logging.warning(f"No matching data in the training table for {protein_accession_alignment}")
-                    continue  # Skip to the next iteration
+                    if matching_info.empty:
+                        logging.warning(f"No matching data in the training table for {protein_accession_alignment}")
+                        continue  # Skip to the next iteration
 
-                target_variable = matching_info['Target variable'].values[0]
-                associated_variable = matching_info['Associated variable'].values[0]
+                    target_variable = matching_info['Target variable'].values[0]
+                    associated_variable = matching_info['Associated variable'].values[0]
 
-            else:
-                # If no table, use default values or None
-                target_variable = None
-                associated_variable = None
-
-            kmers = [sequence[i:i + k] for i in range(0, len(sequence) - k + 1, step_size)]
-            kmers = [kmer for kmer in kmers if kmer.count('-') < k]  # Allow k-mers with fewer than k gaps
-
-            if not kmers:
-                logging.warning(f"No valid k-mer for {protein_accession_alignment}")
-                continue
-
-            all_kmers.append(kmers)
-            kmers_counts.append(len(kmers))
-
-            embedding_info = {
-                'protein_accession': protein_accession_alignment,
-                'target_variable': target_variable,
-                'associated_variable': associated_variable,
-                'kmers': kmers
-            }
-            kmer_groups[protein_accession_alignment] = embedding_info
-
-        # Determine the minimum number of k-mers
-        if not kmers_counts:
-            logging.error("No k-mers were collected. Please check your sequences and k-mer parameters.")
-            st.error("Nenhum k-mer foi coletado. Verifique suas sequências e parâmetros de k-mer.")
-            sys.exit(1)
-
-        if min_kmers is not None:
-            self.min_kmers = min_kmers
-            logging.info(f"Using provided min_kmers: {self.min_kmers}")
-        else:
-            self.min_kmers = min(kmers_counts)
-            logging.info(f"Minimum number of k-mers in any sequence: {self.min_kmers}")
-
-        # Generate standardized embeddings
-        for record in self.alignment:
-            sequence_id = record.id.split()[0]  # Use consistent sequence IDs
-            embedding_info = kmer_groups.get(sequence_id, {})
-            kmers_for_protein = embedding_info.get('kmers', [])
-
-            if len(kmers_for_protein) == 0:
-                if self.aggregation_method == 'none':
-                    embedding_concatenated = np.zeros(self.models['global'].vector_size * self.min_kmers)
                 else:
-                    embedding_concatenated = np.zeros(self.models['global'].vector_size)
+                    # If no table, use default values or None
+                    target_variable = None
+                    associated_variable = None
+
+                kmers = [sequence[i:i + k] for i in range(0, len(sequence) - k + 1, step_size)]
+                kmers = [kmer for kmer in kmers if kmer.count('-') < k]  # Allow k-mers with fewer than k gaps
+
+                if not kmers:
+                    logging.warning(f"No valid k-mer for {protein_accession_alignment}")
+                    continue
+
+                all_kmers.append(kmers)
+                kmers_counts.append(len(kmers))
+
+                embedding_info = {
+                    'protein_accession': protein_accession_alignment,
+                    'target_variable': target_variable,
+                    'associated_variable': associated_variable,
+                    'kmers': kmers
+                }
+                kmer_groups[protein_accession_alignment] = embedding_info
+
+            # Determine the minimum number of k-mers
+            if not kmers_counts:
+                logging.error("No k-mers were collected. Please check your sequences and k-mer parameters.")
+                st.error("Nenhum k-mer foi coletado. Verifique suas sequências e parâmetros de k-mer.")
+                st.stop()
+
+            if min_kmers is not None:
+                self.min_kmers = min_kmers
+                logging.info(f"Using provided min_kmers: {self.min_kmers}")
+            else:
+                self.min_kmers = min(kmers_counts)
+                logging.info(f"Minimum number of k-mers in any sequence: {self.min_kmers}")
+
+            # Generate standardized embeddings
+            for record in SeqIO.parse(sequences_path, "fasta"):
+                sequence_id = record.id.split()[0]  # Use consistent sequence IDs
+                embedding_info = kmer_groups.get(sequence_id, {})
+                kmers_for_protein = embedding_info.get('kmers', [])
+
+                if len(kmers_for_protein) == 0:
+                    if self.aggregation_method == 'none':
+                        embedding_concatenated = np.zeros(self.models['global'].vector_size * self.min_kmers)
+                    else:
+                        embedding_concatenated = np.zeros(self.models['global'].vector_size)
+                    self.embeddings.append({
+                        'protein_accession': sequence_id,
+                        'embedding': embedding_concatenated,
+                        'target_variable': embedding_info.get('target_variable'),
+                        'associated_variable': embedding_info.get('associated_variable')
+                    })
+                    continue
+
+                # Select the first min_kmers k-mers
+                selected_kmers = kmers_for_protein[:self.min_kmers]
+
+                # Pad with zeros if necessary
+                if len(selected_kmers) < self.min_kmers:
+                    padding = [np.zeros(self.models['global'].vector_size)] * (self.min_kmers - len(selected_kmers))
+                    selected_kmers.extend(padding)
+
+                # Obtain embeddings for the selected k-mers
+                selected_embeddings = [self.models['global'].wv[kmer] if kmer in self.models['global'].wv else np.zeros(self.models['global'].vector_size) for kmer in selected_kmers]
+
+                if self.aggregation_method == 'none':
+                    # Concatenate embeddings of the selected k-mers
+                    embedding_concatenated = np.concatenate(selected_embeddings, axis=0)
+                elif self.aggregation_method == 'mean':
+                    # Aggregate embeddings of the selected k-mers by mean
+                    embedding_concatenated = np.mean(selected_embeddings, axis=0)
+                else:
+                    # If unrecognized method, use concatenation as default
+                    logging.warning(f"Unknown aggregation method '{self.aggregation_method}'. Using concatenation.")
+                    embedding_concatenated = np.concatenate(selected_embeddings, axis=0)
+
                 self.embeddings.append({
                     'protein_accession': sequence_id,
                     'embedding': embedding_concatenated,
                     'target_variable': embedding_info.get('target_variable'),
                     'associated_variable': embedding_info.get('associated_variable')
                 })
-                continue
 
-            # Select the first min_kmers k-mers
-            selected_kmers = kmers_for_protein[:self.min_kmers]
+                logging.debug(f"Protein ID: {sequence_id}, Embedding Shape: {embedding_concatenated.shape}")
 
-            # Pad with zeros if necessary
-            if len(selected_kmers) < self.min_kmers:
-                padding = [np.zeros(self.models['global'].vector_size)] * (self.min_kmers - len(selected_kmers))
-                selected_kmers.extend(padding)
+            # Fit the StandardScaler with embeddings for training/prediction
+            embeddings_array_train = np.array([entry['embedding'] for entry in self.embeddings])
 
-            # Obtain embeddings for the selected k-mers
-            selected_embeddings = [self.models['global'].wv[kmer] if kmer in self.models['global'].wv else np.zeros(self.models['global'].vector_size) for kmer in selected_kmers]
-
-            if self.aggregation_method == 'none':
-                # Concatenate embeddings of the selected k-mers
-                embedding_concatenated = np.concatenate(selected_embeddings, axis=0)
-            elif self.aggregation_method == 'mean':
-                # Aggregate embeddings of the selected k-mers by mean
-                embedding_concatenated = np.mean(selected_embeddings, axis=0)
+            # Check if all embeddings have the same format
+            embedding_shapes = set(embedding.shape for embedding in [entry['embedding'] for entry in self.embeddings])
+            if len(embedding_shapes) != 1:
+                logging.error(f"Inconsistent embedding formats detected: {embedding_shapes}")
+                raise ValueError("Embeddings have inconsistent formats.")
             else:
-                # If unrecognized method, use concatenation as default
-                logging.warning(f"Unknown aggregation method '{self.aggregation_method}'. Using concatenation.")
-                embedding_concatenated = np.concatenate(selected_embeddings, axis=0)
+                logging.info(f"All embeddings have format: {embedding_shapes.pop()}")
 
-            self.embeddings.append({
-                'protein_accession': sequence_id,
-                'embedding': embedding_concatenated,
-                'target_variable': embedding_info.get('target_variable'),
-                'associated_variable': embedding_info.get('associated_variable')
-            })
+            # Define the full path for the scaler
+            scaler_full_path = os.path.join(model_dir, 'scaler.pkl') if model_dir else 'scaler.pkl'
 
-            logging.debug(f"Protein ID: {sequence_id}, Embedding Shape: {embedding_concatenated.shape}")
-
-        # Fit the StandardScaler with embeddings for training/prediction
-        embeddings_array_train = np.array([entry['embedding'] for entry in self.embeddings])
-
-        # Check if all embeddings have the same format
-        embedding_shapes = set(embedding.shape for embedding in [entry['embedding'] for entry in self.embeddings])
-        if len(embedding_shapes) != 1:
-            logging.error(f"Inconsistent embedding formats detected: {embedding_shapes}")
-            raise ValueError("Embeddings have inconsistent formats.")
-        else:
-            logging.info(f"All embeddings have format: {embedding_shapes.pop()}")
-
-        # Define the full path for the scaler
-        scaler_full_path = os.path.join(model_dir, 'scaler.pkl') if model_dir else 'scaler.pkl'
-
-        # Check if the scaler already exists
-        if os.path.exists(scaler_full_path):
-            logging.info(f"StandardScaler found at {scaler_full_path}. Loading the scaler.")
-            scaler = joblib.load(scaler_full_path)
-        else:
-            logging.info("StandardScaler not found. Training a new scaler.")
-            scaler = StandardScaler().fit(embeddings_array_train)
-            joblib.dump(scaler, scaler_full_path)
-            logging.info(f"StandardScaler saved at {scaler_full_path}")
+            # Check if the scaler already exists
+            if os.path.exists(scaler_full_path):
+                logging.info(f"StandardScaler found at {scaler_full_path}. Loading the scaler.")
+                scaler = joblib.load(scaler_full_path)
+            else:
+                logging.info("StandardScaler not found. Training a new scaler.")
+                scaler = StandardScaler().fit(embeddings_array_train)
+                joblib.dump(scaler, scaler_full_path)
+                logging.info(f"StandardScaler saved at {scaler_full_path}")
 
     def get_embeddings_and_labels(self, label_type='target_variable'):
         """
@@ -1210,6 +1207,8 @@ def plot_dual_umap(train_embeddings, train_labels, train_protein_ids,
     Returns:
     - fig_train, fig_predict: Plotly figure objects for training and prediction data.
     """
+    import umap  # Ensure UMAP is imported here
+
     # Dimensionality reduction for training
     umap_train = umap.UMAP(n_components=3, random_state=42, n_neighbors=15, min_dist=0.1)
     umap_train_result = umap_train.fit_transform(train_embeddings)
@@ -1445,7 +1444,7 @@ def main(args):
     model_dir = args.model_dir  # Should be 'results/models'
 
     # Initialize progress variables
-    total_steps = 8  # Updated after removing dimensionality reduction and visualization steps
+    total_steps = 6  # Updated after removing dimensionality reduction and visualization steps
     current_step = 0
     progress_bar = st.progress(0)
     progress_text = st.empty()
@@ -1454,33 +1453,36 @@ def main(args):
     # STEP 1: Model Training
     # =============================
 
-    # Load training data
-    train_alignment_path = args.train_fasta
-    train_table_data_path = args.train_table
-
     # Check if training sequences are aligned
-    if not are_sequences_aligned(train_alignment_path):
+    if not are_sequences_aligned(args.train_fasta):
         logging.info("Training sequences are not aligned. Realigning with MAFFT...")
-        aligned_train_path = train_alignment_path.replace(".fasta", "_aligned.fasta")
-        realign_sequences_with_mafft(train_alignment_path, aligned_train_path, threads=1)  # Fix threads=1
-        train_alignment_path = aligned_train_path
+        # Handle different file extensions
+        base, ext = os.path.splitext(args.train_fasta)
+        aligned_train_path = f"{base}_aligned{ext}"
+        realign_sequences_with_mafft(args.train_fasta, aligned_train_path, threads=8)
+        args.train_fasta = aligned_train_path
     else:
-        logging.info(f"Aligned training file found or sequences are already aligned: {train_alignment_path}")
+        logging.info(f"Aligned training file found or sequences are already aligned: {args.train_fasta}")
 
     # Load training table data
-    train_table_data = pd.read_csv(train_table_data_path, delimiter="\t")
-    logging.info("Training data table loaded successfully.")
+    try:
+        train_table_data = pd.read_csv(args.train_table, delimiter="\t")
+        logging.info("Training data table loaded successfully.")
+    except Exception as e:
+        logging.error(f"Error loading training table: {e}")
+        st.error(f"Erro ao carregar a tabela de treinamento: {e}")
+        st.stop()
 
     # Update progress
     current_step += 1
     progress = min(current_step / total_steps, 1.0)
     progress_bar.progress(progress)
-    progress_text.markdown(f"<span style='color:white'>Progress: {int(progress * 100)}%</span>", unsafe_allow_html=True)
+    progress_text.markdown(f"<span style='color:white'>Progresso: {int(progress * 100)}%</span>", unsafe_allow_html=True)
     time.sleep(0.1)
 
     # Initialize and generate embeddings for training
     protein_embedding_train = ProteinEmbeddingGenerator(
-        train_alignment_path, 
+        args.train_fasta, 
         train_table_data, 
         aggregation_method=args.aggregation_method  # Pass the aggregation method
     )
@@ -1508,7 +1510,7 @@ def main(args):
     current_step += 1
     progress = min(current_step / total_steps, 1.0)
     progress_bar.progress(progress)
-    progress_text.markdown(f"<span style='color:white'>Progress: {int(progress * 100)}%</span>", unsafe_allow_html=True)
+    progress_text.markdown(f"<span style='color:white'>Progresso: {int(progress * 100)}%</span>", unsafe_allow_html=True)
     time.sleep(0.1)
 
     # Check if calibrated model for target_variable already exists
@@ -1572,10 +1574,14 @@ def main(args):
     current_step += 1
     progress = min(current_step / total_steps, 1.0)
     progress_bar.progress(progress)
-    progress_text.markdown(f"<span style='color:white'>Progress: {int(progress * 100)}%</span>", unsafe_allow_html=True)
+    progress_text.markdown(f"<span style='color:white'>Progresso: {int(progress * 100)}%</span>", unsafe_allow_html=True)
     time.sleep(0.1)
 
-    # Repeat the process for associated_variable
+    # =============================
+    # STEP 2: Classifying New Sequences
+    # =============================
+
+    # Get embeddings and labels for associated_variable
     X_associated, y_associated = protein_embedding_train.get_embeddings_and_labels(label_type='associated_variable')
     logging.info(f"Shape of X_associated: {X_associated.shape}")
 
@@ -1587,7 +1593,7 @@ def main(args):
     current_step += 1
     progress = min(current_step / total_steps, 1.0)
     progress_bar.progress(progress)
-    progress_text.markdown(f"<span style='color:white'>Progress: {int(progress * 100)}%</span>", unsafe_allow_html=True)
+    progress_text.markdown(f"<span style='color:white'>Progresso: {int(progress * 100)}%</span>", unsafe_allow_html=True)
     time.sleep(0.1)
 
     # Check if calibrated model for associated_variable already exists
@@ -1660,23 +1666,28 @@ def main(args):
     current_step += 1
     progress = min(current_step / total_steps, 1.0)
     progress_bar.progress(progress)
-    progress_text.markdown(f"<span style='color:white'>Progress: {int(progress * 100)}%</span>", unsafe_allow_html=True)
+    progress_text.markdown(f"<span style='color:white'>Progresso: {int(progress * 100)}%</span>", unsafe_allow_html=True)
     time.sleep(0.1)
 
     # =============================
-    # STEP 2: Classifying New Sequences
+    # STEP 3: Classifying New Sequences
     # =============================
 
     # Load min_kmers
     min_kmers_path = os.path.join(model_dir, 'min_kmers.txt')
     if os.path.exists(min_kmers_path):
-        with open(min_kmers_path, 'r') as f:
-            min_kmers_loaded = int(f.read().strip())
-        logging.info(f"min_kmers loaded: {min_kmers_loaded}")
+        try:
+            with open(min_kmers_path, 'r') as f:
+                min_kmers_loaded = int(f.read().strip())
+            logging.info(f"min_kmers loaded: {min_kmers_loaded}")
+        except Exception as e:
+            logging.error(f"Error reading min_kmers file: {e}")
+            st.error(f"Erro ao ler o arquivo min_kmers: {e}")
+            st.stop()
     else:
         logging.error(f"min_kmers file not found at {min_kmers_path}. Ensure that training was completed successfully.")
         st.error(f"Arquivo min_kmers não encontrado em {min_kmers_path}. Certifique-se de que o treinamento foi concluído com sucesso.")
-        sys.exit(1)
+        st.stop()
 
     # Load data for prediction
     predict_alignment_path = args.predict_fasta
@@ -1684,8 +1695,9 @@ def main(args):
     # Check if prediction sequences are aligned
     if not are_sequences_aligned(predict_alignment_path):
         logging.info("Prediction sequences are not aligned. Realigning with MAFFT...")
-        aligned_predict_path = predict_alignment_path.replace(".fasta", "_aligned.fasta")
-        realign_sequences_with_mafft(predict_alignment_path, aligned_predict_path, threads=1)  # Fix threads=1
+        base, ext = os.path.splitext(predict_alignment_path)
+        aligned_predict_path = f"{base}_aligned{ext}"
+        realign_sequences_with_mafft(predict_alignment_path, aligned_predict_path, threads=8)
         predict_alignment_path = aligned_predict_path
     else:
         logging.info(f"Aligned prediction file found or sequences are already aligned: {predict_alignment_path}")
@@ -1694,10 +1706,12 @@ def main(args):
     current_step += 1
     progress = min(current_step / total_steps, 1.0)
     progress_bar.progress(progress)
-    progress_text.markdown(f"<span style='color:white'>Progress: {int(progress * 100)}%</span>", unsafe_allow_html=True)
+    progress_text.markdown(f"<span style='color:white'>Progresso: {int(progress * 100)}%</span>", unsafe_allow_html=True)
     time.sleep(0.1)
 
     # Initialize ProteinEmbedding for prediction, no need for the table
+    # **REMOVED realign_sequences_with_mafft call from here to avoid redundância**
+
     protein_embedding_predict = ProteinEmbeddingGenerator(
         predict_alignment_path, 
         table_data=None,
@@ -1723,14 +1737,14 @@ def main(args):
     else:
         logging.error(f"Scaler not found at {scaler_full_path}")
         st.error(f"Scaler não encontrado em {scaler_full_path}. Verifique se o treinamento foi concluído com sucesso.")
-        sys.exit(1)
+        st.stop()
     X_predict_scaled = scaler.transform(X_predict)
 
     # Update progress
     current_step += 1
     progress = min(current_step / total_steps, 1.0)
     progress_bar.progress(progress)
-    progress_text.markdown(f"<span style='color:white'>Progress: {int(progress * 100)}%</span>", unsafe_allow_html=True)
+    progress_text.markdown(f"<span style='color:white'>Progresso: {int(progress * 100)}%</span>", unsafe_allow_html=True)
     time.sleep(0.1)
 
     # Make predictions on new sequences
@@ -1746,7 +1760,7 @@ def main(args):
     else:
         logging.error("Calibrated models not found. Verifique se o treinamento foi concluído com sucesso.")
         st.error("Modelos calibrados não encontrados. Verifique se o treinamento foi concluído com sucesso.")
-        sys.exit(1)
+        st.stop()
 
     # Check feature size against the original estimator of CalibratedClassifierCV
     if X_predict_scaled.shape[1] > calibrated_model_target.estimator.n_features_in_:
@@ -1779,11 +1793,16 @@ def main(args):
         }
 
     # Save the results to a file
-    with open(args.results_file, 'w') as f:
-        f.write("Protein_ID\tTarget_Prediction\tAssociated_Prediction\tTarget_Ranking\tAssociated_Ranking\n")
-        for seq_id, result in results.items():
-            f.write(f"{seq_id}\t{result['target_prediction']}\t{result['associated_prediction']}\t{'; '.join(result['target_ranking'])}\t{'; '.join(result['associated_ranking'])}\n")
-            logging.info(f"{seq_id} - Target Variable: {result['target_prediction']}, Associated Variable: {result['associated_prediction']}, Target Ranking: {'; '.join(result['target_ranking'])}, Associated Ranking: {'; '.join(result['associated_ranking'])}")
+    try:
+        with open(args.results_file, 'w') as f:
+            f.write("Protein_ID\tTarget_Prediction\tAssociated_Prediction\tTarget_Ranking\tAssociated_Ranking\n")
+            for seq_id, result in results.items():
+                f.write(f"{seq_id}\t{result['target_prediction']}\t{result['associated_prediction']}\t{'; '.join(result['target_ranking'])}\t{'; '.join(result['associated_ranking'])}\n")
+                logging.info(f"{seq_id} - Target Variable: {result['target_prediction']}, Associated Variable: {result['associated_prediction']}, Target Ranking: {'; '.join(result['target_ranking'])}, Associated Ranking: {'; '.join(result['associated_ranking'])}")
+    except Exception as e:
+        logging.error(f"Error saving results to file: {e}")
+        st.error(f"Erro ao salvar os resultados no arquivo: {e}")
+        st.stop()
 
     # Format the results for display in Streamlit
     formatted_results = []
@@ -1815,29 +1834,41 @@ def main(args):
     st.table(df_results)
 
     # Save the results to an Excel file
-    df_results.to_excel(args.excel_output, index=False)
-    logging.info(f"Results saved at {args.excel_output}")
+    try:
+        df_results.to_excel(args.excel_output, index=False)
+        logging.info(f"Results saved at {args.excel_output}")
+    except Exception as e:
+        logging.error(f"Error saving results to Excel: {e}")
+        st.error(f"Erro ao salvar os resultados no Excel: {e}")
 
     # Save the table in a tabulated format
-    with open(args.formatted_results_table, 'w') as f:
-        f.write(tabulate(formatted_results, headers=["Query Name", "Predicted SS", "SS Prediction Probability (%)", "Complete Ranking"], tablefmt="grid"))
-    logging.info(f"Formatted table saved at {args.formatted_results_table}")
+    try:
+        with open(args.formatted_results_table, 'w') as f:
+            f.write(tabulate(formatted_results, headers=["Query Name", "Predicted SS", "SS Prediction Probability (%)", "Complete Ranking"], tablefmt="grid"))
+        logging.info(f"Formatted table saved at {args.formatted_results_table}")
+    except Exception as e:
+        logging.error(f"Error saving formatted results table: {e}")
+        st.error(f"Erro ao salvar a tabela formatada: {e}")
 
     # Generate the Scatterplot of Predictions
     logging.info("Generating scatterplot of new sequence predictions...")
-    plot_predictions_scatterplot_custom(results, args.scatterplot_output)
-    logging.info(f"Scatterplot saved at {args.scatterplot_output}")
+    try:
+        plot_predictions_scatterplot_custom(results, args.scatterplot_output)
+        logging.info(f"Scatterplot saved at {args.scatterplot_output}")
+    except Exception as e:
+        logging.error(f"Error generating scatterplot: {e}")
+        st.error(f"Erro ao gerar o scatterplot: {e}")
 
     logging.info("Processing completed.")
 
     # ============================================
-    # STEP 3: Dimensionality Reduction and Plotting t-SNE & UMAP
+    # STEP 4: Dimensionality Reduction and Plotting t-SNE & UMAP
     # ============================================
     # Removed as per user request
 
     # Update progress to 100%
     progress_bar.progress(1.0)
-    progress_text.markdown("<span style='color:white'>Progress: 100%</span>", unsafe_allow_html=True)
+    progress_text.markdown("<span style='color:white'>Progresso: 100%</span>", unsafe_allow_html=True)
     time.sleep(0.1)
 
 # Custom CSS for dark navy blue background and white text
@@ -1987,9 +2018,14 @@ def save_uploaded_file(uploaded_file, save_path):
     Returns:
     - save_path (str): Path where the file was saved.
     """
-    with open(save_path, 'wb') as f:
-        f.write(uploaded_file.getbuffer())
-    return save_path
+    try:
+        with open(save_path, 'wb') as f:
+            f.write(uploaded_file.getbuffer())
+        return save_path
+    except Exception as e:
+        logging.error(f"Error saving uploaded file: {e}")
+        st.error(f"Erro ao salvar o arquivo enviado: {e}")
+        st.stop()
 
 # Input options
 use_default_train = st.sidebar.checkbox("Use Default Training Data", value=True)
@@ -2257,3 +2293,4 @@ img_tags = "".join(
 
 # Render the footer
 st.markdown(footer_html.format(img_tags), unsafe_allow_html=True)
+
