@@ -1,6 +1,8 @@
 import logging
 import os
 import sys
+from imblearn.over_sampling import ADASYN
+from sklearn.metrics.pairwise import cosine_similarity
 import subprocess
 import random
 import zipfile
@@ -22,16 +24,17 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import auc, roc_auc_score, roc_curve, f1_score, average_precision_score
 from sklearn.model_selection import GridSearchCV, StratifiedKFold, train_test_split
 from sklearn.preprocessing import StandardScaler, label_binarize
-from sklearn.calibration import CalibratedClassifierCV
-from sklearn.cluster import DBSCAN, KMeans
 from tabulate import tabulate
+from sklearn.calibration import CalibratedClassifierCV
 from PIL import Image
 from matplotlib import ticker
+from sklearn.manifold import TSNE  # Import para t-SNE
+import umap  # Import para UMAP
 import base64
+from plotly.graph_objs import Figure
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
-
 # ============================================
 # Definitions of Functions and Classes
 # ============================================
@@ -51,14 +54,14 @@ logging.basicConfig(
     ],
 )
 # ============================================
-# Configuração e Interface do Streamlit
+# ConfiguraÃ§Ã£o e Interface do Streamlit
 # ============================================
 
 
 # Ensure st.set_page_config is the very first Streamlit command
 st.set_page_config(
     page_title="FAAL_Pred",
-    page_icon="🔬",  # DNA symbol
+    page_icon="Ã°Å¸â€Â¬",  # DNA symbol
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -77,14 +80,14 @@ def are_sequences_aligned(fasta_file):
 
 def create_unique_model_directory(base_dir, aggregation_method):
     """
-    Cria um diretório de modelo único baseado no método de agregação.
+    Cria um diretÃ³rio de modelo Ãºnico baseado no mÃ©todo de agregaÃ§Ã£o.
     
-    Parâmetros:
-    - base_dir (str): O diretório base para os modelos.
-    - aggregation_method (str): O método de agregação utilizado.
+    ParÃ¢metros:
+    - base_dir (str): O diretÃ³rio base para os modelos.
+    - aggregation_method (str): O mÃ©todo de agregaÃ§Ã£o utilizado.
 
     Retorna:
-    - model_dir (str): Caminho para o diretório de modelo exclusivo.
+    - model_dir (str): Caminho para o diretÃ³rio de modelo exclusivo.
     """
     model_dir = os.path.join(base_dir, f"models_{aggregation_method}")
     if not os.path.exists(model_dir):
@@ -108,31 +111,30 @@ def realign_sequences_with_mafft(input_path, output_path, threads=8):
 from sklearn.cluster import DBSCAN, KMeans
 from sklearn.preprocessing import StandardScaler
 
-# Função para realizar o clustering
+# FunÃ§Ã£o para realizar o clustering
 def perform_clustering(data, method="DBSCAN", eps=0.5, min_samples=5, n_clusters=3):
     """
     Executa clustering nos dados usando DBSCAN ou K-Means.
 
-    Parâmetros:
+    ParÃ¢metros:
     - data: np.ndarray com os dados para clustering.
     - method: "DBSCAN" ou "K-Means".
-    - eps: Parâmetro para DBSCAN (epsilon).
-    - min_samples: Parâmetro para DBSCAN.
-    - n_clusters: Número de clusters para K-Means.
+    - eps: ParÃ¢metro para DBSCAN (epsilon).
+    - min_samples: ParÃ¢metro para DBSCAN.
+    - n_clusters: NÃºmero de clusters para K-Means.
 
     Retorna:
-    - labels: Labels gerados pelo método de clustering.
+    - labels: Labels gerados pelo mÃ©todo de clustering.
     """
     if method == "DBSCAN":
         clustering_model = DBSCAN(eps=eps, min_samples=min_samples)
     elif method == "K-Means":
         clustering_model = KMeans(n_clusters=n_clusters, random_state=42)
     else:
-        raise ValueError(f"Método de clustering inválido: {method}")
+        raise ValueError(f"MÃ©todo de clustering invÃ¡lido: {method}")
 
     labels = clustering_model.fit_predict(data)
     return labels
-
 def plot_roc_curve_global(y_true, y_pred_proba, title, save_as=None, classes=None):
     """
     Plots ROC curve for binary or multiclass classifications.
@@ -261,6 +263,87 @@ def format_and_sum_probabilities(associated_rankings):
     return " - ".join(formatted_results)
 
 
+def calculate_total_probability(associated_rankings, top_n=3):
+    """
+    Calculates the total probability of the top N predictions.
+    """
+    total_prob = 0.0
+    top_predictions = associated_rankings[:top_n]
+    for rank in top_predictions:
+        try:
+            prob = float(rank.split(": ")[1].replace("%", ""))
+            total_prob += prob
+        except (IndexError, ValueError):
+            logging.error(f"Error processing ranking string: {rank}")
+            continue
+    return total_prob
+
+
+def get_top_n_predictions(associated_rankings, top_n=3):
+    """
+    Retrieves the top N predictions.
+    """
+    top_predictions = associated_rankings[:top_n]
+    predicted_ss = '-'.join([rank.split(": ")[0] for rank in top_predictions])
+    return predicted_ss
+def analyze_similarity(X_original, X_synthetic):
+    similarities = cosine_similarity(X_synthetic, X_original)
+    avg_similarity = np.mean(similarities, axis=1)
+    logging.info(f"Average similarity between synthetic and original samples: {np.mean(avg_similarity):.4f}")
+    return avg_similarity
+        
+
+import matplotlib.pyplot as plt
+from sklearn.manifold import TSNE
+import numpy as np
+
+def visualize_latent_space(X_original, X_synthetic, y_original, y_synthetic):
+    """
+    Visualiza o espaÃ§o latente usando t-SNE para amostras originais e sintÃ©ticas.
+    """
+    # Combina os dados
+    X_combined = np.vstack([X_original, X_synthetic])
+    y_combined = np.hstack([y_original, y_synthetic])
+
+    # Mapeia rÃ³tulos para nÃºmeros
+    unique_labels = np.unique(y_combined)
+    label_mapping = {label: idx for idx, label in enumerate(unique_labels)}
+    y_original_mapped = np.array([label_mapping[label] for label in y_original])
+    y_synthetic_mapped = np.array([label_mapping[label] for label in y_synthetic])
+
+    # Aplica t-SNE
+    tsne = TSNE(n_components=2, random_state=42)
+    X_transformed = tsne.fit_transform(X_combined)
+
+    # GrÃ¡fico t-SNE
+    plt.figure(figsize=(12, 8))
+    plt.scatter(
+        X_transformed[:len(X_original), 0],
+        X_transformed[:len(X_original), 1],
+        c=y_original_mapped,
+        cmap='viridis',
+        label="Original",
+        alpha=0.7
+    )
+    plt.scatter(
+        X_transformed[len(X_original):, 0],
+        X_transformed[len(X_original):, 1],
+        c=y_synthetic_mapped,
+        cmap='coolwarm',
+        marker='x',
+        label="Synthetic",
+        alpha=0.7
+    )
+
+    # Adiciona legenda e tÃ­tulo
+    plt.colorbar(label="Classes")
+    plt.legend()
+    plt.title("t-SNE Visualization of Original and Synthetic Samples")
+    plt.xlabel("t-SNE Dimension 1")
+    plt.ylabel("t-SNE Dimension 2")
+    plt.grid(True)
+    plt.show()
+
 class Support:
     """
     Support class for training and evaluating Random Forest models with oversampling techniques.
@@ -282,58 +365,99 @@ class Support:
         self.best_params = {}
 
         self.init_params = {
-            "n_estimators": 100,
-            "max_depth": 5,  # Reduced to prevent overfitting
-            "min_samples_split": 4,  # Increased to prevent overfitting
+            "n_estimators": 500,
+            "max_depth": 15,  # Reduced to prevent overfitting
+            "min_samples_split": 5,  # Increased to prevent overfitting
             "min_samples_leaf": 2,
-            "criterion": "entropy",
-            "max_features": "log2",  # Changed from 'sqrt' to 'log2'
-            "class_weight": "balanced",  # Automatic class balancing
-            "max_leaf_nodes": 20,  # Adjusted for greater regularization
+            "criterion": "gini",
+            "max_features": "sqrt",  # Changed from 'sqrt' to 'log2'
+            "class_weight": "balanced_subsample",  # Automatic class balancing
+            "max_leaf_nodes": None,  # Adjusted for greater regularization
             "min_impurity_decrease": 0.01,
             "bootstrap": True,
             "ccp_alpha": 0.001,
             "random_state": self.seed  # Added for RandomForest
         }
+            
 
         self.parameters = {
-            "n_estimators": [50, 100, 150, 250],
-            "max_depth": [5, 10, 15, 20],
-            "min_samples_split": [2, 4, 8, 10],
-            "min_samples_leaf": [1, 2, 4],
-            "criterion": ["entropy"],
-            "max_features": ["log2"],
-            "class_weight": [None, "balanced"],
-            "max_leaf_nodes": [5, 10, 20, 30, None],
-            "min_impurity_decrease": [0.0],
-            "bootstrap": [True],
-            "ccp_alpha": [0.001],
+            "n_estimators": [50, 100, 300, 700, 1000],
+            "max_depth": [10, 15,20,30],
+            "min_samples_split": [2,5,10,20],
+            "min_samples_leaf": [1, 2, 4,8],
+            "criterion": ["gini", "entropy"],
+            "max_features": ["sqrt", "log2"],
+            "class_weight": ["balanced", "balanced_subsample", None],
+            "max_leaf_nodes": [5, 10, 20, 30, 50, None],
+            "min_impurity_decrease": [0.0, 0.01, 0.05],
+            "bootstrap": [True, False],
+            "ccp_alpha": [0.0, 0.001, 0.01],
         }
+
 
     def _oversample_single_sample_classes(self, X, y):
         """
-        Customizes oversampling to avoid oversampling extremely rare classes.
+        Customizes oversampling to ensure all classes have at least 50 samples.
         """
+        logging.info("Starting oversampling process...")
+
+    # Contar a distribuiÃ§Ã£o inicial das classes
         counter = Counter(y)
-        classes_to_oversample = [cls for cls, count in counter.items() if count >= 2]
+        logging.info(f"Initial class distribution: {counter}")
 
-        # Apply RandomOverSampler only to classes with at least 2 samples
-        ros = RandomOverSampler(random_state=self.seed)
+    # Classes com pelo menos 2 amostras sÃ£o selecionadas para oversampling
+        classes_to_oversample = {cls: max(50, count) for cls, count in counter.items()}
+        logging.info(f"Target sampling strategy: {classes_to_oversample}")
+
+    # RandomOverSampler aplicado para aumentar as classes com menos de 50 amostras
+        ros = RandomOverSampler(sampling_strategy=classes_to_oversample, random_state=self.seed)
         X_ros, y_ros = ros.fit_resample(X, y)
+        logging.info(f"Class distribution after RandomOverSampler: {Counter(y_ros)}")
 
-        # Apply SMOTE to classes that can be synthesized
+    # SMOTE aplicado para sintetizar amostras e equilibrar ainda mais
         smote = SMOTE(random_state=self.seed)
         X_smote, y_smote = smote.fit_resample(X_ros, y_ros)
+        logging.info(f"Class distribution after SMOTE: {Counter(y_smote)}")
 
+    # Contagem final das classes
         sample_counts = Counter(y_smote)
-        logging.info(f"Class distribution after oversampling: {sample_counts}")
+        logging.info(f"Final class distribution: {sample_counts}")
 
+    # Salvar contagem das classes no arquivo
         with open("oversampling_counts.txt", "a") as f:
             f.write("Class Distribution after Oversampling:\n")
             for cls, count in sample_counts.items():
                 f.write(f"{cls}: {count}\n")
 
         return X_smote, y_smote
+
+       
+
+        
+   # def _oversample_single_sample_classes(self, X, y):
+  #      """
+  #      Customizes oversampling to avoid oversampling extremely rare classes.
+  #      """
+  #      counter = Counter(y)
+  #      classes_to_oversample = [cls for cls, count in counter.items() if count >= 2]
+
+        # Apply RandomOverSampler only to classes with at least 2 samples
+  #      ros = RandomOverSampler(random_state=self.seed)
+  #      X_ros, y_ros = ros.fit_resample(X, y)
+
+        # Apply SMOTE to classes that can be synthesized
+   #     smote = SMOTE(random_state=self.seed)
+#        X_smote, y_smote = smote.fit_resample(X_ros, y_ros)
+#
+ #       sample_counts = Counter(y_smote)
+  #      logging.info(f"Class distribution after oversampling: {sample_counts}")
+#
+    #    with open("oversampling_counts.txt", "a") as f:
+    #        f.write("Class Distribution after Oversampling:\n")
+    #        for cls, count in sample_counts.items():
+    #            f.write(f"{cls}: {count}\n")
+
+    #    return X_smote, y_smote
 
     def fit(self, X, y, model_name_prefix='model', model_dir=None, min_kmers=None):
         logging.info(f"Starting fit method for {model_name_prefix}...")
@@ -369,12 +493,16 @@ class Support:
         for train_index, test_index in skf.split(X_smote, y_smote):
             X_train, X_test = X_smote[train_index], X_smote[test_index]
             y_train, y_test = y_smote[train_index], y_smote[test_index]
+            
+            visualize_latent_space(X_train, X_test, y_train, y_test)
 
             unique, counts_fold = np.unique(y_test, return_counts=True)
             fold_class_distribution = dict(zip(unique, counts_fold))
             logging.info(f"Fold {fold_number} [{model_name_prefix}]: Test set class distribution: {fold_class_distribution}")
 
             X_train_resampled, y_train_resampled = self._oversample_single_sample_classes(X_train, y_train)
+            
+            visualize_latent_space(X_train, X_train_resampled[len(X_train):], y_train, y_train_resampled[len(y_train):])
 
             train_sample_counts = Counter(y_train_resampled)
             logging.info(f"Fold {fold_number} [{model_name_prefix}]: Training set class distribution after oversampling: {train_sample_counts}")
@@ -445,7 +573,7 @@ class Support:
                 logging.warning(f"No best parameters found from grid search for {model_name_prefix}.")
 
             # Integrate Probability Calibration
-            calibrator = CalibratedClassifierCV(self.model, method='isotonic', cv=5, n_jobs=self.n_jobs)
+            calibrator = CalibratedClassifierCV(self.model, method=' isotonic', cv=5, n_jobs=self.n_jobs)
             calibrator.fit(X_train_resampled, y_train_resampled)
 
             self.model = calibrator
@@ -532,6 +660,9 @@ class Support:
 
         # Apply oversampling to the entire dataset before splitting
         X_resampled, y_resampled = self._oversample_single_sample_classes(X_scaled, y)
+        
+        visualize_latent_space(X_train, X_train_resampled[len(X_train):], y_train, y_train_resampled[len(y_train):])
+        
 
         # Split into training and testing
         X_train, X_test, y_train, y_test = train_test_split(
@@ -557,8 +688,9 @@ class Support:
         model.fit(X_train, y_train)  # Fit the model on the training data
 
         # Integrate Calibration into the Test Model
-        calibrator = CalibratedClassifierCV(model, method='isotonic', cv=5, n_jobs=self.n_jobs)
+        calibrator = CalibratedClassifierCV(model, method='method', cv=5, n_jobs=self.n_jobs)
         calibrator.fit(X_train, y_train)
+
         calibrated_model = calibrator
 
         # Make predictions
@@ -815,15 +947,16 @@ class ProteinEmbeddingGenerator:
             selected_embeddings = [self.models['global'].wv[kmer] if kmer in self.models['global'].wv else np.zeros(self.models['global'].vector_size) for kmer in selected_kmers]
 
             if self.aggregation_method == 'none':
-                # Concatenate embeddings of the selected k-mers
-                embedding_concatenated = np.concatenate(selected_embeddings, axis=0)
+    # Concatena os embeddings dos k-mers selecionados
+               embedding_concatenated = np.concatenate(selected_embeddings, axis=0)
             elif self.aggregation_method == 'mean':
-                # Aggregate embeddings of the selected k-mers by mean
-                embedding_concatenated = np.mean(selected_embeddings, axis=0)
+    # Agrega os embeddings dos k-mers selecionados pela mÃ©dia
+               embedding_concatenated = np.mean(selected_embeddings, axis=0)
             else:
-                # If method not recognized, use concatenation as default
-                logging.warning(f"Unknown aggregation method '{self.aggregation_method}'. Using concatenation.")
-                embedding_concatenated = np.concatenate(selected_embeddings, axis=0)
+    # Se o mÃ©todo nÃ£o for reconhecido, usa a concatenaÃ§Ã£o como padrÃ£o
+               logging.warning(f"MÃ©todo de agregaÃ§Ã£o desconhecido '{self.aggregation_method}'. Usando concatenaÃ§Ã£o.")
+               embedding_concatenated = np.concatenate(selected_embeddings, axis=0)
+
 
             self.embeddings.append({
                 'protein_accession': sequence_id,
@@ -858,6 +991,7 @@ class ProteinEmbeddingGenerator:
             joblib.dump(scaler, scaler_full_path)
             logging.info(f"StandardScaler saved at {scaler_full_path}")
 
+
     def get_embeddings_and_labels(self, label_type='target_variable'):
         """
         Returns embeddings and associated labels (target_variable or associated_variable).
@@ -877,32 +1011,28 @@ SEED = 42  # Define a seed for reproducibility
 
 # Ajustar perplexidade dinamicamente
 def compute_perplexity(n_samples):
-    return min(max(n_samples // 10, 5), 50)
-    
+    return max(5, min(50, n_samples // 100))
+
 import numpy as np
 import plotly.graph_objects as go
 from sklearn.manifold import TSNE
 import plotly.express as px
 
-# Função para calcular a perplexidade dinamicamente
-def compute_perplexity(n_samples):
-    return max(5, min(50, n_samples // 100))
-
-# Função para plotar os gráficos
+# FunÃ§Ã£o para plotar os grÃ¡ficos
 def plot_dual_tsne_3d(train_embeddings, train_labels, train_protein_ids, 
                       predict_embeddings, predict_labels, predict_protein_ids,output_dir):
     """
-    Plota dois gráficos t-SNE 3D separados:
-    - Gráfico 1: Dados de Treinamento.
-    - Gráfico 2: Predições.
+    Plota dois grÃ¡ficos t-SNE 3D separados:
+    - GrÃ¡fico 1: Dados de Treinamento.
+    - GrÃ¡fico 2: PrediÃ§Ãµes.
     
-    Parâmetros:
+    ParÃ¢metros:
     - train_embeddings (np.ndarray): Embeddings dos dados de treinamento.
     - train_labels (list or array): Labels associados aos dados de treinamento.
-    - train_protein_ids (list): IDs de proteínas nos dados de treinamento.
-    - predict_embeddings (np.ndarray): Embeddings das predições.
-    - predict_labels (list or array): Labels associados às predições.
-    - predict_protein_ids (list): IDs de proteínas nas predições.
+    - train_protein_ids (list): IDs de proteÃ­nas nos dados de treinamento.
+    - predict_embeddings (np.ndarray): Embeddings das prediÃ§Ãµes.
+    - predict_labels (list or array): Labels associados Ã s prediÃ§Ãµes.
+    - predict_protein_ids (list): IDs de proteÃ­nas nas prediÃ§Ãµes.
     """
     # Ajustar perplexity dinamicamente
     n_samples_train = train_embeddings.shape[0]
@@ -912,11 +1042,11 @@ def plot_dual_tsne_3d(train_embeddings, train_labels, train_protein_ids,
     tsne_train = TSNE(n_components=3, random_state=42, perplexity=dynamic_perplexity_train, n_iter=1000)
     tsne_train_result = tsne_train.fit_transform(train_embeddings)
 
-    # Ajustar perplexity dinamicamente para predições
+    # Ajustar perplexity dinamicamente para prediÃ§Ãµes
     n_samples_predict = predict_embeddings.shape[0]
     dynamic_perplexity_predict = compute_perplexity(n_samples_predict)
 
-    # Inicializar t-SNE com perplexidade ajustada para predições
+    # Inicializar t-SNE com perplexidade ajustada para prediÃ§Ãµes
     tsne_predict = TSNE(n_components=3, random_state=42, perplexity=dynamic_perplexity_predict, n_iter=1000)
     tsne_predict_result = tsne_predict.fit_transform(predict_embeddings)
 
@@ -925,7 +1055,7 @@ def plot_dual_tsne_3d(train_embeddings, train_labels, train_protein_ids,
     color_map_train = px.colors.qualitative.Dark24
     color_dict_train = {label: color_map_train[i % len(color_map_train)] for i, label in enumerate(unique_train_labels)}
 
-    # Criar mapa de cores para as predições
+    # Criar mapa de cores para as prediÃ§Ãµes
     unique_predict_labels = sorted(list(set(predict_labels)))
     color_map_predict = px.colors.qualitative.Light24
     color_dict_predict = {label: color_map_predict[i % len(color_map_predict)] for i, label in enumerate(unique_predict_labels)}
@@ -934,7 +1064,7 @@ def plot_dual_tsne_3d(train_embeddings, train_labels, train_protein_ids,
     train_colors = [color_dict_train.get(label, 'gray') for label in train_labels]
     predict_colors = [color_dict_predict.get(label, 'gray') for label in predict_labels]
 
-    # Gráfico 1: Dados de treinamento
+    # GrÃ¡fico 1: Dados de treinamento
     fig_train = go.Figure()
     fig_train.add_trace(go.Scatter3d(
         x=tsne_train_result[:, 0],
@@ -946,7 +1076,7 @@ def plot_dual_tsne_3d(train_embeddings, train_labels, train_protein_ids,
             color=train_colors,
             opacity=0.8
         ),
-        # IDs de proteínas reais adicionados ao campo 'text'
+        # IDs de proteÃ­nas reais adicionados ao campo 'text'
         text=[f"Protein ID: {protein_id}<br>Label: {label}" for protein_id, label in zip(train_protein_ids, train_labels)],
         hoverinfo='text',
         name='Training Data'
@@ -960,7 +1090,7 @@ def plot_dual_tsne_3d(train_embeddings, train_labels, train_protein_ids,
         )
     )
 
-    # Gráfico 2: Predições
+    # GrÃ¡fico 2: PrediÃ§Ãµes
     fig_predict = go.Figure()
     fig_predict.add_trace(go.Scatter3d(
         x=tsne_predict_result[:, 0],
@@ -972,7 +1102,7 @@ def plot_dual_tsne_3d(train_embeddings, train_labels, train_protein_ids,
             color=predict_colors,
             opacity=0.8
         ),
-        # IDs de proteínas adicionados ao campo 'text'
+        # IDs de proteÃ­nas adicionados ao campo 'text'
         text=[f"Protein ID: {protein_id}<br>Label: {label}" for protein_id, label in zip(predict_protein_ids, predict_labels)],
         hoverinfo='text',
         name='Predictions'
@@ -985,7 +1115,7 @@ def plot_dual_tsne_3d(train_embeddings, train_labels, train_protein_ids,
             zaxis=dict(title='Component 3')
         )
     )
-    # Salvar gráficos em HTML
+    # Salvar grÃ¡ficos em HTML
     tsne_train_html = os.path.join(output_dir, "tsne_train_3d.html")
     tsne_predict_html = os.path.join(output_dir, "tsne_predict_3d.html")
     
@@ -1004,23 +1134,23 @@ import plotly.express as px
 def plot_dual_umap(train_embeddings, train_labels, train_protein_ids,
                    predict_embeddings, predict_labels, predict_protein_ids, output_dir):
     """
-    Plota dois gráficos UMAP 3D separados:
-    - Gráfico 1: Dados de Treinamento.
-    - Gráfico 2: Predições.
+    Plota dois grÃ¡ficos UMAP 3D separados:
+    - GrÃ¡fico 1: Dados de Treinamento.
+    - GrÃ¡fico 2: PrediÃ§Ãµes.
     
-    Parâmetros:
+    ParÃ¢metros:
     - train_embeddings (np.ndarray): Embeddings dos dados de treinamento.
     - train_labels (list or array): Labels associados aos dados de treinamento.
-    - train_protein_ids (list): IDs de proteínas nos dados de treinamento.
-    - predict_embeddings (np.ndarray): Embeddings das predições.
-    - predict_labels (list or array): Labels associados às predições.
-    - predict_protein_ids (list): IDs de proteínas nas predições.
+    - train_protein_ids (list): IDs de proteÃ­nas nos dados de treinamento.
+    - predict_embeddings (np.ndarray): Embeddings das prediÃ§Ãµes.
+    - predict_labels (list or array): Labels associados Ã s prediÃ§Ãµes.
+    - predict_protein_ids (list): IDs de proteÃ­nas nas prediÃ§Ãµes.
     """
-    # Redução de dimensionalidade para treinamento
+    # ReduÃ§Ã£o de dimensionalidade para treinamento
     umap_train = umap.UMAP(n_components=3, random_state=42, n_neighbors=15, min_dist=0.1)
     umap_train_result = umap_train.fit_transform(train_embeddings)
 
-    # Redução de dimensionalidade para predições
+    # ReduÃ§Ã£o de dimensionalidade para prediÃ§Ãµes
     umap_predict = umap.UMAP(n_components=3, random_state=42, n_neighbors=15, min_dist=0.1)
     umap_predict_result = umap_predict.fit_transform(predict_embeddings)
 
@@ -1029,7 +1159,7 @@ def plot_dual_umap(train_embeddings, train_labels, train_protein_ids,
     color_map_train = px.colors.qualitative.Dark24
     color_dict_train = {label: color_map_train[i % len(color_map_train)] for i, label in enumerate(unique_train_labels)}
 
-    # Criar mapa de cores para as predições
+    # Criar mapa de cores para as prediÃ§Ãµes
     unique_predict_labels = sorted(list(set(predict_labels)))
     color_map_predict = px.colors.qualitative.Light24
     color_dict_predict = {label: color_map_predict[i % len(color_map_predict)] for i, label in enumerate(unique_predict_labels)}
@@ -1038,7 +1168,7 @@ def plot_dual_umap(train_embeddings, train_labels, train_protein_ids,
     train_colors = [color_dict_train.get(label, 'gray') for label in train_labels]
     predict_colors = [color_dict_predict.get(label, 'gray') for label in predict_labels]
 
-    # Gráfico 1: Dados de treinamento
+    # GrÃ¡fico 1: Dados de treinamento
     fig_train = go.Figure()
     fig_train.add_trace(go.Scatter3d(
         x=umap_train_result[:, 0],
@@ -1050,7 +1180,7 @@ def plot_dual_umap(train_embeddings, train_labels, train_protein_ids,
             color=train_colors,
             opacity=0.8
         ),
-        # IDs de proteínas reais adicionados ao campo 'text'
+        # IDs de proteÃ­nas reais adicionados ao campo 'text'
         text=[f"Protein ID: {protein_id}<br>Label: {label}" for protein_id, label in zip(train_protein_ids, train_labels)],
         hoverinfo='text',
         name='Training Data'
@@ -1064,7 +1194,7 @@ def plot_dual_umap(train_embeddings, train_labels, train_protein_ids,
         )
     )
 
-    # Gráfico 2: Predições
+    # GrÃ¡fico 2: PrediÃ§Ãµes
     fig_predict = go.Figure()
     fig_predict.add_trace(go.Scatter3d(
         x=umap_predict_result[:, 0],
@@ -1076,7 +1206,7 @@ def plot_dual_umap(train_embeddings, train_labels, train_protein_ids,
             color=predict_colors,
             opacity=0.8
         ),
-        # IDs de proteínas adicionados ao campo 'text'
+        # IDs de proteÃ­nas adicionados ao campo 'text'
         text=[f"Protein ID: {protein_id}<br>Label: {label}" for protein_id, label in zip(predict_protein_ids, predict_labels)],
         hoverinfo='text',
         name='Predictions'
@@ -1090,7 +1220,7 @@ def plot_dual_umap(train_embeddings, train_labels, train_protein_ids,
         )
     )
 
-    # Salvar gráficos em HTML
+    # Salvar grÃ¡ficos em HTML
     umap_train_html = os.path.join(output_dir, "umap_train_3d.html")
     umap_predict_html = os.path.join(output_dir, "umap_predict_3d.html")
     
@@ -1101,7 +1231,6 @@ def plot_dual_umap(train_embeddings, train_labels, train_protein_ids,
     logging.info(f"UMAP Predictions saved as {umap_predict_html}")
 
     return fig_train, fig_predict
-
 
 
 def plot_predictions_scatterplot_custom(results, output_path, top_n=3):
@@ -1124,7 +1253,7 @@ def plot_predictions_scatterplot_custom(results, output_path, top_n=3):
             continue
 
         specificity_probs = {}
-        for ranking in associated_rankings[:top_n]:
+        for ranking in associated_rankings[:top_n]:  # Top N only
             try:
                 # Split and extract data
                 category, prob = ranking.split(": ")
@@ -1170,10 +1299,10 @@ def plot_predictions_scatterplot_custom(results, output_path, top_n=3):
             logging.warning(f"No valid data to plot for protein {protein}. Skipping...")
             continue
 
-        # Plot points in a fixed color (e.g., dark blue)
+        # Plot points for the top N predictions only
         ax.scatter(x, [y] * len(x), color='#1f78b4', edgecolors='black', linewidth=0.5, s=100, label='_nolegend_')
 
-        # Connect points with lines
+        # Connect points with lines for the top N predictions
         if len(x) > 1:
             ax.plot(x, [y] * len(x), color='#1f78b4', linestyle='-', linewidth=1.0, alpha=0.7)
 
@@ -1204,6 +1333,7 @@ def plot_predictions_scatterplot_custom(results, output_path, top_n=3):
     plt.savefig(output_path, facecolor='white', dpi=600, bbox_inches='tight')
     plt.close()
     logging.info(f"Scatterplot saved at {output_path}")
+
 
 
 def adjust_predictions_global(predicted_proba, method='normalize', alpha=1.0):
@@ -1241,7 +1371,7 @@ def main(args):
     model_dir = args.model_dir
 
     # Initialize progress variables
-    total_steps = 8  # Atualizado após remoção das etapas de redução de dimensionalidade e visualização
+    total_steps = 10
     current_step = 0
     progress_bar = st.progress(0)
     progress_text = st.empty()
@@ -1510,8 +1640,8 @@ def main(args):
 
     # Make predictions on new sequences
 
-    # Verificar o tamanho das features antes da predição
-# Verifique o número de características em relação ao estimador original do CalibratedClassifierCV
+    # Verificar o tamanho das features antes da prediÃ§Ã£o
+    # Verifique o nÃºmero de caracterÃ­sticas em relaÃ§Ã£o ao estimador original do CalibratedClassifierCV
     if X_predict_scaled.shape[1] > calibrated_model_target.estimator.n_features_in_:
         logging.info(f"Reducing number of features from {X_predict_scaled.shape[1]} to {calibrated_model_target.estimator.n_features_in_} to match the model input size.")
         X_predict_scaled = X_predict_scaled[:, :calibrated_model_target.estimator.n_features_in_]
@@ -1524,7 +1654,7 @@ def main(args):
         logging.info(f"Reducing number of features from {X_predict_scaled.shape[1]} to {calibrated_model_associated.estimator.n_features_in_} to match the model input size for associated_variable.")
         X_predict_scaled = X_predict_scaled[:, :calibrated_model_associated.estimator.n_features_in_]
 
-    # Realizar a predição para associated_variable
+    # Realizar a prediÃ§Ã£o para associated_variable
     predictions_associated = calibrated_model_associated.predict(X_predict_scaled)
 
     # Get class rankings
@@ -1532,68 +1662,58 @@ def main(args):
     rankings_associated = get_class_rankings_global(calibrated_model_associated, X_predict_scaled)
 
     # Process and save the results
+
+
+# Process and filter results
     results = {}
-    for entry, pred_target, pred_associated, ranking_target, ranking_associated in zip(protein_embedding_predict.embeddings, predictions_target, predictions_associated, rankings_target, rankings_associated):
+    for entry, pred_target, pred_associated, ranking_target, ranking_associated in zip(
+            protein_embedding_predict.embeddings, 
+            predictions_target, 
+            predictions_associated, 
+            rankings_target, 
+            rankings_associated):
         sequence_id = entry['protein_accession']
         results[sequence_id] = {
             "target_prediction": pred_target,
             "associated_prediction": pred_associated,
             "target_ranking": ranking_target,
-            "associated_ranking": ranking_associated
+            "associated_ranking": ranking_associated[:3]  # Only keep top 3 rankings
         }
 
-    # Save the results to a file
-    with open(args.results_file, 'w') as f:
-        f.write("Protein_ID\tTarget_Prediction\tAssociated_Prediction\tTarget_Ranking\tAssociated_Ranking\n")
-        for seq_id, result in results.items():
-            f.write(f"{seq_id}\t{result['target_prediction']}\t{result['associated_prediction']}\t{'; '.join(result['target_ranking'])}\t{'; '.join(result['associated_ranking'])}\n")
-            logging.info(f"{seq_id} - Target Variable: {result['target_prediction']}, Associated Variable: {result['associated_prediction']}, Target Ranking: {'; '.join(result['target_ranking'])}, Associated Ranking: {'; '.join(result['associated_ranking'])}")
-
-    # Format results
+# Format results for tabulation and export
     formatted_results = []
-
     for sequence_id, info in results.items():
         associated_rankings = info['associated_ranking']
-        formatted_prob_sums = format_and_sum_probabilities(associated_rankings)
-        formatted_results.append([sequence_id, formatted_prob_sums])
+        top3 = associated_rankings
+        predicted_ss = '-'.join([item.split(": ")[0] for item in top3])
+        ss_pred_prob = sum([float(item.split(": ")[1].replace("%", "")) for item in top3])
+        ranking_completo = ' - '.join(associated_rankings)
+        formatted_results.append([sequence_id, predicted_ss, f"{ss_pred_prob:.2f}%", ranking_completo])
 
-    # Log to check the content of formatted_results
+# Log formatted results
     logging.info("Formatted Results:")
     for result in formatted_results:
         logging.info(result)
 
-    # Print results in a formatted table
-    headers = ["Protein Accession", "Associated Prob. Rankings"]
-    logging.info(tabulate(formatted_results, headers=headers, tablefmt="grid"))
+# Define headers for the output table
+    headers = ["Query Name", "Predicted SS", "SS Prediction Probability (%)", "Ranking"]
 
-    # Save the results to an Excel file
+# Save results to Excel
     df = pd.DataFrame(formatted_results, columns=headers)
     df.to_excel(args.excel_output, index=False)
     logging.info(f"Results saved in {args.excel_output}")
 
-    # Save the table in tabulated format
+# Save formatted table as a text file
     with open(args.formatted_results_table, 'w') as f:
         f.write(tabulate(formatted_results, headers=headers, tablefmt="grid"))
     logging.info(f"Formatted table saved in {args.formatted_results_table}")
 
-    # Generate the Scatterplot of Predictions
+# Generate Scatterplot
     logging.info("Generating scatterplot of new sequences predictions...")
-    print(results)
     plot_predictions_scatterplot_custom(results, args.scatterplot_output)
     logging.info(f"Scatterplot saved at {args.scatterplot_output}")
 
     logging.info("Processing completed.")
- 
-   # ============================================
-    # STEP 3: Dimensionality Reduction and Plotting t-SNE & UMAP
-    # ============================================
-    # Parte removida conforme solicitado
-
-    #ok Update progress to 100%
-    progress_bar.progress(1.0)
-    progress_text.markdown("<span style='color:white'>Progress: 100%</span>", unsafe_allow_html=True)
-    time.sleep(0.1)
-
 
 # Custom CSS for dark navy blue background and white text
 st.markdown(
@@ -1678,7 +1798,7 @@ st.markdown(
 )
 
 from PIL import Image
-# Função para converter a imagem em base64
+# FunÃ§Ã£o para converter a imagem em base64
 def get_base64_image(image_path):
     """
     Encodes an image file to a base64 string.
@@ -1699,7 +1819,7 @@ def get_base64_image(image_path):
 # Caminho da imagem
 image_path = "./images/faal.png"
 image_base64 = get_base64_image(image_path)
-# Usando HTML com st.markdown para alinhar título e texto
+# Usando HTML com st.markdown para alinhar tÃ­tulo e texto
 
 st.markdown(
     f"""
@@ -1708,7 +1828,7 @@ st.markdown(
             FAALPred: Predicting Fatty Acid Specificities of Fatty Acyl-AMP Ligases (FAALs) Using Integrated Approaches of Neural Networks, Bioinformatics, and Machine Learning
         </p>
         <p style="color: #2c3e50; font-size: 1.2em; font-weight: normal; margin-top: 10px;">
-            Anne Liong, Leandro de Mattos Pereira, and Pedro Leão
+            Anne Liong, Leandro de Mattos Pereira, and Pedro LeÃ£o
         </p>
         <p style="color: #2c3e50; font-size: 18px; line-height: 1.8;">
             <strong>FAALPred</strong> is a comprehensive bioinformatics tool designed to predict 
@@ -1719,7 +1839,7 @@ st.markdown(
             Fatty Acyl-AMP Ligases (FAALs), identified by Zhang et al. (2011), activate fatty acids of varying lengths for natural product biosynthesis. 
             These substrates enable the production of compounds like nocuolin (<em>Nodularia sp.</em>, Martins et al., 2022) 
             and sulfolipid-1 (<em>Mycobacterium tuberculosis</em>, Yan et al., 2023), with applications in cancer and tuberculosis 
-            treatment (Kurt et al., 2017; Gilmore et al., 2012). Dr. Pedro Leão and His Team Identified Several of These Natural Products in Cyanobacteria (<a href="https://leaolab.wixsite.com/leaolab" target="_blank" style="color: #3498db; text-decoration: none;">visit here</a>), 
+            treatment (Kurt et al., 2017; Gilmore et al., 2012). Dr. Pedro LeÃ£o and His Team Identified Several of These Natural Products in Cyanobacteria (<a href="https://leaolab.wixsite.com/leaolab" target="_blank" style="color: #3498db; text-decoration: none;">visit here</a>), 
             and FAALpred classifies FAALs by their substrate specificity.
         </p>
         <div style="text-align: center; margin-top: 20px;">
@@ -1758,11 +1878,11 @@ kmer_size = st.sidebar.number_input("K-mer Size", min_value=1, max_value=10, val
 step_size = st.sidebar.number_input("Step Size", min_value=1, max_value=10, value=1, step=1)
 aggregation_method = st.sidebar.selectbox(
     "Aggregation Method",
-    options=['none', 'mean'],  # Removido 'median', 'sum', 'max'
+    options=['none', 'mean'],
     index=0
 )
 
- #Entrada opcional para parâmetros do Word2Vec
+ #Entrada opcional para parÃ¢metros do Word2Vec
 st.sidebar.header("Optional Word2Vec Parameters")
 custom_word2vec = st.sidebar.checkbox("Customize Word2Vec Parameters", value=False)
 if custom_word2vec:
@@ -1776,9 +1896,9 @@ if custom_word2vec:
         "Epochs", min_value=1, max_value=3500, value=2, step=100
     )
 else:
-    window = 10  # Valor padrão
-    workers = 8  # Valor padrão
-    epochs = 2500  # Valor padrão
+    window = 10  # Valor padrÃ£o
+    workers = 8  # Valor padrÃ£o
+    epochs = 2500  # Valor padrÃ£o
     
 # Output directory
 #output_dir = "results"
@@ -1805,7 +1925,7 @@ if st.sidebar.button("Run Analysis"):
             save_uploaded_file(train_table_file, train_table_path)
             st.markdown("<span style='color:white'>Uploaded training data will be used.</span>", unsafe_allow_html=True)
         else:
-            st.warning("Please upload both the training FASTA file and the training table TSV file.")
+            st.error("Please upload both the training FASTA file and the training table TSV file.")
             st.stop()
 
     # Handling prediction data
@@ -1859,7 +1979,7 @@ if st.sidebar.button("Run Analysis"):
        # st.image(args.scatterplot_output, use_column_width=True)
       #  st.image('results/scatterplot_predictions.png', use_container_width=True)
         scatterplot_path = os.path.join(args.output_dir, "scatterplot_predictions.png")
-        st.image(scatterplot_path,  use_container_width =True)
+        st.image(scatterplot_path)
 
 
 
@@ -1871,14 +1991,14 @@ if st.sidebar.button("Run Analysis"):
 # Caminho do arquivo formatado
         formatted_table_path = args.formatted_results_table
 
-# Verificar se o arquivo existe e não está vazio
+# Verificar se o arquivo existe e nÃ£o estÃ¡ vazio
         if os.path.exists(formatted_table_path) and os.path.getsize(formatted_table_path) > 0:
             try:
-        # Abrir e ler o conteúdo do arquivo
+        # Abrir e ler o conteÃºdo do arquivo
                 with open(formatted_table_path, 'r') as f:
                     formatted_table = f.read()
-
-        # Exibir o conteúdo no Streamlit
+        
+        # Exibir o conteÃºdo no Streamlit
                 st.text(formatted_table)
             except Exception as e:
                 st.error(f"An error occurred while reading the formatted results table: {e}")
@@ -1907,8 +2027,8 @@ if st.sidebar.button("Run Analysis"):
         st.error(f"An error occurred during processing: {e}")
         logging.error(f"An error occurred: {e}")
 
-# Função para carregar e redimensionar imagens com ajuste de DPI
-# Função para carregar e redimensionar imagens com ajuste de DPI
+# FunÃ§Ã£o para carregar e redimensionar imagens com ajuste de DPI
+# FunÃ§Ã£o para carregar e redimensionar imagens com ajuste de DPI
 def load_and_resize_image_with_dpi(image_path, base_width, dpi=300):
     try:
         # Carrega a imagem
@@ -1923,7 +2043,22 @@ def load_and_resize_image_with_dpi(image_path, base_width, dpi=300):
         logging.error(f"Image not found at {image_path}.")
         return None
 
-# Definições dos caminhos das imagens
+# FunÃ§Ã£o para carregar e redimensionar imagens com ajuste de DPI
+def load_and_resize_image_with_dpi(image_path, base_width, dpi=300):
+    try:
+        # Carrega a imagem
+        image = Image.open(image_path)
+        # Calcula a nova altura proporcional
+        w_percent = (base_width / float(image.size[0]))
+        h_size = int((float(image.size[1]) * float(w_percent)))
+        # Redimensiona a imagem
+        resized_image = image.resize((base_width, h_size), Image.Resampling.LANCZOS)
+        return resized_image
+    except FileNotFoundError:
+        logging.error(f"Image not found at {image_path}.")
+        return None
+
+# DefiniÃ§Ãµes dos caminhos das imagens
 image_dir = "images"
 image_paths = [
     os.path.join(image_dir, "lab_logo.png"),
@@ -1979,24 +2114,24 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# HTML para exibição das imagens
+# HTML to display images in the footer
 footer_html = """
-<div class="support-text">Support by:</div>
+<div class="support-text">Supported by:</div>
 <div class="footer-container">
     {}
 </div>
-<div class="footer-text">
-    CIIMAR - Pedro Leão @CNP - 2024 - All rights reserved.
+<div class="footer-text" style="font-size: 18px; margin-top: 10px;">
+    FAALPred will make predictions for all submitted sequences, even if they are not FAALs. To limit your input only to Fatty Acid Ligase FAALs, first consider extracting from each FAAL the sequences corresponding to the FAAL domain cd05931 (cd05931) using InterProScan.
+</div>
+<div class="footer-text" style="font-size: 14px; margin-top: 5px;">
+    CIIMAR - Pedro LeÃ£o @CNP - 2024 - All rights reserved.
 </div>
 """
 
-# Gerar tags <img> para cada imagem
+# Generate <img> tags for each image
 img_tags = "".join(
     f'<img src="data:image/png;base64,{img}" style="width: 100px;">' for img in encoded_images
 )
 
-# Renderizar o rodapé
+# Render the footer
 st.markdown(footer_html.format(img_tags), unsafe_allow_html=True)
-# ===========
-
-# ============================================
