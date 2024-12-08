@@ -1,0 +1,310 @@
+Protein.accession	Target variable	Associated variable	Compound	Specie	Unnamed: 5
+BGC0000970 PksD Chondromyces crocatus	Short fatty acids	C4:0	chondrochloren A	Chondromyces crocatus	
+BGC0001963 FAAL Catenulispora sp.	Short fatty acids	C5:0	catenulisporolides	Catenulispora sp.	
+BGC0001000 HctA Lyngbya majuscula	Medium fatty acids	C6:0	hectochlorin	Lyngbya majuscula	
+BGC0002484 WA1_15520 Scytonema hofmannii PCC 7110	Medium fatty acids	C6:0	scytocyclamide A, B, B3, C, A2, B2	Scytonema hofmannii PCC 7110	
+BGC0002296 VatA Moorena producens ASI16Jul14-2	Medium fatty acids	C6:0	vatiamides A, B, C, D, E, F 	Moorena producens ASI16Jul14-2	
+BGC0001064 CylA Cylindrospermum licheniforme UTEX B 2014	Medium fatty acids	C10:0	cylindrocyclophane D, E, F	Cylindrospermum licheniforme UTEX B 2014	
+MCF2144951.1 fatty acyl-AMP ligase Desmonostoc muscorum LEGE 12446	Medium fatty acids	C6:0	desmamides	Desmonostoc muscorum LEGE 12446	
+BGC0001406 Tlo18 Streptomyces canus	Medium fatty acids	C8:0	telomycin	Streptomyces canus	
+BGC0001467 FAAL Fischerella sp. PCC 9431	Medium fatty acids	C8:0	hapalosin	Fischerella sp. PCC 9431	
+BGC0001999 FAAL Paraburkholderia graminis C4D1M	Medium fatty acids	C8:0	gramibactin	Paraburkholderia graminis C4D1M	
+BGC0002329 FNF07_04285 Trinickia caryophylli	Medium fatty acids	C8:0	trinickiabactin	Trinickia caryophylli	
+BGC0002422 SAMN04490204_1454 Pseudomonas thivervalensis	Medium fatty acids	C8:0	histicorrugatin	Pseudomonas thivervalensis	
+BGC0002563 CUJ87_10425 Paraburkholderia caledonica	Medium fatty acids	C8:0	gramibactin B	Paraburkholderia caledonica	
+BGC0000439 Saccharomonospora sp. CNQ490	Medium fatty acids	C8:0	taromycin A	Saccharomonospora sp. CNQ490	
+BGC0001357 FAAL Nostoc sp. CAVN2	Medium fatty acids	C10:0	carbamidocyclophanes	Nostoc sp. CAVN2	
+BGC0001663 merI Nostoc sp. UIC 10110	Medium fatty acids	C10:0	merocyclophane C, D 	Nostoc sp. UIC 10110	
+BGC0002367 FAAL Streptomyces scabiei 87.22	Medium fatty acids	C10:0	rotihibin A	Streptomyces scabiei 87.22	
+BGC0001189 RALTA_RS21520 Cupriavidus taiwanensis LMG 19424	Medium fatty acids	C12:0	taiwachelin	Cupriavidus taiwanensis LMG 19424	
+BGC0002107 Atu3673 Agrobacterium fabrum str. C58	Medium fatty acids	C10:0	fabrubactin A, B 	Agrobacterium fabrum str. C58	
+BGC0002417 VAPA_1c38710 Variovorax paradoxus B4	Medium fatty acids	C12:0	variochelin A, B	Variovorax paradoxus B4	
+BGC0002480 ClyA Sphaerospermopsis sp. LEGE 00249	Medium fatty acids	C12:0	chlorosphaerolactylate D, A, B, C	Sphaerospermopsis sp. LEGE 00249	
+BGC0002565 BGL_2c16910 Burkholderia plantarii	Medium fatty acids	C12:0	plantaribactin	Burkholderia plantarii	
+BGC0002597_1 NocL Nodularia sp. LEGE 06071	Medium fatty acids	C12:0	nocuolactylates and nocuolin A	Nodularia sp. LEGE 06071	
+WP_151220773.1 FAAL30 Mycobacterium tuberculosis	Medium fatty acids	C12:0	sulfolipid	Mycobacterium tuberculosis	
+WP_151081190.1 FAAL26 Mycobacterium tuberculosis	Medium fatty acids	C12:0	phthiocerol dimycocerosates	Mycobacterium tuberculosis	
+WP_003899553.1 FAAL29  Mycobacterium tuberculosis	Medium fatty acids	C12:0	phthiocerol dimycocerosates	Mycobacterium tuberculosis	
+Q5ZTD3 Saframycin Mx1 synthetase B Legionella pneumophila subsp. pneumophila Philadelphia 1	Medium fatty acids	C12:0	Not available	Legionella pneumophila subsp. pneumophila Philadelphia 1	
+A0A0H2VDD9 Putative saframycin Mx1 synthetase B OS=Escherichia coli O6:H1	Medium fatty acids	C12:0, C14:0	Not available	Escherichia coli CFT073	
+BGC0000394 NapN Streptomyces lusitanus	Long fatty acids	C14:0	naphthyridinomycin	Streptomyces lusitanus	
+WP_104984984.1 fatty acyl-AMP ligase AmbG Sorangium cellulosum	Long fatty acids	C14:0, C16:0	ambruticins and jerangolids	Sorangium cellulosum	
+BGC0001363 RSp0641 Ralstonia solanacearum GMI1000	Long fatty acids	C16:0	ralsolamycin	Ralstonia solanacearum GMI1000	
+WP_052656010.1 FAAL23 Mycobacterium tuberculosis	Long fatty acids	C16:0	sulfolipids	Mycobacterium tuberculosis	
+BGC0000140 RkA Streptomyces sp. 88-682	Long fatty acids	C16:0	4-hexadecanoyl-3-hydroxy-2-(hydroxymethyl)-2H-furan-5-one	Streptomyces sp. 88-682	
+BGC0002624 FAAL Fischerella sp. PCC 9431	Long fatty acids	C16:0	fischerazole A, B, C 	Fischerella sp. PCC 9431	
+BGC0001831 FAAL Myxococcus xanthus DK 1622	Long fatty acids	C18:0	alkylpyrone-407 alkylpyrone-393	Myxococcus xanthus DK 1622	
+WP_187038416.1 fatty acyl-AMP ligase ClyA  Sphaerospermopsis sp. LEGE 00249	Medium fatty acids	C12:0	Chlorinated lactylates	Sphaerospermopsis sp. LEGE 00249	
+BGC0000424 serobactin C biosynthetic gene cluster from Herbaspirillum seropedicae SmR1	Medium fatty acids	C10:0, C12:0, C14:0	Serobactin 	Sphaerospermopsis sp. LEGE 00249	
+WP_018385948.1 type I polyketide synthase Wenjunlia vitaminophila 	Medium fatty acids	C6:0	rakicidin D	Wenjunlia vitaminophila	
+BGC0001103 mycosubtilin biosynthetic gene cluster from Bacillus subtilis subsp. spizizenii ATCC 6633	Long fatty acids	C16:0	Mycosubtilin	Bacillus spizizenii ATCC 6633 = JCM 2499	
+BGC0002677 nostoclide N1 biosynthetic gene cluster from Nostoc punctiforme PCC 73102	Medium fatty acids	C8:0	Nostoclides and nostovalerolactones 	Nostoc punctiforme PCC 73102	
+BGC0002687 massiliachelin biosynthetic gene cluster from Massilia sp. NR 4-1	Medium fatty acids	C6:0	massiliachelin	Massilia sp. NR 4-1	
+BGC0001703_1 NocL Nostoc sp. CCAP 1453/38	Medium fatty acids	C12:0	nocuolin A	Nostoc sp. CCAP 1453/38	Cyanobacteriota
+BGC0001703_2 NocH Nostoc sp. CCAP 1453/38	Medium fatty acids	C6:0, C8:0	nocuolin A	Nostoc sp. CCAP 1453/38	Cyanobacteriota
+BGC0001566 CylA Cylindrospermum licheniforme UTEX B 2014	Medium fatty acids	C10:0	cylindrocyclophane	Cylindrospermum licheniforme UTEX B 2014	
+WP_044297187.1 fatty-acid--AMP ligase FAAL28/FadD28 Mycobacterium tuberculosis	Long fatty acids	C33:0	Sulfolipids	Mycobacterium tuberculosis	
+Sequence_315	Long fatty acids	C14:0	synthetic	synthetic	
+Sequence_18	Short fatty acids	C5:0	synthetic	synthetic	
+Sequence_4	Short fatty acids	C5:0	synthetic	synthetic	
+Sequence_36	Long fatty acids	C14:0 C16:0	synthetic	synthetic	
+Sequence_279	Short fatty acids	C4:0	synthetic	synthetic	
+Sequence_170	Medium fatty acids	C12:0 C14:0	synthetic	synthetic	
+Sequence_55	Long fatty acids	C33:0	synthetic	synthetic	
+Sequence_40	Long fatty acids	C14:0 C16:0	synthetic	synthetic	
+Sequence_183	Long fatty acids	C16:0	synthetic	synthetic	
+Sequence_195	Long fatty acids	C16:0	synthetic	synthetic	
+Sequence_257	Medium fatty acids	C10:0	synthetic	synthetic	
+Sequence_158	Medium fatty acids	C12:0 C14:0	synthetic	synthetic	
+Sequence_309	Long fatty acids	C14:0	synthetic	synthetic	
+Sequence_80	Medium fatty acids	C6:0 C8:0	synthetic	synthetic	
+Sequence_193	Long fatty acids	C16:0	synthetic	synthetic	
+Sequence_224	Long fatty acids	C18:0	synthetic	synthetic	
+Sequence_227	Medium fatty acids	C6:1 C6:2	synthetic	synthetic	
+Sequence_5	Short fatty acids	C5:0	synthetic	synthetic	
+Sequence_349	Medium fatty acids	C12:0	synthetic	synthetic	
+Sequence_83	Medium fatty acids	C6:0 C8:0	synthetic	synthetic	
+Sequence_213	Long fatty acids	C18:0	synthetic	synthetic	
+Sequence_146	Medium fatty acids	C8:0	synthetic	synthetic	
+Sequence_335	Medium fatty acids	C12:0	synthetic	synthetic	
+Sequence_102	Medium fatty acids	C6:0	synthetic	synthetic	
+Sequence_209	Long fatty acids	C18:0	synthetic	synthetic	
+Sequence_311	Long fatty acids	C14:0	synthetic	synthetic	
+Sequence_226	Medium fatty acids	C6:1 C6:2	synthetic	synthetic	
+Sequence_26	Long fatty acids	C14:0 C16:0	synthetic	synthetic	
+Sequence_145	Medium fatty acids	C8:0	synthetic	synthetic	
+Sequence_135	Medium fatty acids	C8:0	synthetic	synthetic	
+Sequence_196	Long fatty acids	C16:0	synthetic	synthetic	
+Sequence_207	Long fatty acids	C18:0	synthetic	synthetic	
+Sequence_121	Medium fatty acids	C6:0	synthetic	synthetic	
+Sequence_214	Long fatty acids	C18:0	synthetic	synthetic	
+Sequence_65	Long fatty acids	C33:0	synthetic	synthetic	
+Sequence_9	Short fatty acids	C5:0	synthetic	synthetic	
+Sequence_131	Medium fatty acids	C8:0	synthetic	synthetic	
+Sequence_1	Short fatty acids	C5:0	synthetic	synthetic	
+Sequence_331	Medium fatty acids	C12:0	synthetic	synthetic	
+Sequence_284	Short fatty acids	C4:0	synthetic	synthetic	
+Sequence_47	Long fatty acids	C14:0 C16:0	synthetic	synthetic	
+Sequence_148	Medium fatty acids	C8:0	synthetic	synthetic	
+Sequence_165	Medium fatty acids	C12:0 C14:0	synthetic	synthetic	
+Sequence_241	Medium fatty acids	C6:1 C6:2	synthetic	synthetic	
+Sequence_169	Medium fatty acids	C12:0 C14:0	synthetic	synthetic	
+Sequence_177	Long fatty acids	C16:0	synthetic	synthetic	
+Sequence_253	Medium fatty acids	C10:0	synthetic	synthetic	
+Sequence_328	Medium fatty acids	C12:0	synthetic	synthetic	
+Sequence_339	Medium fatty acids	C12:0	synthetic	synthetic	
+Sequence_258	Medium fatty acids	C10:0	synthetic	synthetic	
+Sequence_86	Medium fatty acids	C6:0 C8:0	synthetic	synthetic	
+Sequence_275	Short fatty acids	C4:0	synthetic	synthetic	
+Sequence_79	Medium fatty acids	C6:0 C8:0	synthetic	synthetic	
+Sequence_137	Medium fatty acids	C8:0	synthetic	synthetic	
+Sequence_190	Long fatty acids	C16:0	synthetic	synthetic	
+Sequence_325	Medium fatty acids	C12:0	synthetic	synthetic	
+Sequence_12	Short fatty acids	C5:0	synthetic	synthetic	
+Sequence_70	Long fatty acids	C33:0	synthetic	synthetic	
+Sequence_91	Medium fatty acids	C6:0 C8:0	synthetic	synthetic	
+Sequence_17	Short fatty acids	C5:0	synthetic	synthetic	
+Sequence_140	Medium fatty acids	C8:0	synthetic	synthetic	
+Sequence_211	Long fatty acids	C18:0	synthetic	synthetic	
+Sequence_187	Long fatty acids	C16:0	synthetic	synthetic	
+Sequence_200	Long fatty acids	C18:0	synthetic	synthetic	
+Sequence_246	Medium fatty acids	C6:1 C6:2	synthetic	synthetic	
+Sequence_147	Medium fatty acids	C8:0	synthetic	synthetic	
+Sequence_77	Medium fatty acids	C6:0 C8:0	synthetic	synthetic	
+Sequence_162	Medium fatty acids	C12:0 C14:0	synthetic	synthetic	
+Sequence_202	Long fatty acids	C18:0	synthetic	synthetic	
+Sequence_314	Long fatty acids	C14:0	synthetic	synthetic	
+Sequence_250	Medium fatty acids	C10:0	synthetic	synthetic	
+Sequence_271	Medium fatty acids	C10:0	synthetic	synthetic	
+Sequence_51	Long fatty acids	C33:0	synthetic	synthetic	
+Sequence_154	Medium fatty acids	C12:0 C14:0	synthetic	synthetic	
+Sequence_176	Long fatty acids	C16:0	synthetic	synthetic	
+Sequence_73	Long fatty acids	C33:0	synthetic	synthetic	
+Sequence_272	Medium fatty acids	C10:0	synthetic	synthetic	
+Sequence_287	Short fatty acids	C4:0	synthetic	synthetic	
+Sequence_301	Long fatty acids	C14:0	synthetic	synthetic	
+Sequence_216	Long fatty acids	C18:0	synthetic	synthetic	
+Sequence_294	Short fatty acids	C4:0	synthetic	synthetic	
+Sequence_62	Long fatty acids	C33:0	synthetic	synthetic	
+Sequence_221	Long fatty acids	C18:0	synthetic	synthetic	
+Sequence_306	Long fatty acids	C14:0	synthetic	synthetic	
+Sequence_166	Medium fatty acids	C12:0 C14:0	synthetic	synthetic	
+Sequence_48	Long fatty acids	C14:0 C16:0	synthetic	synthetic	
+Sequence_84	Medium fatty acids	C6:0 C8:0	synthetic	synthetic	
+Sequence_191	Long fatty acids	C16:0	synthetic	synthetic	
+Sequence_212	Long fatty acids	C18:0	synthetic	synthetic	
+Sequence_28	Long fatty acids	C14:0 C16:0	synthetic	synthetic	
+Sequence_337	Medium fatty acids	C12:0	synthetic	synthetic	
+Sequence_78	Medium fatty acids	C6:0 C8:0	synthetic	synthetic	
+Sequence_42	Long fatty acids	C14:0 C16:0	synthetic	synthetic	
+Sequence_39	Long fatty acids	C14:0 C16:0	synthetic	synthetic	
+Sequence_151	Medium fatty acids	C12:0 C14:0	synthetic	synthetic	
+Sequence_29	Long fatty acids	C14:0 C16:0	synthetic	synthetic	
+Sequence_329	Medium fatty acids	C12:0	synthetic	synthetic	
+Sequence_144	Medium fatty acids	C8:0	synthetic	synthetic	
+Sequence_49	Long fatty acids	C14:0 C16:0	synthetic	synthetic	
+Sequence_288	Short fatty acids	C4:0	synthetic	synthetic	
+Sequence_41	Long fatty acids	C14:0 C16:0	synthetic	synthetic	
+Sequence_74	Long fatty acids	C33:0	synthetic	synthetic	
+Sequence_113	Medium fatty acids	C6:0	synthetic	synthetic	
+Sequence_107	Medium fatty acids	C6:0	synthetic	synthetic	
+Sequence_150	Medium fatty acids	C12:0 C14:0	synthetic	synthetic	
+Sequence_282	Short fatty acids	C4:0	synthetic	synthetic	
+Sequence_56	Long fatty acids	C33:0	synthetic	synthetic	
+Sequence_172	Medium fatty acids	C12:0 C14:0	synthetic	synthetic	
+Sequence_289	Short fatty acids	C4:0	synthetic	synthetic	
+Sequence_219	Long fatty acids	C18:0	synthetic	synthetic	
+Sequence_126	Medium fatty acids	C8:0	synthetic	synthetic	
+Sequence_92	Medium fatty acids	C6:0 C8:0	synthetic	synthetic	
+Sequence_194	Long fatty acids	C16:0	synthetic	synthetic	
+Sequence_194	Long fatty acids	C16:0	synthetic	synthetic	
+Sequence_112	Medium fatty acids	C6:0	synthetic	synthetic	
+Sequence_152	Medium fatty acids	C12:0 C14:0	synthetic	synthetic	
+Sequence_206	Long fatty acids	C18:0	synthetic	synthetic	
+Sequence_97	Medium fatty acids	C6:0 C8:0	synthetic	synthetic	
+Sequence_100	Medium fatty acids	C6:0	synthetic	synthetic	
+Sequence_205	Long fatty acids	C18:0	synthetic	synthetic	
+Sequence_244	Medium fatty acids	C6:1 C6:2	synthetic	synthetic	
+Sequence_31	Long fatty acids	C14:0 C16:0	synthetic	synthetic	
+Sequence_132	Medium fatty acids	C8:0	synthetic	synthetic	
+Sequence_155	Medium fatty acids	C12:0 C14:0	synthetic	synthetic	
+Sequence_64	Long fatty acids	C33:0	synthetic	synthetic	
+Sequence_94	Medium fatty acids	C6:0 C8:0	synthetic	synthetic	
+Sequence_236	Medium fatty acids	C6:1 C6:2	synthetic	synthetic	
+Sequence_240	Medium fatty acids	C6:1 C6:2	synthetic	synthetic	
+Sequence_302	Long fatty acids	C14:0	synthetic	synthetic	
+Sequence_58	Long fatty acids	C33:0	synthetic	synthetic	
+Sequence_278	Short fatty acids	C4:0	synthetic	synthetic	
+Sequence_296	Short fatty acids	C4:0	synthetic	synthetic	
+Sequence_8	Short fatty acids	C5:0	synthetic	synthetic	
+Sequence_111	Medium fatty acids	C6:0	synthetic	synthetic	
+Sequence_199	Long fatty acids	C16:0	synthetic	synthetic	
+Sequence_120	Medium fatty acids	C6:0	synthetic	synthetic	
+Sequence_274	Medium fatty acids	C10:0	synthetic	synthetic	
+Sequence_50	Long fatty acids	C33:0	synthetic	synthetic	
+Sequence_324	Long fatty acids	C14:0	synthetic	synthetic	
+Sequence_57	Long fatty acids	C33:0	synthetic	synthetic	
+Sequence_15	Short fatty acids	C5:0	synthetic	synthetic	
+Sequence_157	Medium fatty acids	C12:0 C14:0	synthetic	synthetic	
+Sequence_281	Short fatty acids	C4:0	synthetic	synthetic	
+Sequence_297	Short fatty acids	C4:0	synthetic	synthetic	
+Sequence_20	Short fatty acids	C5:0	synthetic	synthetic	
+Sequence_116	Medium fatty acids	C6:0	synthetic	synthetic	
+Sequence_341	Medium fatty acids	C12:0	synthetic	synthetic	
+Sequence_7	Short fatty acids	C5:0	synthetic	synthetic	
+Sequence_336	Medium fatty acids	C12:0	synthetic	synthetic	
+Sequence_217	Long fatty acids	C18:0	synthetic	synthetic	
+Sequence_304	Long fatty acids	C14:0	synthetic	synthetic	
+Sequence_138	Medium fatty acids	C8:0	synthetic	synthetic	
+Sequence_247	Medium fatty acids	C6:1 C6:2	synthetic	synthetic	
+Sequence_239	Medium fatty acids	C6:1 C6:2	synthetic	synthetic	
+Sequence_286	Short fatty acids	C4:0	synthetic	synthetic	
+Sequence_30	Long fatty acids	C14:0 C16:0	synthetic	synthetic	
+Sequence_59	Long fatty acids	C33:0	synthetic	synthetic	
+Sequence_225	Medium fatty acids	C6:1 C6:2	synthetic	synthetic	
+Sequence_283	Short fatty acids	C4:0	synthetic	synthetic	
+Sequence_310	Long fatty acids	C14:0	synthetic	synthetic	
+Sequence_149	Medium fatty acids	C8:0	synthetic	synthetic	
+Sequence_228	Medium fatty acids	C6:1 C6:2	synthetic	synthetic	
+Sequence_110	Medium fatty acids	C6:0	synthetic	synthetic	
+Sequence_293	Short fatty acids	C4:0	synthetic	synthetic	
+Sequence_35	Long fatty acids	C14:0 C16:0	synthetic	synthetic	
+Sequence_232	Medium fatty acids	C6:1 C6:2	synthetic	synthetic	
+Sequence_32	Long fatty acids	C14:0 C16:0	synthetic	synthetic	
+Sequence_270	Medium fatty acids	C10:0	synthetic	synthetic	
+Sequence_234	Medium fatty acids	C6:1 C6:2	synthetic	synthetic	
+Sequence_67	Long fatty acids	C33:0	synthetic	synthetic	
+Sequence_252	Medium fatty acids	C10:0	synthetic	synthetic	
+Sequence_298	Short fatty acids	C4:0	synthetic	synthetic	
+Sequence_313	Long fatty acids	C14:0	synthetic	synthetic	
+Sequence_308	Long fatty acids	C14:0	synthetic	synthetic	
+Sequence_182	Long fatty acids	C16:0	synthetic	synthetic	
+Sequence_238	Medium fatty acids	C6:1 C6:2	synthetic	synthetic	
+Sequence_242	Medium fatty acids	C6:1 C6:2	synthetic	synthetic	
+Sequence_24	Short fatty acids	C5:0	synthetic	synthetic	
+Sequence_114	Medium fatty acids	C6:0	synthetic	synthetic	
+Sequence_11	Short fatty acids	C5:0	synthetic	synthetic	
+Sequence_52	Long fatty acids	C33:0	synthetic	synthetic	
+Sequence_181	Long fatty acids	C16:0	synthetic	synthetic	
+Sequence_245	Medium fatty acids	C6:1 C6:2	synthetic	synthetic	
+Sequence_0	Short fatty acids	C5:0	synthetic	synthetic	
+Sequence_128	Medium fatty acids	C8:0	synthetic	synthetic	
+Sequence_300	Long fatty acids	C14:0	synthetic	synthetic	
+Sequence_230	Medium fatty acids	C6:1 C6:2	synthetic	synthetic	
+Sequence_323	Long fatty acids	C14:0	synthetic	synthetic	
+Sequence_122	Medium fatty acids	C6:0	synthetic	synthetic	
+Sequence_115	Medium fatty acids	C6:0	synthetic	synthetic	
+Sequence_273	Medium fatty acids	C10:0	synthetic	synthetic	
+Sequence_129	Medium fatty acids	C8:0	synthetic	synthetic	
+Sequence_22	Short fatty acids	C5:0	synthetic	synthetic	
+Sequence_6	Short fatty acids	C5:0	synthetic	synthetic	
+Sequence_13	Short fatty acids	C5:0	synthetic	synthetic	
+Sequence_25	Long fatty acids	C14:0 C16:0	synthetic	synthetic	
+Sequence_233	Medium fatty acids	C6:1 C6:2	synthetic	synthetic	
+Sequence_10	Short fatty acids	C5:0	synthetic	synthetic	
+Sequence_118	Medium fatty acids	C6:0	synthetic	synthetic	
+Sequence_290	Short fatty acids	C4:0	synthetic	synthetic	
+Sequence_186	Long fatty acids	C16:0	synthetic	synthetic	
+Sequence_103	Medium fatty acids	C6:0	synthetic	synthetic	
+Sequence_43	Long fatty acids	C14:0 C16:0	synthetic	synthetic	
+Sequence_222	Long fatty acids	C18:0	synthetic	synthetic	
+Sequence_276	Short fatty acids	C4:0	synthetic	synthetic	
+Sequence_72	Long fatty acids	C33:0	synthetic	synthetic	
+Sequence_136	Medium fatty acids	C8:0	synthetic	synthetic	
+Sequence_123	Medium fatty acids	C6:0	synthetic	synthetic	
+Sequence_334	Medium fatty acids	C12:0	synthetic	synthetic	
+Sequence_340	Medium fatty acids	C12:0	synthetic	synthetic	
+Sequence_159	Medium fatty acids	C12:0 C14:0	synthetic	synthetic	
+Sequence_174	Medium fatty acids	C12:0 C14:0	synthetic	synthetic	
+Sequence_173	Medium fatty acids	C12:0 C14:0	synthetic	synthetic	
+Sequence_2	Short fatty acids	C5:0	synthetic	synthetic	
+Sequence_262	Medium fatty acids	C10:0	synthetic	synthetic	
+Sequence_317	Long fatty acids	C14:0	synthetic	synthetic	
+Sequence_175	Long fatty acids	C16:0	synthetic	synthetic	
+Sequence_109	Medium fatty acids	C6:0	synthetic	synthetic	
+Sequence_299	Short fatty acids	C4:0	synthetic	synthetic	
+Sequence_319	Long fatty acids	C14:0	synthetic	synthetic	
+Sequence_255	Medium fatty acids	C10:0	synthetic	synthetic	
+Sequence_265	Medium fatty acids	C10:0	synthetic	synthetic	
+Sequence_81	Medium fatty acids	C6:0 C8:0	synthetic	synthetic	
+Sequence_19	Short fatty acids	C5:0	synthetic	synthetic	
+Sequence_292	Short fatty acids	C4:0	synthetic	synthetic	
+Sequence_312	Long fatty acids	C14:0	synthetic	synthetic	
+Sequence_134	Medium fatty acids	C8:0	synthetic	synthetic	
+Sequence_37	Long fatty acids	C14:0 C16:0	synthetic	synthetic	
+Sequence_243	Medium fatty acids	C6:1 C6:2	synthetic	synthetic	
+Sequence_277	Short fatty acids	C4:0	synthetic	synthetic	
+Sequence_305	Long fatty acids	C14:0	synthetic	synthetic	
+Sequence_307	Long fatty acids	C14:0	synthetic	synthetic	
+Sequence_197	Long fatty acids	C16:0	synthetic	synthetic	
+Sequence_88	Medium fatty acids	C6:0 C8:0	synthetic	synthetic	
+Sequence_208	Long fatty acids	C18:0	synthetic	synthetic	
+Sequence_125	Medium fatty acids	C8:0	synthetic	synthetic	
+Sequence_179	Long fatty acids	C16:0	synthetic	synthetic	
+Sequence_93	Medium fatty acids	C6:0 C8:0	synthetic	synthetic	
+Sequence_264	Medium fatty acids	C10:0	synthetic	synthetic	
+Sequence_333	Medium fatty acids	C12:0	synthetic	synthetic	
+Sequence_348	Medium fatty acids	C12:0	synthetic	synthetic	
+Sequence_99	Medium fatty acids	C6:0 C8:0	synthetic	synthetic	
+Sequence_161	Medium fatty acids	C12:0 C14:0	synthetic	synthetic	
+Sequence_235	Medium fatty acids	C6:1 C6:2	synthetic	synthetic	
+Sequence_14	Short fatty acids	C5:0	synthetic	synthetic	
+Sequence_220	Long fatty acids	C18:0	synthetic	synthetic	
+Sequence_201	Long fatty acids	C18:0	synthetic	synthetic	
+Sequence_60	Long fatty acids	C33:0	synthetic	synthetic	
+Sequence_168	Medium fatty acids	C12:0 C14:0	synthetic	synthetic	
+Sequence_87	Medium fatty acids	C6:0 C8:0	synthetic	synthetic	
+Sequence_285	Short fatty acids	C4:0	synthetic	synthetic	
+Sequence_63	Long fatty acids	C33:0	synthetic	synthetic	
+Sequence_256	Medium fatty acids	C10:0	synthetic	synthetic	
+Sequence_188	Long fatty acids	C16:0	synthetic	synthetic	
+Sequence_192	Long fatty acids	C16:0	synthetic	synthetic	
+Sequence_45	Long fatty acids	C14:0 C16:0	synthetic	synthetic	
+Sequence_82	Medium fatty acids	C6:0 C8:0	synthetic	synthetic	
+Sequence_171	Medium fatty acids	C12:0 C14:0	synthetic	synthetic	
+Sequence_61	Long fatty acids	C33:0	synthetic	synthetic	
+Sequence_71	Long fatty acids	C33:0	synthetic	synthetic	
+Sequence_130	Medium fatty acids	C8:0	synthetic	synthetic	
+Sequence_142	Medium fatty acids	C8:0	synthetic	synthetic	
+Sequence_263	Medium fatty acids	C10:0	synthetic	synthetic	
+Sequence_338	Medium fatty acids	C12:0	synthetic	synthetic	
