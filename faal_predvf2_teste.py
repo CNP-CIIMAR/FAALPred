@@ -1127,18 +1127,26 @@ def main(args: argparse.Namespace) -> None:
         table_data=train_table_data, 
         aggregation_method=args.aggregation_method  # Passing the aggregation method ('none' or 'mean')
     )
+    min_kmers = protein_embedding_train.min_kmers
+
+# Adiciona min_kmers ao objeto args
+    args.min_kmers = min_kmers
+
     protein_embedding_train.generate_embeddings(
         k=args.kmer_size,
         step_size=args.step_size,
         word2vec_model_path=args.word2vec_model,
         model_dir=model_dir,
-        min_kmers=args.min_kmers,
+        min_kmers=args.min_kmers,  # Agora existe
         save_min_kmers=True  # Save min_kmers after training
     )
     logging.info(f"Number of training embeddings generated: {len(protein_embedding_train.embeddings)}")
 
     # Save min_kmers to ensure consistency
     min_kmers = protein_embedding_train.min_kmers
+
+    # Adiciona min_kmers ao objeto args
+    args.min_kmers = min_kmers
 
     # Get protein IDs and associated variables from the training set
     protein_ids_associated = [entry['protein_accession'] for entry in protein_embedding_train.embeddings]
@@ -2599,3 +2607,4 @@ def plot_predictions_scatterplot_custom(
 # ============================================
 # End of Functions for Processing Results and Interface
 # ============================================
+
