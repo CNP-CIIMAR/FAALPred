@@ -28,6 +28,7 @@ from sklearn.calibration import CalibratedClassifierCV
 from PIL import Image
 from matplotlib import ticker
 import umap.umap_ as umap  # Import for UMAP
+import umap
 import base64
 from plotly.graph_objs import Figure
 import streamlit as st
@@ -60,7 +61,8 @@ logging.basicConfig(
 # Ensure st.set_page_config is the first Streamlit command
 st.set_page_config(
     page_title="FAAL_Pred",
-    page_icon="Ã°Å¸â€Â¬",  # DNA Symbol
+    #page_icon="Ã°Å¸â€Â¬",  # DNA Symbol
+    page_icon="ðŸ§¬", 
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -475,12 +477,8 @@ def visualize_latent_space_with_similarity(
         fig.write_html(umap_similarity_path)
         logging.info(f"UMAP plot saved at {umap_similarity_path}")
     # Save the plots as HTML files    
-    
-    pio.write_html(fig_train, file=tsne_train_html, auto_open=False)
-    pio.write_html(fig_predict, file=tsne_predict_html, auto_open=False)
-    
-    logging.info(f"t-SNE Training plot saved as {tsne_train_html}")
-    logging.info(f"t-SNE Predictions plot saved as {tsne_predict_html}")
+
+
             
         
 
