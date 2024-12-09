@@ -15,6 +15,7 @@ import pandas as pd
 from Bio import SeqIO, AlignIO
 from Bio.Align.Applications import MafftCommandline
 import joblib
+import catboost
 import plotly.io as pio
 import matplotlib.pyplot as plt
 from gensim.models import Word2Vec
@@ -27,75 +28,75 @@ from tabulate import tabulate
 from sklearn.calibration import CalibratedClassifierCV
 from PIL import Image
 from matplotlib import ticker
-import umap.umap_ as umap  # Import para UMAP
+import umap.umap_ as umap  # Import for UMAP
 import base64
 from plotly.graph_objs import Figure
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
-import optuna  # Import para Busca Bayesiana
+import optuna  # Import for Bayesian Search
 from lightgbm import LGBMClassifier
 from xgboost import XGBClassifier
 from catboost import CatBoostClassifier
-import optun
+import optuna
 import lightgbm as lgb
 import xgboost as xgb
 # ============================================
-# DefiniÃ§Ãµes de FunÃ§Ãµes e Classes
+# Function and Class Definitions
 # ============================================
 
-# Definindo sementes para reprodutibilidade
+# Setting seeds for reproducibility
 SEED = 42
 np.random.seed(SEED)
 random.seed(SEED)
 
-# ConfiguraÃ§Ã£o de Logging
+# Logging Configuration
 logging.basicConfig(
-    level=logging.INFO,  # Mude para DEBUG para mais verbosidade
+    level=logging.INFO,  # Change to DEBUG for more verbosity
     format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler("logs/app.log"),  # Log para arquivo para registros persistentes
+        logging.FileHandler("logs/app.log"),  # Log to file for persistent records
     ],
 )
 
 # ============================================
-# ConfiguraÃ§Ã£o e Interface do Streamlit
+# Streamlit Configuration and Interface
 # ============================================
 
-# Assegurar que st.set_page_config Ã© o primeiro comando do Streamlit
+# Ensure st.set_page_config is the first Streamlit command
 st.set_page_config(
     page_title="FAAL_Pred",
-    page_icon="ðŸ”¬",  # SÃ­mbolo de DNA
+    page_icon="ðŸ”¬",  # DNA symbol
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 def are_sequences_aligned(fasta_file: str) -> bool:
     """
-    Verifica se todas as sequÃªncias em um arquivo FASTA estÃ£o alinhadas, verificando se possuem o mesmo comprimento.
+    Checks if all sequences in a FASTA file are aligned by verifying if they have the same length.
     
-    ParÃ¢metros:
-    - fasta_file (str): Caminho para o arquivo FASTA.
+    Parameters:
+    - fasta_file (str): Path to the FASTA file.
     
-    Retorna:
-    - bool: True se todas as sequÃªncias estÃ£o alinhadas (mesmo comprimento), False caso contrÃ¡rio.
+    Returns:
+    - bool: True if all sequences are aligned (same length), False otherwise.
     """
     lengths = set()
     for record in SeqIO.parse(fasta_file, "fasta"):
         lengths.add(len(record.seq))
-    return len(lengths) == 1  # Retorna True se todas as sequÃªncias tÃªm o mesmo comprimento
+    return len(lengths) == 1  # Returns True if all sequences have the same length
 
 def create_unique_model_directory(base_dir: str, aggregation_method: str) -> str:
     """
-    Cria um diretÃ³rio Ãºnico para modelos com base no mÃ©todo de agregaÃ§Ã£o.
+    Creates a unique directory for models based on the aggregation method.
     
-    ParÃ¢metros:
-    - base_dir (str): DiretÃ³rio base para modelos.
-    - aggregation_method (str): MÃ©todo de agregaÃ§Ã£o utilizado.
+    Parameters:
+    - base_dir (str): Base directory for models.
+    - aggregation_method (str): Aggregation method used.
     
-    Retorna:
-    - str: Caminho para o diretÃ³rio Ãºnico de modelos.
+    Returns:
+    - str: Path to the unique model directory.
     """
     model_dir = os.path.join(base_dir, f"models_{aggregation_method}")
     if not os.path.exists(model_dir):
@@ -104,70 +105,70 @@ def create_unique_model_directory(base_dir: str, aggregation_method: str) -> str
 
 def realign_sequences_with_mafft(input_path: str, output_path: str, threads: int = 8) -> None:
     """
-    Realinha sequÃªncias utilizando MAFFT.
+    Realigns sequences using MAFFT.
     
-    ParÃ¢metros:
-    - input_path (str): Caminho para o arquivo de entrada.
-    - output_path (str): Caminho para salvar o arquivo realinhado.
-    - threads (int): NÃºmero de threads para MAFFT.
+    Parameters:
+    - input_path (str): Path to the input file.
+    - output_path (str): Path to save the realigned file.
+    - threads (int): Number of threads for MAFFT.
     """
     mafft_command = ['mafft', '--thread', str(threads), '--maxiterate', '1000', '--localpair', input_path]
     try:
         with open(output_path, "w") as outfile:
             subprocess.run(mafft_command, stdout=outfile, stderr=subprocess.PIPE, check=True)
-        logging.info(f"SequÃªncias realinhadas salvas em {output_path}")
+        logging.info(f"Realigned sequences saved in {output_path}")
     except subprocess.CalledProcessError as e:
-        logging.error(f"Erro ao executar MAFFT: {e.stderr.decode()}")
+        logging.error(f"Error executing MAFFT: {e.stderr.decode()}")
         sys.exit(1)
 
 from sklearn.cluster import DBSCAN, KMeans
 
 def perform_clustering(data: np.ndarray, method: str = "DBSCAN", eps: float = 0.5, min_samples: int = 5, n_clusters: int = 3) -> np.ndarray:
     """
-    Realiza clustering nos dados usando DBSCAN ou K-Means.
+    Performs clustering on the data using DBSCAN or K-Means.
     
-    ParÃ¢metros:
-    - data (np.ndarray): Dados para clustering.
-    - method (str): MÃ©todo de clustering ("DBSCAN" ou "K-Means").
-    - eps (float): ParÃ¢metro epsilon para DBSCAN.
-    - min_samples (int): NÃºmero mÃ­nimo de amostras para DBSCAN.
-    - n_clusters (int): NÃºmero de clusters para K-Means.
+    Parameters:
+    - data (np.ndarray): Data for clustering.
+    - method (str): Clustering method ("DBSCAN" or "K-Means").
+    - eps (float): Epsilon parameter for DBSCAN.
+    - min_samples (int): Minimum number of samples for DBSCAN.
+    - n_clusters (int): Number of clusters for K-Means.
     
-    Retorna:
-    - np.ndarray: Labels gerados pelo mÃ©todo de clustering.
+    Returns:
+    - np.ndarray: Labels generated by the clustering method.
     """
     if method == "DBSCAN":
         clustering_model = DBSCAN(eps=eps, min_samples=min_samples)
     elif method == "K-Means":
         clustering_model = KMeans(n_clusters=n_clusters, random_state=42)
     else:
-        raise ValueError(f"MÃ©todo de clustering invÃ¡lido: {method}")
+        raise ValueError(f"Invalid clustering method: {method}")
 
     labels = clustering_model.fit_predict(data)
     return labels
 
 def plot_roc_curve(y_true: np.ndarray, y_pred_proba: np.ndarray, title: str, save_as: str = None, classes: list = None) -> None:
     """
-    Plota a curva ROC para classificaÃ§Ãµes binÃ¡rias ou multiclasse.
+    Plots the ROC curve for binary or multiclass classifications.
     
-    ParÃ¢metros:
-    - y_true (np.ndarray): Labels verdadeiros.
-    - y_pred_proba (np.ndarray): Probabilidades preditas.
-    - title (str): TÃ­tulo do plot.
-    - save_as (str): Caminho para salvar o plot.
-    - classes (list): Lista de classes (para multiclasse).
+    Parameters:
+    - y_true (np.ndarray): True labels.
+    - y_pred_proba (np.ndarray): Predicted probabilities.
+    - title (str): Plot title.
+    - save_as (str): Path to save the plot.
+    - classes (list): List of classes (for multiclass).
     """
-    lw = 2  # Largura da linha
+    lw = 2  # Line width
 
-    # Verifica se Ã© classificaÃ§Ã£o binÃ¡ria ou multiclasse
+    # Check if it's binary or multiclass classification
     unique_classes = np.unique(y_true)
-    if len(unique_classes) == 2:  # ClassificaÃ§Ã£o binÃ¡ria
+    if len(unique_classes) == 2:  # Binary classification
         fpr, tpr, _ = roc_curve(y_true, y_pred_proba[:, 1])
         roc_auc = auc(fpr, tpr)
 
         plt.figure()
-        plt.plot(fpr, tpr, color='darkorange', lw=lw, label='Curva ROC (Ã¡rea = %0.2f)' % roc_auc)
-    else:  # ClassificaÃ§Ã£o multiclasse
+        plt.plot(fpr, tpr, color='darkorange', lw=lw, label='ROC Curve (area = %0.2f)' % roc_auc)
+    else:  # Multiclass classification
         y_bin = label_binarize(y_true, classes=unique_classes)
         n_classes = y_bin.shape[1]
 
@@ -179,14 +180,14 @@ def plot_roc_curve(y_true: np.ndarray, y_pred_proba: np.ndarray, title: str, sav
             fpr[i], tpr[i], _ = roc_curve(y_bin[:, i], y_pred_proba[:, i])
             roc_auc[i] = auc(fpr[i], tpr[i])
 
-            # Logging dos valores de ROC
-            logging.info(f"Para a classe {i}:")
+            # Logging ROC values
+            logging.info(f"For class {i}:")
             logging.info(f"FPR: {fpr[i]}")
             logging.info(f"TPR: {tpr[i]}")
             logging.info(f"ROC AUC: {roc_auc[i]}")
             logging.info("--------------------------")
 
-        roc_df = pd.DataFrame(list(roc_auc.items()), columns=['Classe', 'ROC AUC'])
+        roc_df = pd.DataFrame(list(roc_auc.items()), columns=['Class', 'ROC AUC'])
         return roc_df
 
         plt.figure()
@@ -194,37 +195,37 @@ def plot_roc_curve(y_true: np.ndarray, y_pred_proba: np.ndarray, title: str, sav
         colors = plt.cm.viridis(np.linspace(0, 1, n_classes))
         for i, color in zip(range(n_classes), colors):
             class_label = classes[i] if classes is not None else unique_classes[i]
-            plt.plot(fpr[i], tpr[i], color=color, lw=lw, label=f'Curva ROC para a classe {class_label} (Ã¡rea = {roc_auc[i]:0.2f})')
+            plt.plot(fpr[i], tpr[i], color=color, lw=lw, label=f'ROC Curve for class {class_label} (area = {roc_auc[i]:0.2f})')
 
     plt.plot([0, 1], [0, 1], 'k--', lw=lw)
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
-    plt.xlabel('Taxa de Falsos Positivos', color='white')
-    plt.ylabel('Taxa de Verdadeiros Positivos', color='white')
+    plt.xlabel('False Positive Rate', color='white')
+    plt.ylabel('True Positive Rate', color='white')
     plt.title(title, color='white')
     plt.legend(loc="lower right")
     if save_as:
-        plt.savefig(save_as, bbox_inches='tight', facecolor='#0B3C5D')  # Combina com a cor de fundo
+        plt.savefig(save_as, bbox_inches='tight', facecolor='#0B3C5D')  # Matches background color
     plt.close()
 
 def get_class_rankings(model, X: np.ndarray) -> list:
     """
-    ObtÃ©m rankings de classes baseados nas probabilidades preditas pelo modelo.
+    Obtains class rankings based on the predicted probabilities from the model.
     
-    ParÃ¢metros:
-    - model: Modelo treinado.
-    - X (np.ndarray): Dados para obter previsÃµes.
+    Parameters:
+    - model: Trained model.
+    - X (np.ndarray): Data to obtain predictions.
     
-    Retorna:
-    - list: Lista de rankings de classes formatados para cada amostra.
+    Returns:
+    - list: List of formatted class rankings for each sample.
     """
     if model is None:
-        raise ValueError("Modelo nÃ£o treinado. Por favor, treine o modelo primeiro.")
+        raise ValueError("Model not trained. Please train the model first.")
 
-    # Obter probabilidades para cada classe
+    # Get probabilities for each class
     y_pred_proba = model.predict_proba(X)
 
-    # Ranking das classes baseadas nas probabilidades
+    # Ranking classes based on probabilities
     class_rankings = []
     for probabilities in y_pred_proba:
         ranked_classes = sorted(zip(model.classes_, probabilities), key=lambda x: x[1], reverse=True)
@@ -235,15 +236,15 @@ def get_class_rankings(model, X: np.ndarray) -> list:
 
 def calculate_roc_values(model, X_test: np.ndarray, y_test: np.ndarray) -> pd.DataFrame:
     """
-    Calcula valores de ROC AUC para cada classe.
+    Calculates ROC AUC values for each class.
     
-    ParÃ¢metros:
-    - model: Modelo treinado.
-    - X_test (np.ndarray): Dados de teste.
-    - y_test (np.ndarray): Labels verdadeiros de teste.
+    Parameters:
+    - model: Trained model.
+    - X_test (np.ndarray): Test data.
+    - y_test (np.ndarray): True test labels.
     
-    Retorna:
-    - pd.DataFrame: DataFrame contendo valores de ROC AUC por classe.
+    Returns:
+    - pd.DataFrame: DataFrame containing ROC AUC values per class.
     """
     n_classes = len(np.unique(y_test))
     y_pred_proba = model.predict_proba(X_test)
@@ -256,14 +257,14 @@ def calculate_roc_values(model, X_test: np.ndarray, y_test: np.ndarray) -> pd.Da
         fpr[i], tpr[i], _ = roc_curve(y_test, y_pred_proba[:, i], pos_label=i)
         roc_auc[i] = auc(fpr[i], tpr[i])
 
-        # Logging dos valores de ROC
-        logging.info(f"Para a classe {i}:")
+        # Logging ROC values
+        logging.info(f"For class {i}:")
         logging.info(f"FPR: {fpr[i]}")
         logging.info(f"TPR: {tpr[i]}")
         logging.info(f"ROC AUC: {roc_auc[i]}")
         logging.info("--------------------------")
 
-    roc_df = pd.DataFrame(list(roc_auc.items()), columns=['Classe', 'ROC AUC'])
+    roc_df = pd.DataFrame(list(roc_auc.items()), columns=['Class', 'ROC AUC'])
     return roc_df
 
 def visualize_latent_space_with_similarity(
@@ -278,40 +279,40 @@ def visualize_latent_space_with_similarity(
     output_dir: str = None
 ) -> Figure:
     """
-    Visualiza o espaÃ§o latente usando UMAP 3D com medidas de similaridade entre amostras originais e sintÃ©ticas.
+    Visualizes the latent space using 3D UMAP with similarity measures between original and synthetic samples.
     
-    ParÃ¢metros:
-    - X_original (np.ndarray): Embeddings originais.
-    - X_synthetic (np.ndarray): Embeddings sintÃ©ticos.
-    - y_original (np.ndarray): Labels originais.
-    - y_synthetic (np.ndarray): Labels sintÃ©ticas.
-    - protein_ids_original (list): IDs das proteÃ­nas originais.
-    - protein_ids_synthetic (list): IDs das proteÃ­nas sintÃ©ticas.
-    - var_assoc_original (list): VariÃ¡veis associadas dos dados originais.
-    - var_assoc_synthetic (list): VariÃ¡veis associadas dos dados sintÃ©ticos.
-    - output_dir (str): DiretÃ³rio para salvar o plot.
+    Parameters:
+    - X_original (np.ndarray): Original embeddings.
+    - X_synthetic (np.ndarray): Synthetic embeddings.
+    - y_original (np.ndarray): Original labels.
+    - y_synthetic (np.ndarray): Synthetic labels.
+    - protein_ids_original (list): IDs of original proteins.
+    - protein_ids_synthetic (list): IDs of synthetic proteins.
+    - var_assoc_original (list): Associated variables of original data.
+    - var_assoc_synthetic (list): Associated variables of synthetic data.
+    - output_dir (str): Directory to save the plot.
     
-    Retorna:
-    - Figure: Objeto da figura Plotly.
+    Returns:
+    - Figure: Plotly figure object.
     """
-    # Combinar dados para UMAP
+    # Combine data for UMAP
     X_combined = np.vstack([X_original, X_synthetic])
     y_combined = np.hstack([y_original, y_synthetic])
 
-    # Aplicar UMAP para reduÃ§Ã£o de dimensionalidade
+    # Apply UMAP for dimensionality reduction
     umap_reducer = umap.UMAP(n_components=3, random_state=42, n_neighbors=15, min_dist=0.1)
     X_transformed = umap_reducer.fit_transform(X_combined)
 
-    # Dividir dados transformados
+    # Split transformed data
     X_transformed_original = X_transformed[:len(X_original)]
     X_transformed_synthetic = X_transformed[len(X_original):]
 
-    # Calcular similaridades entre amostras sintÃ©ticas e originais
+    # Calculate similarities between synthetic and original samples
     similarities = cosine_similarity(X_synthetic, X_original)
-    max_similarities = similarities.max(axis=1)  # Similaridade mÃ¡xima para cada amostra sintÃ©tica
-    closest_indices = similarities.argmax(axis=1)  # Ãndices das amostras originais mais similares
+    max_similarities = similarities.max(axis=1)  # Maximum similarity for each synthetic sample
+    closest_indices = similarities.argmax(axis=1)  # Indices of the most similar original samples
 
-    # Criar DataFrames para facilidade
+    # Create DataFrames for ease
     df_original = pd.DataFrame({
         'x': X_transformed_original[:, 0],
         'y': X_transformed_original[:, 1],
@@ -333,10 +334,10 @@ def visualize_latent_space_with_similarity(
         'Type': 'Synthetic'
     })
 
-    # Criar plot interativo 3D com Plotly
+    # Create interactive 3D plot with Plotly
     fig = go.Figure()
 
-    # Adicionar pontos para amostras originais
+    # Add points for original samples
     fig.add_trace(go.Scatter3d(
         x=df_original['x'], 
         y=df_original['y'],
@@ -348,7 +349,7 @@ def visualize_latent_space_with_similarity(
         hoverinfo='text'
     ))
 
-    # Adicionar pontos para amostras sintÃ©ticas
+    # Add points for synthetic samples
     fig.add_trace(go.Scatter3d(
         x=df_synthetic['x'], 
         y=df_synthetic['y'],
@@ -360,35 +361,35 @@ def visualize_latent_space_with_similarity(
         hoverinfo='text'
     ))
 
-    # Ajustar layout
+    # Adjust layout
     fig.update_layout(
         title="Latent Space Visualization with Similarity (UMAP 3D)",
         scene=dict(
-            xaxis_title="UMAP DimensÃ£o 1",
-            yaxis_title="UMAP DimensÃ£o 2",
-            zaxis_title="UMAP DimensÃ£o 3"
+            xaxis_title="UMAP Dimension 1",
+            yaxis_title="UMAP Dimension 2",
+            zaxis_title="UMAP Dimension 3"
         ),
         legend=dict(orientation="h", y=-0.1),
         template="plotly_dark"
     )
 
-    # Salvar o plot se diretÃ³rio de saÃ­da for fornecido
+    # Save the plot if output directory is provided
     if output_dir:
         umap_similarity_path = os.path.join(output_dir, "umap_similarity_3D.html")
         fig.write_html(umap_similarity_path)
-        logging.info(f"Plot UMAP salvo em {umap_similarity_path}")
+        logging.info(f"UMAP plot saved in {umap_similarity_path}")
 
     return fig
 
 def format_and_sum_probabilities(associated_rankings: list) -> tuple:
     """
-    Formata e soma probabilidades para cada categoria, retornando apenas a categoria principal.
+    Formats and sums probabilities for each category, returning only the main category.
     
-    ParÃ¢metros:
-    - associated_rankings (list): Lista de rankings associados.
+    Parameters:
+    - associated_rankings (list): List of associated rankings.
     
-    Retorna:
-    - tuple: (categoria principal com confianÃ§a, soma das probabilidades, top duas categorias)
+    Returns:
+    - tuple: (main category with confidence, sum of probabilities, top two categories)
     """
     category_sums = {}
     categories = ['C4-C6-C8', 'C6-C8-C10', 'C8-C10-C12', 'C10-C12-C14', 'C12-C14-C16', 'C14-C16-C18']
@@ -401,42 +402,42 @@ def format_and_sum_probabilities(associated_rankings: list) -> tuple:
         'C14-C16-C18': ['C14', 'C16', 'C18'],
     }
 
-    # Inicializar o dicionÃ¡rio de somas
+    # Initialize the sums dictionary
     for category in categories:
         category_sums[category] = 0.0
 
-    # Somar probabilidades para cada categoria
+    # Sum probabilities for each category
     for rank in associated_rankings:
         try:
             prob = float(rank.split(": ")[1].replace("%", ""))
         except (IndexError, ValueError):
-            logging.error(f"Erro ao processar string de ranking: {rank}")
+            logging.error(f"Error processing ranking string: {rank}")
             continue
         for category, patterns in pattern_mapping.items():
             if any(pattern in rank for pattern in patterns):
                 category_sums[category] += prob
 
     if not category_sums:
-        return None, None, None  # Sem dados vÃ¡lidos
+        return None, None, None  # No valid data
 
-    # Determinar a categoria principal baseada na soma das probabilidades
+    # Determine the main category based on the sum of probabilities
     top_category, top_sum = max(category_sums.items(), key=lambda x: x[1])
 
-    # Encontrar as duas principais categorias
+    # Find the top two categories
     sorted_categories = sorted(category_sums.items(), key=lambda x: x[1], reverse=True)
     top_two = sorted_categories[:2] if len(sorted_categories) >=2 else sorted_categories
 
-    # Extrair as duas principais categorias e suas probabilidades
+    # Extract the top two categories and their probabilities
     top_two_categories = [f"{cat} ({prob:.2f}%)" for cat, prob in top_two]
 
-    # Encontrar a categoria principal com confianÃ§a
+    # Find the main category with confidence
     top_category_with_confidence = f"{top_category} ({top_sum:.2f}%)"
 
     return top_category_with_confidence, top_sum, top_two_categories
 
 class Support:
     """
-    Classe de suporte para treinamento e avaliaÃ§Ã£o de modelos com tÃ©cnicas de oversampling.
+    Support class for training and evaluating models with oversampling techniques.
     """
 
     def __init__(self, cv: int = 5, seed: int = SEED, n_jobs: int = 8):
@@ -456,14 +457,14 @@ class Support:
         self.best_model = None
 
         self.initial_parameters = {
-            "n_estimators": 100,  # Mantendo um valor moderado
-            "max_depth": 10,  # Reduzindo a profundidade para prevenir overfitting
-            "min_samples_split": 5,  # Aumentando para prevenir overfitting
-            "min_samples_leaf": 2,  # Mantendo alto para evitar overfitting
-            "criterion": "entropy",  # Mantendo como estÃ¡
-            "max_features": "sqrt",  # Mantendo uma boa escolha padrÃ£o
-            "class_weight": "balanced",  # Usando pesos de classe balanceados
-            "ccp_alpha": 0.01,  # Incluindo poda das Ã¡rvores            
+            "n_estimators": 100,  # Keeping a moderate value
+            "max_depth": 10,  # Reducing depth to prevent overfitting
+            "min_samples_split": 5,  # Increasing to prevent overfitting
+            "min_samples_leaf": 2,  # Keeping high to avoid overfitting
+            "criterion": "entropy",  # Keeping as is
+            "max_features": "sqrt",  # Keeping a good default choice
+            "class_weight": "balanced",  # Using balanced class weights
+            "ccp_alpha": 0.01,  # Including tree pruning            
        }
 
         self.grid_search_parameters = {
@@ -483,42 +484,42 @@ class Support:
         y: np.ndarray
     ) -> tuple:
         """
-        Aplica tÃ©cnicas de oversampling (ADASYN) para balancear o conjunto de dados.
+        Applies oversampling techniques (ADASYN) to balance the dataset.
         
-        ParÃ¢metros:
+        Parameters:
         - X (np.ndarray): Features.
         - y (np.ndarray): Labels.
         
-        Retorna:
+        Returns:
         - tuple: (X_resampled, y_resampled)
         """
-        logging.info("Iniciando processo de oversampling com ADASYN...")
+        logging.info("Starting oversampling process with ADASYN...")
         try:
             adasyn = ADASYN(sampling_strategy='auto', random_state=self.seed)
             X_resampled, y_resampled = adasyn.fit_resample(X, y)
-            logging.info(f"DistribuiÃ§Ã£o das classes apÃ³s ADASYN: {Counter(y_resampled)}")
+            logging.info(f"Class distribution after ADASYN: {Counter(y_resampled)}")
         except ValueError as e:
-            logging.error(f"Erro durante ADASYN: {e}")
+            logging.error(f"Error during ADASYN: {e}")
             sys.exit(1)
 
         return X_resampled, y_resampled
 
     def _perform_random_search(self, X_train_resampled: np.ndarray, y_train_resampled: np.ndarray) -> tuple:
         """
-        Realiza Randomized Search para encontrar os melhores hiperparÃ¢metros.
+        Performs Randomized Search to find the best hyperparameters.
         
-        ParÃ¢metros:
-        - X_train_resampled (np.ndarray): Features de treinamento apÃ³s oversampling.
-        - y_train_resampled (np.ndarray): Labels de treinamento apÃ³s oversampling.
+        Parameters:
+        - X_train_resampled (np.ndarray): Training features after oversampling.
+        - y_train_resampled (np.ndarray): Training labels after oversampling.
         
-        Retorna:
-        - tuple: (Melhor modelo, Melhores parÃ¢metros)
+        Returns:
+        - tuple: (Best model, Best parameters)
         """
         skf = StratifiedKFold(n_splits=self.cv, random_state=self.seed, shuffle=True)
         randomized_search = RandomizedSearchCV(
             estimator=RandomForestClassifier(random_state=self.seed),
             param_distributions=self.grid_search_parameters,
-            n_iter=50,  # NÃºmero de combinaÃ§Ãµes aleatÃ³rias a serem avaliadas
+            n_iter=50,  # Number of random combinations to evaluate
             cv=skf,
             scoring='roc_auc_ovo',
             verbose=1,
@@ -527,20 +528,20 @@ class Support:
         )
         
         randomized_search.fit(X_train_resampled, y_train_resampled)
-        logging.info(f"Melhores parÃ¢metros do randomized search: {randomized_search.best_params_}")
+        logging.info(f"Best parameters from randomized search: {randomized_search.best_params_}")
         return randomized_search.best_estimator_, randomized_search.best_params_
 
     def _perform_bayesian_search(self, X_train_resampled: np.ndarray, y_train_resampled: np.ndarray, n_trials: int = 50) -> tuple:
         """
-        Realiza OtimizaÃ§Ã£o Bayesiana usando Optuna para encontrar os melhores hiperparÃ¢metros.
+        Performs Bayesian Optimization using Optuna to find the best hyperparameters.
         
-        ParÃ¢metros:
-        - X_train_resampled (np.ndarray): Features de treinamento apÃ³s oversampling.
-        - y_train_resampled (np.ndarray): Labels de treinamento apÃ³s oversampling.
-        - n_trials (int): NÃºmero de tentativas de otimizaÃ§Ã£o.
+        Parameters:
+        - X_train_resampled (np.ndarray): Training features after oversampling.
+        - y_train_resampled (np.ndarray): Training labels after oversampling.
+        - n_trials (int): Number of optimization trials.
         
-        Retorna:
-        - tuple: (Melhor modelo, Melhores parÃ¢metros)
+        Returns:
+        - tuple: (Best model, Best parameters)
         """
         def objective(trial):
             params = {
@@ -566,7 +567,7 @@ class Support:
         study.optimize(objective, n_trials=n_trials)
 
         best_params = study.best_params
-        logging.info(f"Melhores parÃ¢metros da otimizaÃ§Ã£o bayesiana: {best_params}")
+        logging.info(f"Best parameters from Bayesian optimization: {best_params}")
 
         best_model = RandomForestClassifier(
             random_state=self.seed,
@@ -587,49 +588,49 @@ class Support:
         min_kmers: int = None
     ) -> dict:
         """
-        Treina modelos com oversampling e cross-validation.
+        Trains models with oversampling and cross-validation.
         
-        ParÃ¢metros:
+        Parameters:
         - X (np.ndarray): Features.
         - y (np.ndarray): Labels.
-        - protein_ids (list): IDs das proteÃ­nas.
-        - var_assoc (list): VariÃ¡veis associadas.
-        - model_name_prefix (str): Prefixo para salvar o modelo.
-        - model_dir (str): DiretÃ³rio para salvar o modelo.
-        - min_kmers (int): NÃºmero mÃ­nimo de k-mers.
+        - protein_ids (list): Protein IDs.
+        - var_assoc (list): Associated variables.
+        - model_name_prefix (str): Prefix to save the model.
+        - model_dir (str): Directory to save the model.
+        - min_kmers (int): Minimum number of k-mers.
         
-        Retorna:
-        - dict: DicionÃ¡rio contendo modelos treinados e seus respectivos parÃ¢metros.
+        Returns:
+        - dict: Dictionary containing trained models and their respective parameters.
         """
-        logging.info(f"Iniciando mÃ©todo fit para {model_name_prefix}...")
+        logging.info(f"Starting fit method for {model_name_prefix}...")
 
-        # Converter para arrays numpy
+        # Convert to numpy arrays
         X = np.array(X)
         y = np.array(y)
 
-        # Determinar min_kmers
+        # Determine min_kmers
         if min_kmers is not None:
-            logging.info(f"Usando min_kmers fornecido: {min_kmers}")
+            logging.info(f"Using provided min_kmers: {min_kmers}")
         else:
             min_kmers = len(X)
-            logging.info(f"min_kmers nÃ£o fornecido. Definido para o tamanho de X: {min_kmers}")
+            logging.info(f"min_kmers not provided. Set to the size of X: {min_kmers}")
 
         # Oversampling
         X_resampled, y_resampled = self._oversample_data(X, y)
 
-        # Inicializar dicionÃ¡rio para armazenar modelos
+        # Initialize dictionary to store models
         trained_models = {}
 
-        # Cross-validation com StratifiedKFold
+        # Cross-validation with StratifiedKFold
         skf = StratifiedKFold(n_splits=self.cv, random_state=self.seed, shuffle=True)
 
-        # Lista de modelos a serem treinados
+        # List of models to train
         model_types = ['random_forest', 'lightgbm', 'xgboost', 'catboost']
 
         for model_type in model_types:
-            logging.info(f"Treinando modelo: {model_type}")
+            logging.info(f"Training model: {model_type}")
 
-            # Inicializar listas para mÃ©tricas
+            # Initialize lists for metrics
             self.train_scores = []
             self.test_scores = []
             self.f1_scores = []
@@ -639,10 +640,10 @@ class Support:
                 X_train, X_test = X_resampled[train_index], X_resampled[test_index]
                 y_train, y_test = y_resampled[train_index], y_resampled[test_index]
 
-                # Oversampling para o conjunto de treinamento
+                # Oversampling for the training set
                 X_train_resampled, y_train_resampled = self._oversample_data(X_train, y_train)
 
-                # SeleÃ§Ã£o e inicializaÃ§Ã£o do modelo
+                # Selection and initialization of the model
                 if model_type == 'random_forest':
                     model = RandomForestClassifier(
                         **self.initial_parameters,
@@ -671,18 +672,18 @@ class Support:
                         thread_count=self.n_jobs
                     )
                 else:
-                    logging.error(f"Tipo de modelo invÃ¡lido: {model_type}")
+                    logging.error(f"Invalid model type: {model_type}")
                     continue
 
-                # Treinar o modelo
+                # Train the model
                 model.fit(X_train_resampled, y_train_resampled)
 
-                # AvaliaÃ§Ã£o
+                # Evaluation
                 train_score = model.score(X_train_resampled, y_train_resampled)
                 test_score = model.score(X_test, y_test)
                 y_pred = model.predict(X_test)
 
-                # MÃ©tricas
+                # Metrics
                 f1 = f1_score(y_test, y_pred, average='weighted')
                 self.f1_scores.append(f1)
                 self.train_scores.append(train_score)
@@ -693,7 +694,7 @@ class Support:
                     y_pred_proba = model.predict_proba(X_test)
                     pr_auc = average_precision_score(y_test, y_pred_proba, average='macro')
                 else:
-                    pr_auc = 0.0  # NÃ£o Ã© possÃ­vel calcular PR AUC para uma Ãºnica classe
+                    pr_auc = 0.0  # Cannot calculate PR AUC for a single class
                 self.pr_auc_scores.append(pr_auc)
 
                 logging.info(f"Fold {fold_number} [{model_type}]: Training Score: {train_score}")
@@ -701,82 +702,82 @@ class Support:
                 logging.info(f"Fold {fold_number} [{model_type}]: F1 Score: {f1}")
                 logging.info(f"Fold {fold_number} [{model_type}]: Precision-Recall AUC: {pr_auc}")
 
-                # CalibraÃ§Ã£o de Probabilidades
+                # Probability Calibration
                 calibrator = CalibratedClassifierCV(model, method='isotonic', cv=5, n_jobs=self.n_jobs)
                 calibrator.fit(X_train_resampled, y_train_resampled)
                 self.model = calibrator
 
-                # Salvamento do melhor modelo
+                # Save the best model
                 if model_dir:
                     best_model_filename = os.path.join(model_dir, f'model_best_{model_type}_fold{fold_number}.pkl')
-                    # Assegurar que o diretÃ³rio existe
+                    # Ensure the directory exists
                     os.makedirs(os.path.dirname(best_model_filename), exist_ok=True)
                     joblib.dump(calibrator, best_model_filename)
-                    logging.info(f"Modelo calibrado salvo como {best_model_filename} para {model_type} Fold {fold_number}")
+                    logging.info(f"Calibrated model saved as {best_model_filename} for {model_type} Fold {fold_number}")
                 else:
                     best_model_filename = f'model_best_{model_type}_fold{fold_number}.pkl'
                     joblib.dump(calibrator, best_model_filename)
-                    logging.info(f"Modelo calibrado salvo como {best_model_filename} para {model_type} Fold {fold_number}")
+                    logging.info(f"Calibrated model saved as {best_model_filename} for {model_type} Fold {fold_number}")
 
-            # ApÃ³s cross-validation, realizar otimizaÃ§Ã£o de hiperparÃ¢metros
-            logging.info(f"Iniciando OtimizaÃ§Ã£o Bayesiana para ajuste de hiperparÃ¢metros do modelo {model_type}...")
+            # After cross-validation, perform hyperparameter optimization
+            logging.info(f"Starting Bayesian Optimization for hyperparameter tuning of {model_type} model...")
             best_model, best_params = self._perform_bayesian_search(X_resampled, y_resampled, n_trials=50)
             self.best_params = best_params
             self.model = best_model
 
-            logging.info(f"Melhores parÃ¢metros da OtimizaÃ§Ã£o Bayesiana para {model_type}: {best_params}")
+            logging.info(f"Best parameters from Bayesian Optimization for {model_type}: {best_params}")
 
-            # Salvar o melhor modelo
+            # Save the best model
             if model_dir:
                 best_model_filename = os.path.join(model_dir, f'model_best_bayesian_{model_type}.pkl')
                 joblib.dump(best_model, best_model_filename)
-                logging.info(f"Melhor modelo Bayesian salvo como {best_model_filename} para {model_type}")
+                logging.info(f"Best Bayesian model saved as {best_model_filename} for {model_type}")
             else:
                 best_model_filename = f'model_best_bayesian_{model_type}.pkl'
                 joblib.dump(best_model, best_model_filename)
-                logging.info(f"Melhor modelo Bayesian salvo como {best_model_filename} para {model_type}")
+                logging.info(f"Best Bayesian model saved as {best_model_filename} for {model_type}")
 
-            # Testar o modelo
+            # Test the model
             best_score, best_f1, best_pr_auc, best_params, calibrated_model, X_test, y_test = self.test_best_model(
                 X_resampled, 
                 y_resampled,
                 model_type=model_type
             )
 
-            logging.info(f"Melhor ROC AUC para {model_type}: {best_score}")
-            logging.info(f"Melhor F1 Score para {model_type}: {best_f1}")
-            logging.info(f"Melhor Precision-Recall AUC para {model_type}: {best_pr_auc}")
-            logging.info(f"Melhores ParÃ¢metros: {best_params}")
+            logging.info(f"Best ROC AUC for {model_type}: {best_score}")
+            logging.info(f"Best F1 Score for {model_type}: {best_f1}")
+            logging.info(f"Best Precision-Recall AUC for {model_type}: {best_pr_auc}")
+            logging.info(f"Best Parameters: {best_params}")
 
             for param, value in best_params.items():
                 logging.info(f"{param}: {value}")
 
-            # Obter rankings de classes
+            # Get class rankings
             class_rankings = self.get_class_rankings(calibrated_model, X_test)
-            logging.info(f"Rankings de classes para {model_type} gerados com sucesso.")
+            logging.info(f"Class rankings for {model_type} generated successfully.")
 
-            # Salvar o modelo treinado
+            # Save the trained model
             rf_model_full_path = os.path.join(model_dir, f'rf_model_best_bayesian_{model_type}.pkl')
             joblib.dump(calibrated_model, rf_model_full_path)
-            logging.info(f"Modelo calibrado para {model_type} salvo em {rf_model_full_path}")
+            logging.info(f"Calibrated model for {model_type} saved in {rf_model_full_path}")
 
-            # Plotar Curva ROC
+            # Plot ROC Curve
             n_classes = len(np.unique(y_test))
             if n_classes == 2:
                 y_pred_proba = calibrated_model.predict_proba(X_test)[:, 1]
-                classes = None  # ClassificaÃ§Ã£o binÃ¡ria
+                classes = None  # Binary classification
             else:
                 y_pred_proba = calibrated_model.predict_proba(X_test)
                 classes = np.unique(y_test).astype(str)
             plot_roc_curve(
                 y_test, 
                 y_pred_proba, 
-                f'Curva ROC para {model_type}', 
+                f'ROC Curve for {model_type}', 
                 save_as=os.path.join(model_dir, f'roc_curve_{model_type}.png'), 
                 classes=classes
             )
 
-            # Salvar mÃ©tricas e modelos no dicionÃ¡rio
+            # Save metrics and models in the dictionary
             trained_models[model_type] = {
                 'model': calibrated_model,
                 'best_params': best_params,
@@ -784,9 +785,9 @@ class Support:
                 'class_rankings': class_rankings
             }
 
-        # ApÃ³s treinar todos os modelos, plotar a curva de aprendizagem para cada um
+        # After training all models, plot the learning curve for each
         for model_type in model_types:
-            logging.info(f"Plotando Curva de Aprendizagem para {model_type}")
+            logging.info(f"Plotting Learning Curve for {model_type}")
             learning_curve_path = os.path.join(model_dir, f'learning_curve_{model_type}.png')
             self.plot_learning_curve(learning_curve_path)
 
@@ -800,34 +801,34 @@ class Support:
         model_type: str = 'random_forest'
     ) -> tuple:
         """
-        Testa o melhor modelo com os dados fornecidos.
+        Tests the best model with the provided data.
         
-        ParÃ¢metros:
-        - X (np.ndarray): Features para teste.
-        - y (np.ndarray): Labels verdadeiros para teste.
-        - scaler_dir (str): DiretÃ³rio onde o scaler estÃ¡ salvo.
-        - model_type (str): Tipo de modelo ('random_forest', 'lightgbm', etc.)
+        Parameters:
+        - X (np.ndarray): Features for testing.
+        - y (np.ndarray): True labels for testing.
+        - scaler_dir (str): Directory where the scaler is saved.
+        - model_type (str): Type of model ('random_forest', 'lightgbm', etc.)
         
-        Retorna:
-        - tuple: (Score, F1 Score, Precision-Recall AUC, Melhores parÃ¢metros, Modelo calibrado, X_test, y_test)
+        Returns:
+        - tuple: (Score, F1 Score, Precision-Recall AUC, Best parameters, Calibrated model, X_test, y_test)
         """
-        # Carregar o scaler
+        # Load the scaler
         scaler_path = os.path.join(scaler_dir, 'scaler_associated.pkl') if scaler_dir else 'scaler_associated.pkl'
         if os.path.exists(scaler_path):
             scaler = joblib.load(scaler_path)
-            logging.info(f"Scaler carregado de {scaler_path}")
+            logging.info(f"Scaler loaded from {scaler_path}")
         else:
-            logging.error(f"Scaler nÃ£o encontrado em {scaler_path}. Deve ser scaler_associated.pkl.")
+            logging.error(f"Scaler not found in {scaler_path}. It should be scaler_associated.pkl.")
             sys.exit(1)
 
         X_scaled = scaler.transform(X)
 
-        # Dividir em treinamento e teste
+        # Split into training and testing
         X_train, X_test, y_train, y_test = train_test_split(
             X_scaled, y, test_size=0.4, random_state=self.seed, stratify=y
         )
 
-        # Treinar o modelo com os melhores parÃ¢metros
+        # Train the model with the best parameters
         if model_type == 'random_forest':
             model = RandomForestClassifier(
                 **self.best_params,
@@ -856,21 +857,21 @@ class Support:
                 thread_count=self.n_jobs
             )
         else:
-            logging.error(f"Tipo de modelo '{model_type}' nÃ£o suportado.")
+            logging.error(f"Model type '{model_type}' not supported.")
             sys.exit(1)
 
         model.fit(X_train, y_train)
 
-        # CalibraÃ§Ã£o de Probabilidades
+        # Probability Calibration
         calibrator = CalibratedClassifierCV(model, method='isotonic', cv=5, n_jobs=self.n_jobs)
         calibrator.fit(X_train, y_train)
         calibrated_model = calibrator
 
-        # Fazer previsÃµes
+        # Make predictions
         y_pred_proba = calibrated_model.predict_proba(X_test)
         y_pred_classes = calibrated_model.predict(X_test)
 
-        # Calcular mÃ©tricas
+        # Calculate metrics
         score = roc_auc_score(y_test, y_pred_proba, multi_class='ovo', average='macro')
         f1 = f1_score(y_test, y_pred_classes, average='weighted')
         pr_auc = average_precision_score(y_test, y_pred_proba, average='macro')
@@ -879,15 +880,15 @@ class Support:
         logging.info(f"F1 Score: {f1}")
         logging.info(f"Precision-Recall AUC: {pr_auc}")
 
-        # Retornar as mÃ©tricas e o modelo calibrado
+        # Return the metrics and the calibrated model
         return score, f1, pr_auc, self.best_params, calibrated_model, X_test, y_test
 
     def plot_learning_curve(self, output_path: str) -> None:
         """
-        Plota a curva de aprendizagem do modelo.
+        Plots the model's learning curve.
         
-        ParÃ¢metros:
-        - output_path (str): Caminho para salvar o plot.
+        Parameters:
+        - output_path (str): Path to save the plot.
         """
         plt.figure()
         plt.plot(self.train_scores, label='Training Score')
@@ -899,26 +900,26 @@ class Support:
         plt.ylabel("Score", fontsize=12, fontweight='bold', color='white')
         plt.legend(loc="best")
         plt.grid(color='white', linestyle='--', linewidth=0.5)
-        plt.savefig(output_path, facecolor='#0B3C5D')  # Combina com a cor de fundo
+        plt.savefig(output_path, facecolor='#0B3C5D')  # Matches background color
         plt.close()
 
     def get_class_rankings(self, X: np.ndarray) -> list:
         """
-        ObtÃ©m rankings de classes para os dados fornecidos.
+        Obtains class rankings for the provided data.
         
-        ParÃ¢metros:
-        - X (np.ndarray): Dados para obter previsÃµes.
+        Parameters:
+        - X (np.ndarray): Data to obtain predictions.
         
-        Retorna:
-        - list: Lista de rankings de classes formatados para cada amostra.
+        Returns:
+        - list: List of formatted class rankings for each sample.
         """
         if self.model is None:
-            raise ValueError("Modelo nÃ£o treinado. Por favor, treine o modelo primeiro.")
+            raise ValueError("Model not trained. Please train the model first.")
 
-        # Obter probabilidades para cada classe
+        # Get probabilities for each class
         y_pred_proba = self.model.predict_proba(X)
 
-        # Ranking das classes baseadas nas probabilidades
+        # Ranking classes based on probabilities
         class_rankings = []
         for probabilities in y_pred_proba:
             ranked_classes = sorted(zip(self.model.classes_, probabilities), key=lambda x: x[1], reverse=True)
@@ -929,20 +930,20 @@ class Support:
 
     def plot_roc_curve_custom(self, y_true: np.ndarray, y_pred_proba: np.ndarray, title: str, save_as: str = None, classes: list = None) -> None:
         """
-        Plota a curva ROC para classificaÃ§Ãµes binÃ¡rias ou multiclasse.
+        Plots the ROC curve for binary or multiclass classifications.
         
-        ParÃ¢metros:
-        - y_true (np.ndarray): Labels verdadeiros.
-        - y_pred_proba (np.ndarray): Probabilidades preditas.
-        - title (str): TÃ­tulo do plot.
-        - save_as (str): Caminho para salvar o plot.
-        - classes (list): Lista de classes (para multiclasse).
+        Parameters:
+        - y_true (np.ndarray): True labels.
+        - y_pred_proba (np.ndarray): Predicted probabilities.
+        - title (str): Plot title.
+        - save_as (str): Path to save the plot.
+        - classes (list): List of classes (for multiclass).
         """
         plot_roc_curve(y_true, y_pred_proba, title, save_as, classes)
 
 class ProteinEmbeddingGenerator:
     """
-    Classe para gerar embeddings de proteÃ­nas a partir de alinhamentos e tabelas.
+    Class to generate protein embeddings from alignments and tables.
     """
     def __init__(self, fasta_path: str, table_data: pd.DataFrame = None, aggregation_method: str = 'none'):
         self.fasta_path = fasta_path
@@ -961,41 +962,41 @@ class ProteinEmbeddingGenerator:
         save_min_kmers: bool = True
     ) -> None:
         """
-        Gera embeddings para proteÃ­nas usando k-mers e Word2Vec.
+        Generates embeddings for proteins using k-mers and Word2Vec.
         
-        ParÃ¢metros:
-        - k (int): Tamanho do k-mer.
-        - step_size (int): Tamanho do passo.
-        - word2vec_model_path (str): Caminho para salvar o modelo Word2Vec.
-        - model_dir (str): DiretÃ³rio para salvar o modelo Word2Vec.
-        - min_kmers (int): NÃºmero mÃ­nimo de k-mers para considerar uma proteÃ­na.
-        - save_min_kmers (bool): Indica se o min_kmers deve ser salvo.
+        Parameters:
+        - k (int): k-mer size.
+        - step_size (int): Step size.
+        - word2vec_model_path (str): Path to save the Word2Vec model.
+        - model_dir (str): Directory to save the Word2Vec model.
+        - min_kmers (int): Minimum number of k-mers to consider a protein.
+        - save_min_kmers (bool): Indicates whether to save min_kmers.
         """
-        logging.info("Iniciando geraÃ§Ã£o de embeddings para proteÃ­nas...")
+        logging.info("Starting protein embeddings generation...")
 
-        # Gerar k-mers para cada sequÃªncia
+        # Generate k-mers for each sequence
         sequences = list(SeqIO.parse(self.fasta_path, "fasta"))
         kmer_sequences = []
         for record in sequences:
             sequence = str(record.seq)
             kmers = [sequence[i:i+k] for i in range(0, len(sequence) - k +1, step_size)]
             if len(kmers) < min_kmers:
-                continue  # Ignorar sequÃªncias com menos de min_kmers
+                continue  # Ignore sequences with less than min_kmers
             kmer_sequences.append(kmers)
 
-        logging.info(f"Total de sequÃªncias apÃ³s filtragem: {len(kmer_sequences)}")
+        logging.info(f"Total sequences after filtering: {len(kmer_sequences)}")
 
-        # Treinar Word2Vec
+        # Train Word2Vec
         if not os.path.exists(word2vec_model_path):
-            logging.info("Treinando modelo Word2Vec...")
+            logging.info("Training Word2Vec model...")
             w2v_model = Word2Vec(sentences=kmer_sequences, vector_size=100, window=5, min_count=1, workers=8, epochs=2500, seed=SEED)
             w2v_model.save(word2vec_model_path)
-            logging.info(f"Modelo Word2Vec salvo em {word2vec_model_path}")
+            logging.info(f"Word2Vec model saved at {word2vec_model_path}")
         else:
-            logging.info(f"Carregando modelo Word2Vec existente de {word2vec_model_path}")
+            logging.info(f"Loading existing Word2Vec model from {word2vec_model_path}")
             w2v_model = Word2Vec.load(word2vec_model_path)
 
-        # Gerar embeddings para cada sequÃªncia
+        # Generate embeddings for each sequence
         for kmers in kmer_sequences:
             embeddings = [w2v_model.wv[kmer] for kmer in kmers if kmer in w2v_model.wv]
             if not embeddings:
@@ -1005,29 +1006,29 @@ class ProteinEmbeddingGenerator:
             else:
                 sequence_embedding = np.concatenate(embeddings)
             self.embeddings.append({
-                'protein_accession': kmers[0],  # Substitua conforme necessÃ¡rio
+                'protein_accession': kmers[0],  # Replace as needed
                 'embedding': sequence_embedding
             })
 
-        logging.info(f"Total de embeddings gerados: {len(self.embeddings)}")
+        logging.info(f"Total embeddings generated: {len(self.embeddings)}")
 
         if save_min_kmers:
-            # Salvar min_kmers para consistÃªncia
+            # Save min_kmers for consistency
             min_kmers_path = os.path.join(model_dir, 'min_kmers.txt')
             with open(min_kmers_path, 'w') as f:
                 f.write(str(min_kmers))
-            logging.info(f"min_kmers salvo em {min_kmers_path}")
+            logging.info(f"min_kmers saved at {min_kmers_path}")
 
         self.min_kmers = min_kmers
 
     def get_embeddings_and_labels(self, label_type: str = 'associated_variable') -> tuple:
         """
-        ObtÃ©m embeddings e labels baseados no tipo de label.
+        Obtains embeddings and labels based on the label type.
         
-        ParÃ¢metros:
-        - label_type (str): Tipo de label ('associated_variable').
+        Parameters:
+        - label_type (str): Label type ('associated_variable').
         
-        Retorna:
+        Returns:
         - tuple: (embeddings, labels)
         """
         embeddings = []
@@ -1046,85 +1047,85 @@ class ProteinEmbeddingGenerator:
 
 def adjust_predictions(predicted_proba: np.ndarray, method: str = 'normalize', alpha: float = 1.0) -> np.ndarray:
     """
-    Ajusta as probabilidades preditas pelo modelo.
+    Adjusts the probabilities predicted by the model.
     
-    ParÃ¢metros:
-    - predicted_proba (np.ndarray): Probabilidades preditas pelo modelo.
-    - method (str): MÃ©todo de ajuste ('normalize', 'smoothing', 'none').
-    - alpha (float): ParÃ¢metro para smoothing (usado se method='smoothing').
+    Parameters:
+    - predicted_proba (np.ndarray): Probabilities predicted by the model.
+    - method (str): Adjustment method ('normalize', 'smoothing', 'none').
+    - alpha (float): Parameter for smoothing (used if method='smoothing').
     
-    Retorna:
-    - np.ndarray: Probabilidades ajustadas.
+    Returns:
+    - np.ndarray: Adjusted probabilities.
     """
     if method == 'normalize':
-        # Normalizar probabilidades para que somem 1 para cada amostra
-        logging.info("Normalizando probabilidades preditas.")
+        # Normalize probabilities to sum to 1 for each sample
+        logging.info("Normalizing predicted probabilities.")
         adjusted_proba = predicted_proba / predicted_proba.sum(axis=1, keepdims=True)
 
     elif method == 'smoothing':
-        # Aplicar smoothing nas probabilidades para evitar valores extremos
-        logging.info(f"Aplicando smoothing nas probabilidades preditas com alpha={alpha}.")
+        # Apply smoothing to probabilities to avoid extreme values
+        logging.info(f"Applying smoothing to predicted probabilities with alpha={alpha}.")
         adjusted_proba = (predicted_proba + alpha) / (predicted_proba.sum(axis=1, keepdims=True) + alpha * predicted_proba.shape[1])
 
     elif method == 'none':
-        # NÃ£o aplicar nenhum ajuste
-        logging.info("Nenhum ajuste aplicado Ã s probabilidades preditas.")
+        # Do not apply any adjustment
+        logging.info("No adjustment applied to predicted probabilities.")
         adjusted_proba = predicted_proba.copy()
 
     else:
-        logging.warning(f"MÃ©todo de ajuste desconhecido '{method}'. Nenhum ajuste serÃ¡ aplicado.")
+        logging.warning(f"Unknown adjustment method '{method}'. No adjustment will be applied.")
         adjusted_proba = predicted_proba.copy()
 
     return adjusted_proba
 
 def main(args: argparse.Namespace) -> None:
     """
-    FunÃ§Ã£o principal coordenando o fluxo de trabalho.
+    Main function coordinating the workflow.
     
-    ParÃ¢metros:
-    - args (argparse.Namespace): Argumentos de entrada.
+    Parameters:
+    - args (argparse.Namespace): Input arguments.
     """
     model_dir = args.model_dir
 
-    # Inicializar indicadores de progresso
-    total_steps = 7  # Ajustado para incluir dual UMAP e modelos adicionais
+    # Initialize progress indicators
+    total_steps = 7  # Adjusted to include dual UMAP and additional models
     current_step = 0
     progress_bar = st.progress(0)
     progress_text = st.empty()
 
     # =============================
-    # PASSO 1: Treinamento dos Modelos para associated_variable
+    # STEP 1: Training Models for associated_variable
     # =============================
 
-    # Carregar dados de treinamento
+    # Load training data
     train_alignment_path = args.train_fasta
     train_table_data_path = args.train_table
 
-    # Verificar se as sequÃªncias de treinamento estÃ£o alinhadas
+    # Check if training sequences are aligned
     if not are_sequences_aligned(train_alignment_path):
-        logging.info("SequÃªncias de treinamento nÃ£o estÃ£o alinhadas. Realinhando com MAFFT...")
+        logging.info("Training sequences are not aligned. Realigning with MAFFT...")
         aligned_train_path = train_alignment_path.replace(".fasta", "_aligned.fasta")
-        realign_sequences_with_mafft(train_alignment_path, aligned_train_path, threads=1)  # Threads setado para 1
+        realign_sequences_with_mafft(train_alignment_path, aligned_train_path, threads=1)  # Threads set to 1
         train_alignment_path = aligned_train_path
     else:
-        logging.info(f"Arquivo de treinamento alinhado encontrado ou sequÃªncias jÃ¡ estÃ£o alinhadas: {train_alignment_path}")
+        logging.info(f"Aligned training file found or sequences already aligned: {train_alignment_path}")
 
-    # Carregar dados da tabela de treinamento
+    # Load training table data
     train_table_data = pd.read_csv(train_table_data_path, delimiter="\t")
-    logging.info("Dados da tabela de treinamento carregados com sucesso.")
+    logging.info("Training table data loaded successfully.")
 
-    # Atualizar progresso
+    # Update progress
     current_step += 1
     progress = min(current_step / total_steps, 1.0)
     progress_bar.progress(progress)
-    progress_text.markdown(f"<span style='color:white'>Progresso: {int(progress * 100)}%</span>", unsafe_allow_html=True)
+    progress_text.markdown(f"<span style='color:white'>Progress: {int(progress * 100)}%</span>", unsafe_allow_html=True)
     time.sleep(0.1)
 
-    # Inicializar e gerar embeddings para treinamento
+    # Initialize and generate training embeddings
     protein_embedding_train = ProteinEmbeddingGenerator(
         train_alignment_path, 
         table_data=train_table_data, 
-        aggregation_method=args.aggregation_method  # Passando o mÃ©todo de agregaÃ§Ã£o ('none' ou 'mean')
+        aggregation_method=args.aggregation_method  # Passing the aggregation method ('none' or 'mean')
     )
     protein_embedding_train.generate_embeddings(
         k=args.kmer_size,
@@ -1132,198 +1133,198 @@ def main(args: argparse.Namespace) -> None:
         word2vec_model_path=args.word2vec_model,
         model_dir=model_dir,
         min_kmers=args.min_kmers,
-        save_min_kmers=True  # Salvar min_kmers apÃ³s o treinamento
+        save_min_kmers=True  # Save min_kmers after training
     )
-    logging.info(f"NÃºmero de embeddings de treinamento gerados: {len(protein_embedding_train.embeddings)}")
+    logging.info(f"Number of training embeddings generated: {len(protein_embedding_train.embeddings)}")
 
-    # Salvar min_kmers para garantir consistÃªncia
+    # Save min_kmers to ensure consistency
     min_kmers = protein_embedding_train.min_kmers
 
-    # Obter IDs de proteÃ­nas e variÃ¡veis associadas do conjunto de treinamento
+    # Get protein IDs and associated variables from the training set
     protein_ids_associated = [entry['protein_accession'] for entry in protein_embedding_train.embeddings]
     var_assoc_associated = [entry['associated_variable'] for entry in protein_embedding_train.embeddings]
 
-    logging.info(f"IDs de proteÃ­nas para associated_variable extraÃ­dos: {len(protein_ids_associated)}")
-    logging.info(f"VariÃ¡veis associadas para associated_variable extraÃ­das: {len(var_assoc_associated)}")
+    logging.info(f"Protein IDs for associated_variable extracted: {len(protein_ids_associated)}")
+    logging.info(f"Associated variables for associated_variable extracted: {len(var_assoc_associated)}")
 
-    # Obter embeddings e labels para associated_variable
+    # Get embeddings and labels for associated_variable
     X_associated, y_associated = protein_embedding_train.get_embeddings_and_labels(label_type='associated_variable')
-    logging.info(f"Shape de X_associated: {X_associated.shape}")
+    logging.info(f"Shape of X_associated: {X_associated.shape}")
 
-    # Criar scaler para X_associated
+    # Create scaler for X_associated
     scaler_associated = StandardScaler().fit(X_associated)
     scaler_associated_path = os.path.join(model_dir, 'scaler_associated.pkl')
     joblib.dump(scaler_associated, scaler_associated_path)
-    logging.info("Scaler para X_associated criado e salvo.")
+    logging.info("Scaler for X_associated created and saved.")
 
-    # Escalar os dados X_associated
+    # Scale the X_associated data
     X_associated_scaled = scaler_associated.transform(X_associated)    
 
-    # Caminhos completos para os modelos
+    # Full paths for models
     rf_model_associated_full_path = os.path.join(model_dir, args.rf_model_associated)
     calibrated_model_associated_full_path = os.path.join(model_dir, 'calibrated_model_associated.pkl')
 
-    # Atualizar progresso
+    # Update progress
     current_step += 1
     progress = min(current_step / total_steps, 1.0)
     progress_bar.progress(progress)
-    progress_text.markdown(f"<span style='color:white'>Progresso: {int(progress * 100)}%</span>", unsafe_allow_html=True)
+    progress_text.markdown(f"<span style='color:white'>Progress: {int(progress * 100)}%</span>", unsafe_allow_html=True)
     time.sleep(0.1)
 
-    # Verificar se o modelo calibrado para associated_variable jÃ¡ existe
+    # Check if the calibrated model for associated_variable already exists
     if os.path.exists(calibrated_model_associated_full_path):
         calibrated_model_associated = joblib.load(calibrated_model_associated_full_path)
-        logging.info(f"Modelo Random Forest calibrado para associated_variable carregado de {calibrated_model_associated_full_path}")
+        logging.info(f"Calibrated Random Forest model for associated_variable loaded from {calibrated_model_associated_full_path}")
     else:
-        # Treinar os modelos
+        # Train the models
         support_models = Support()
         trained_models = support_models.fit(
             X_associated_scaled, 
             y_associated, 
-            protein_ids=protein_ids_associated,  # Passar IDs de proteÃ­nas para visualizaÃ§Ã£o
+            protein_ids=protein_ids_associated,  # Passing protein IDs for visualization
             var_assoc=var_assoc_associated, 
             model_name_prefix='associated', 
             model_dir=model_dir, 
             min_kmers=min_kmers
         )
 
-        logging.info("Treinamento e calibraÃ§Ã£o para associated_variable concluÃ­do.")
+        logging.info("Training and calibration for associated_variable completed.")
 
-        # Plotar a curva de aprendizagem para cada modelo
+        # Plot the learning curve for each model
         for model_type, model_info in trained_models.items():
-            logging.info(f"Plotando Curva de Aprendizagem para {model_type}")
+            logging.info(f"Plotting Learning Curve for {model_type}")
             learning_curve_path = os.path.join(model_dir, f'learning_curve_{model_type}.png')
             support_models.plot_learning_curve(learning_curve_path)
 
-        # Carregar o modelo calibrado
+        # Load the calibrated model
         calibrated_model_associated = trained_models['random_forest']['model']
         joblib.dump(calibrated_model_associated, calibrated_model_associated_full_path)
-        logging.info(f"Modelo Random Forest calibrado para associated_variable salvo em {calibrated_model_associated_full_path}")
+        logging.info(f"Calibrated Random Forest model for associated_variable saved at {calibrated_model_associated_full_path}")
 
-        # Testar o modelo
+        # Test the model
         best_score_associated, best_f1_associated, best_pr_auc_associated, best_params_associated, best_model_associated, X_test_associated, y_test_associated = support_models.test_best_model(
             X_associated_scaled, 
             y_associated,
             model_type='random_forest'
         )
 
-        logging.info(f"Melhor ROC AUC para associated_variable: {best_score_associated}")
-        logging.info(f"Melhor F1 Score para associated_variable: {best_f1_associated}")
-        logging.info(f"Melhor Precision-Recall AUC para associated_variable: {best_pr_auc_associated}")
-        logging.info(f"Melhores ParÃ¢metros: {best_params_associated}")
+        logging.info(f"Best ROC AUC for associated_variable: {best_score_associated}")
+        logging.info(f"Best F1 Score for associated_variable: {best_f1_associated}")
+        logging.info(f"Best Precision-Recall AUC for associated_variable: {best_pr_auc_associated}")
+        logging.info(f"Best Parameters: {best_params_associated}")
 
         for param, value in best_params_associated.items():
             logging.info(f"{param}: {value}")
 
-        # Obter rankings de classes para associated_variable
+        # Get class rankings for associated_variable
         class_rankings_associated = support_models.get_class_rankings(X_test_associated)
-        logging.info("Rankings de classes para associated_variable gerados com sucesso.")
+        logging.info("Class rankings for associated_variable generated successfully.")
 
-        # Acessar class_weight dos melhores parÃ¢metros
+        # Access class_weight from the best parameters
         class_weight = best_params_associated.get('class_weight', None)
-        logging.info(f"Class weight utilizado: {class_weight}")
+        logging.info(f"Class weight used: {class_weight}")
 
-        # Salvar o modelo treinado
+        # Save the trained model
         joblib.dump(best_model_associated, rf_model_associated_full_path)
-        logging.info(f"Modelo Random Forest para associated_variable salvo em {rf_model_associated_full_path}")
+        logging.info(f"Random Forest model for associated_variable saved at {rf_model_associated_full_path}")
 
-        # Plotar Curva ROC para associated_variable
+        # Plot ROC Curve for associated_variable
         n_classes_associated = len(np.unique(y_test_associated))
         if n_classes_associated == 2:
             y_pred_proba_associated = best_model_associated.predict_proba(X_test_associated)[:, 1]
-            classes_associated = None  # ClassificaÃ§Ã£o binÃ¡ria
+            classes_associated = None  # Binary classification
         else:
             y_pred_proba_associated = best_model_associated.predict_proba(X_test_associated)
             classes_associated = np.unique(y_test_associated).astype(str)
         plot_roc_curve(
             y_test_associated, 
             y_pred_proba_associated, 
-            'Curva ROC para associated_variable', 
+            'ROC Curve for associated_variable', 
             save_as=args.roc_curve_associated, 
             classes=classes_associated
         )
 
-    # Atualizar progresso
+    # Update progress
     current_step += 1
     progress = min(current_step / total_steps, 1.0)
     progress_bar.progress(progress)
-    progress_text.markdown(f"<span style='color:white'>Progresso: {int(progress * 100)}%</span>", unsafe_allow_html=True)
+    progress_text.markdown(f"<span style='color:white'>Progress: {int(progress * 100)}%</span>", unsafe_allow_html=True)
     time.sleep(0.1)
 
     # =============================
-    # PASSO 2: ClassificaÃ§Ã£o de Novas SequÃªncias para associated_variable
+    # STEP 2: Classification of New Sequences for associated_variable
     # =============================
 
-    # Carregar min_kmers
+    # Load min_kmers
     min_kmers_path = os.path.join(model_dir, 'min_kmers.txt')
     if os.path.exists(min_kmers_path):
         with open(min_kmers_path, 'r') as f:
             min_kmers_loaded = int(f.read().strip())
-        logging.info(f"min_kmers carregado: {min_kmers_loaded}")
+        logging.info(f"min_kmers loaded: {min_kmers_loaded}")
     else:
-        logging.error(f"Arquivo min_kmers nÃ£o encontrado em {min_kmers_path}. Por favor, assegure-se de que o treinamento foi concluÃ­do com sucesso.")
+        logging.error(f"min_kmers file not found at {min_kmers_path}. Please ensure training was completed successfully.")
         sys.exit(1)
 
-    # Carregar dados de prediÃ§Ã£o
+    # Load prediction data
     predict_alignment_path = args.predict_fasta
 
-    # Verificar se as sequÃªncias de prediÃ§Ã£o estÃ£o alinhadas
+    # Check if prediction sequences are aligned
     if not are_sequences_aligned(predict_alignment_path):
-        logging.info("SequÃªncias para prediÃ§Ã£o nÃ£o estÃ£o alinhadas. Realinhando com MAFFT...")
+        logging.info("Prediction sequences are not aligned. Realigning with MAFFT...")
         aligned_predict_path = predict_alignment_path.replace(".fasta", "_aligned.fasta")
-        realign_sequences_with_mafft(predict_alignment_path, aligned_predict_path, threads=1)  # Threads setado para 1
+        realign_sequences_with_mafft(predict_alignment_path, aligned_predict_path, threads=1)  # Threads set to 1
         predict_alignment_path = aligned_predict_path
     else:
-        logging.info(f"Arquivo alinhado para prediÃ§Ã£o encontrado ou sequÃªncias jÃ¡ estÃ£o alinhadas: {predict_alignment_path}")
+        logging.info(f"Aligned prediction file found or sequences already aligned: {predict_alignment_path}")
 
-    # Atualizar progresso
+    # Update progress
     current_step += 1
     progress = min(current_step / total_steps, 1.0)
     progress_bar.progress(progress)
-    progress_text.markdown(f"<span style='color:white'>Progresso: {int(progress * 100)}%</span>", unsafe_allow_html=True)
+    progress_text.markdown(f"<span style='color:white'>Progress: {int(progress * 100)}%</span>", unsafe_allow_html=True)
     time.sleep(0.1)
 
-    # Inicializar ProteinEmbedding para prediÃ§Ã£o, sem necessidade da tabela
+    # Initialize ProteinEmbedding for prediction, no table needed
     protein_embedding_predict = ProteinEmbeddingGenerator(
         predict_alignment_path, 
         table_data=None,
-        aggregation_method=args.aggregation_method  # Passando o mÃ©todo de agregaÃ§Ã£o ('none' ou 'mean')
+        aggregation_method=args.aggregation_method  # Passing the aggregation method ('none' or 'mean')
     )
     protein_embedding_predict.generate_embeddings(
         k=args.kmer_size,
         step_size=args.step_size,
         word2vec_model_path=args.word2vec_model,
         model_dir=model_dir,
-        min_kmers=min_kmers_loaded,  # Usar o mesmo min_kmers do treinamento
-        save_min_kmers=False  # NÃ£o salvar min_kmers novamente
+        min_kmers=min_kmers_loaded,  # Use the same min_kmers from training
+        save_min_kmers=False  # Do not save min_kmers again
     )
-    logging.info(f"NÃºmero de embeddings gerados para prediÃ§Ã£o: {len(protein_embedding_predict.embeddings)}")
+    logging.info(f"Number of embeddings generated for prediction: {len(protein_embedding_predict.embeddings)}")
 
-    # Obter embeddings para prediÃ§Ã£o
+    # Get embeddings for prediction
     X_predict = np.array([entry['embedding'] for entry in protein_embedding_predict.embeddings])
 
-    # Carregar scaler para associated_variable
+    # Load scaler for associated_variable
     scaler_associated_path = os.path.join(model_dir, 'scaler_associated.pkl')
 
     if os.path.exists(scaler_associated_path):
         scaler_associated = joblib.load(scaler_associated_path)
-        logging.info("Scaler para associated_variable carregado com sucesso.")
+        logging.info("Scaler for associated_variable loaded successfully.")
     else:
-        logging.error("Scalers nÃ£o encontrados. Por favor, assegure-se de que o treinamento foi concluÃ­do com sucesso.")
+        logging.error("Scalers not found. Please ensure training was completed successfully.")
         sys.exit(1)
 
-    # Escalar embeddings de prediÃ§Ã£o usando scaler_associated
+    # Scale prediction embeddings using scaler_associated
     X_predict_scaled_associated = scaler_associated.transform(X_predict)
 
-    # Atualizar progresso
+    # Update progress
     current_step += 1
     progress = min(current_step / total_steps, 1.0)
     progress_bar.progress(progress)
-    progress_text.markdown(f"<span style='color:white'>Progresso: {int(progress * 100)}%</span>", unsafe_allow_html=True)
+    progress_text.markdown(f"<span style='color:white'>Progress: {int(progress * 100)}%</span>", unsafe_allow_html=True)
     time.sleep(0.1)
 
-    # Realizar prediÃ§Ãµes para associated_variable com todos os modelos treinados
-    logging.info("Realizando prediÃ§Ãµes para associated_variable com todos os modelos treinados...")
+    # Make predictions for associated_variable with all trained models
+    logging.info("Making predictions for associated_variable with all trained models...")
     predictions = {}
     rankings = {}
     for model_type, model_info in trained_models.items():
@@ -1331,9 +1332,9 @@ def main(args: argparse.Namespace) -> None:
         pred = model.predict(X_predict_scaled_associated)
         predictions[model_type] = pred
         rankings[model_type] = support_models.get_class_rankings(X_predict_scaled_associated)
-        logging.info(f"PrediÃ§Ãµes realizadas para {model_type}.")
+        logging.info(f"Predictions made for {model_type}.")
 
-    # Processar e salvar resultados
+    # Process and save results
     results = {}
     for i, entry in enumerate(protein_embedding_predict.embeddings):
         sequence_id = entry['protein_accession']
@@ -1342,58 +1343,58 @@ def main(args: argparse.Namespace) -> None:
             results[sequence_id][f"{model_type}_prediction"] = predictions[model_type][i]
             results[sequence_id][f"{model_type}_ranking"] = rankings[model_type][i]
 
-    # Salvar resultados em um arquivo
+    # Save results to a file
     with open(args.results_file, 'w') as f:
-        # CabeÃ§alho
+        # Header
         headers = ["Protein_ID"]
         for model_type in predictions.keys():
             headers.append(f"{model_type}_Prediction")
             headers.append(f"{model_type}_Ranking")
         f.write("\t".join(headers) + "\n")
 
-        # Dados
+        # Data
         for seq_id, result in results.items():
             row = [seq_id]
             for model_type in predictions.keys():
                 row.append(str(result.get(f"{model_type}_prediction", 'Unknown')))
                 row.append("; ".join(result.get(f"{model_type}_ranking", ['Unknown'])))
             f.write("\t".join(row) + "\n")
-            logging.info(f"{seq_id} - PrediÃ§Ãµes: {', '.join([str(result.get(f'{model_type}_prediction', 'Unknown')) for model_type in predictions.keys()])}")
+            logging.info(f"{seq_id} - Predictions: {', '.join([str(result.get(f'{model_type}_prediction', 'Unknown')) for model_type in predictions.keys()])}")
 
-    # Gerar o Scatter Plot das PrediÃ§Ãµes
-    logging.info("Gerando scatter plot das prediÃ§Ãµes para novas sequÃªncias...")
-    # Apenas para um modelo (por exemplo, Random Forest), ou adaptar conforme necessÃ¡rio
-    # Aqui, para simplicidade, vamos gerar o scatter plot para o Random Forest
+    # Generate the Scatter Plot of Predictions
+    logging.info("Generating scatter plot of predictions for new sequences...")
+    # Only for one model (e.g., Random Forest), or adapt as needed
+    # Here, for simplicity, we'll generate the scatter plot for Random Forest
     if 'random_forest' in predictions:
         scatterplot_path = args.scatterplot_output
         plot_predictions_scatterplot_custom(results, scatterplot_path)
-        logging.info(f"Scatter plot salvo em {scatterplot_path}")
+        logging.info(f"Scatter plot saved at {scatterplot_path}")
 
     # =============================
-    # PASSO 3: Plot Dual UMAP e Dual t-SNE
+    # STEP 3: Plot Dual UMAP and Dual t-SNE
     # =============================
 
-    # Plot Dual UMAP e Dual t-SNE para dados de treinamento e prediÃ§Ã£o
-    logging.info("Gerando plots Dual UMAP e Dual t-SNE para dados de treinamento e prediÃ§Ã£o...")
+    # Plot Dual UMAP and Dual t-SNE for training and prediction data
+    logging.info("Generating Dual UMAP and Dual t-SNE plots for training and prediction data...")
     train_labels = y_associated
     predict_labels = predictions['random_forest'] if 'random_forest' in predictions else predictions[next(iter(predictions))]
     train_protein_ids = protein_ids_associated
     predict_protein_ids = [entry['protein_accession'] for entry in protein_embedding_predict.embeddings]
 
-    # Gerar Dual UMAP
+    # Generate Dual UMAP
     fig_umap_train, fig_umap_predict = visualize_latent_space_with_similarity(
-        train_embeddings=X_associated_scaled, 
-        train_labels=train_labels,
-        train_protein_ids=train_protein_ids,
-        predict_embeddings=X_predict_scaled_associated, 
-        predict_labels=predict_labels, 
-        predict_protein_ids=predict_protein_ids, 
+        X_original=X_associated_scaled, 
+        X_synthetic=X_predict_scaled_associated,
+        y_original=train_labels,
+        y_synthetic=predict_labels, 
+        protein_ids_original=train_protein_ids,
+        protein_ids_synthetic=predict_protein_ids, 
         var_assoc_original=var_assoc_associated,
         var_assoc_synthetic=[results[seq_id].get(f"random_forest_prediction", 'Unknown') for seq_id in predict_protein_ids],
         output_dir=model_dir
     )
 
-    # Gerar Dual t-SNE
+    # Generate Dual t-SNE
     fig_tsne_train, fig_tsne_predict = plot_dual_tsne(
         train_embeddings=X_associated_scaled, 
         train_labels=train_labels,
@@ -1403,26 +1404,26 @@ def main(args: argparse.Namespace) -> None:
         predict_protein_ids=predict_protein_ids, 
         output_dir=model_dir
     )
-    logging.info("Plots Dual UMAP e Dual t-SNE gerados com sucesso.")
+    logging.info("Dual UMAP and Dual t-SNE plots generated successfully.")
 
-    # Atualizar progresso
+    # Update progress
     current_step += 1
     progress = min(current_step / total_steps, 1.0)
     progress_bar.progress(progress)
-    progress_text.markdown(f"<span style='color:white'>Progresso: {int(progress * 100)}%</span>", unsafe_allow_html=True)
+    progress_text.markdown(f"<span style='color:white'>Progress: {int(progress * 100)}%</span>", unsafe_allow_html=True)
     time.sleep(0.1)
 
-    st.success("AnÃ¡lise concluÃ­da com sucesso!")
+    st.success("Analysis completed successfully!")
 
-    # Exibir scatter plot
-    st.header("Scatter Plot das PrediÃ§Ãµes")
+    # Display scatter plot
+    st.header("Scatter Plot of Predictions")
     scatterplot_path = args.scatterplot_output
     if os.path.exists(scatterplot_path):
         st.image(scatterplot_path, use_column_width=True)
     else:
-        st.error(f"Scatter plot nÃ£o encontrado em {scatterplot_path}")
+        st.error(f"Scatter plot not found at {scatterplot_path}")
 
-    # Formatar os resultados
+    # Format the results
     formatted_results = []
 
     for sequence_id, info in results.items():
@@ -1440,7 +1441,7 @@ def main(args: argparse.Namespace) -> None:
                 "; ".join(top_two_specificities)
             ])
 
-    # Converter para pandas DataFrame
+    # Convert to pandas DataFrame
     headers = ["Protein_ID", "SS Prediction Specificity", "Prediction Confidence", "Top 2 Specificities"]
     df_results = pd.DataFrame(formatted_results, columns=headers)
 
@@ -1450,7 +1451,7 @@ def main(args: argparse.Namespace) -> None:
             {
                 'selector': 'th',
                 'props': [
-                    ('background-color', '#1E3A8A'),  # Azul escuro para cabeÃ§alhos
+                    ('background-color', '#1E3A8A'),  # Dark blue for headers
                     ('color', 'white'),
                     ('border', '1px solid white'),
                     ('font-weight', 'bold'),
@@ -1460,7 +1461,7 @@ def main(args: argparse.Namespace) -> None:
             {
                 'selector': 'td',
                 'props': [
-                    ('background-color', '#0B3C5D'),  # Azul marinho para linhas Ã­mpares
+                    ('background-color', '#0B3C5D'),  # Navy blue for odd rows
                     ('color', 'white'),
                     ('border', '1px solid white'),
                     ('text-align', 'center'),
@@ -1471,13 +1472,13 @@ def main(args: argparse.Namespace) -> None:
             {
                 'selector': 'tr:nth-child(even) td',
                 'props': [
-                    ('background-color', '#145B9C')  # Azul um pouco mais claro para linhas pares
+                    ('background-color', '#145B9C')  # Slightly lighter blue for even rows
                 ]
             },
             {
                 'selector': 'tr:hover td',
                 'props': [
-                    ('background-color', '#0D4F8B')  # Azul mais escuro no hover
+                    ('background-color', '#0D4F8B')  # Darker blue on hover
                 ]
             },
         ])
@@ -1485,15 +1486,15 @@ def main(args: argparse.Namespace) -> None:
     # Aplicar estilos ao DataFrame
     styled_df = highlight_table(df_results)
 
-    # Renderizar a tabela como HTML
+    # Renderizar a tabela estilizada como HTML
     html = styled_df.to_html(index=False, escape=False)
 
-    # Injetar CSS para botÃµes de download e ajustar estilos adicionais
+    # Injetar CSS para download buttons e ajustar estilos adicionais
     st.markdown(
         """
         <style>
-        /* Estilo para botÃµes de download */
-        .stDownloadButton > button {
+        /* Estilo para download buttons */
+        .stButton > button {
             background-color: #1E3A8A;
             color: white;
             border: none;
@@ -1506,18 +1507,18 @@ def main(args: argparse.Namespace) -> None:
             cursor: pointer;
             border-radius: 4px;
         }
-
-        /* Efeito hover para botÃµes */
-        .stDownloadButton > button:hover {
+    
+        /* Hover effect para buttons */
+        .stButton > button:hover {
             background-color: #0B3C5D;
         }
-
+    
         /* Estilo para a tabela */
         table {
             border-collapse: collapse;
             width: 100%;
         }
-
+    
         /* Ajustar scroll para a tabela */
         .dataframe-container {
             overflow-x: auto;
@@ -1528,7 +1529,7 @@ def main(args: argparse.Namespace) -> None:
     )
 
     # Exibir a tabela no Streamlit
-    st.header("Resultados Formatados")
+    st.header("Formatted Results")
 
     st.markdown(
         f"""
@@ -1539,33 +1540,54 @@ def main(args: argparse.Namespace) -> None:
         unsafe_allow_html=True
     )
 
-    # BotÃµes para download em CSV e Excel
-    # EstilizaÃ§Ã£o jÃ¡ coberta pelo CSS acima
+    # Opcional: Adicionar botÃµes para download da tabela em CSV e Excel
+    # EstilizaÃ§Ã£o dos botÃµes jÃ¡ estÃ¡ coberta pelo CSS acima
+
+    # EstilizaÃ§Ã£o personalizada com CSS para os botÃµes
+    st.markdown("""
+        <style>
+        .stDownloadButton > button {
+            background-color: #1E3A8A; /* Azul escuro */
+            color: white; /* Texto branco */
+            border: none;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            font-size: 14px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .stDownloadButton > button:hover {
+            background-color: #145B9C; /* Azul mais claro no hover */
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
     # BotÃ£o para download em CSV
     st.download_button(
-        label="Baixar Resultados como CSV",
+        label="Download Results as CSV",
         data=df_results.to_csv(index=False).encode('utf-8'),
         file_name='results.csv',
         mime='text/csv',
     )
 
-    # BotÃ£o para download em Excel
+    # Button to download as Excel
     output = BytesIO() 
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df_results.to_excel(writer, index=False, sheet_name='Resultados')
+        df_results.to_excel(writer, index=False, sheet_name='Results')
         writer.close()
 
         processed_data = output.getvalue()
 
     st.download_button(
-        label="Baixar Resultados como Excel",
+        label="Download Results as Excel",
         data=processed_data,
         file_name='results.xlsx',
         mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
 
-    # Preparar o arquivo results.zip
+    # Prepare the results.zip file
     zip_buffer = BytesIO()
     with zipfile.ZipFile(zip_buffer, "w") as zip_file:
         for folder_name, subfolders, filenames in os.walk(model_dir):
@@ -1574,28 +1596,29 @@ def main(args: argparse.Namespace) -> None:
                 zip_file.write(file_path, arcname=os.path.relpath(file_path, model_dir))
     zip_buffer.seek(0)
 
-    # Fornecer link de download para todos os resultados
-    st.header("Baixar Todos os Resultados")
+    # Provide download link for all results
+    st.header("Download All Results")
     st.download_button(
-        label="Baixar Todos os Resultados como results.zip",
+        label="Download All Results as results.zip",
         data=zip_buffer,
         file_name="results.zip",
         mime="application/zip"
     )
 
-    # Salvar os resultados em um arquivo Excel
+    # Save the results to an Excel file
     df = pd.DataFrame(formatted_results, columns=headers)
     df.to_excel(args.excel_output, index=False)
-    logging.info(f"Resultados salvos em {args.excel_output}")
+    logging.info(f"Results saved at {args.excel_output}")
 
-    # Salvar a tabela em formato tabulado
+    # Save the table in tabulated format
     with open(args.formatted_results_table, 'w') as f:
         f.write(tabulate(formatted_results, headers=headers, tablefmt="grid"))
-    logging.info(f"Tabela formatada salva em {args.formatted_results_table}")
+    logging.info(f"Formatted table saved at {args.formatted_results_table}")
 
     # ============================================
-    # Fim do Script
+    # End of Script
     # ============================================
+   # CSS personalizado para fundo azul marinho escuro e texto branco
 st.markdown(
     """
     <style>
@@ -1677,6 +1700,66 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+def get_base64_image(image_path: str) -> str:
+    """
+    Encode an image file to a base64 string.
+
+    
+    Parameters:
+    - image_path (str): Path to the image file.
+
+    
+    Retorna:
+    - str: String base64 da imagem.
+    """
+    try:
+        with open(image_path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode("utf-8")
+    except FileNotFoundError:
+        logging.error(f"Image not found at {image_path}.")
+        return ""
+
+# Caminho para a imagem
+
+# Caminho para a imagem
+image_path = "./images/faal.png"
+image_base64 = get_base64_image(image_path)
+# Using HTML with st.markdown to align title and text
+st.markdown(
+    f"""
+    <div style="text-align: center; font-family: 'Arial', sans-serif; padding: 30px; background: linear-gradient(to bottom, #f9f9f9, #ffffff); border-radius: 15px; border: 2px solid #dddddd; box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1); position: relative;">
+        <p style="color: black; font-size: 1.5em; font-weight: bold; margin: 0;">
+            FAALPred: Predicting Fatty Acyl Chain Specificities in Fatty Acyl-AMP Ligases (FAALs) Using Integrated Approaches of Neural Networks, Bioinformatics, and Machine Learning
+        </p>
+        <p style="color: #2c3e50; font-size: 1.2em; font-weight: normal; margin-top: 10px;">
+            Anne Liong, Leandro de Mattos Pereira, and Pedro LeÃ£o
+        </p>
+        <p style="color: #2c3e50; font-size: 18px; line-height: 1.8;">
+            <strong>FAALPred</strong> is a comprehensive bioinformatics tool designed to predict the fatty acid chain length specificity of substrates, ranging from C4 to C18.
+        </p>
+        <h5 style="color: #2c3e50; font-size: 20px; font-weight: bold; margin-top: 25px;">ABSTRACT</h5>
+        <p style="color: #2c3e50; font-size: 18px; line-height: 1.8; text-align: justify;">
+            Fatty Acyl-AMP Ligases (FAALs), identified by Zhang et al. (2011), activate fatty acids of varying lengths for the biosynthesis of natural products. 
+            These substrates enable the production of compounds such as nocuolin (<em>Nodularia sp.</em>, Martins et al., 2022) 
+            and sulfolipid-1 (<em>Mycobacterium tuberculosis</em>, Yan et al., 2023), with applications in cancer and tuberculosis treatment 
+            (Kurt et al., 2017; Gilmore et al., 2012). Dr. Pedro LeÃ£o and his team identified several of these natural products in cyanobacteria (<a href="https://leaolab.wixsite.com/leaolab" target="_blank" style="color: #3498db; text-decoration: none;">visit here</a>), 
+            and FAALPred classifies FAALs by their substrate specificity.
+        </p>
+        <div style="text-align: center; margin-top: 20px;">
+            <img src="data:image/png;base64,{image_base64}" alt="FAAL Domain" style="width: auto; height: 120px; object-fit: contain;">
+            <p style="text-align: center; color: #2c3e50; font-size: 14px; margin-top: 5px;">
+                <em>FAAL Domain of Synechococcus sp. PCC7002, link: <a href="https://www.rcsb.org/structure/7R7F" target="_blank" style="color: #3498db; text-decoration: none;">https://www.rcsb.org/structure/7R7F</a></em>
+            </p>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+
+# Sidebar for input parameters
+st.sidebar.header("Input Parameters")
+
 def plot_dual_tsne(
     train_embeddings: np.ndarray, 
     train_labels: list,
@@ -1687,46 +1770,46 @@ def plot_dual_tsne(
     output_dir: str
 ) -> tuple:
     """
-    Plota dois grÃ¡ficos t-SNE 3D e os salva como arquivos HTML:
-    - Plot 1: Dados de Treinamento.
-    - Plot 2: PrediÃ§Ãµes.
+    Plots two 3D t-SNE plots and saves them as HTML files:
+    - Plot 1: Training Data.
+    - Plot 2: Predictions.
     
-    ParÃ¢metros:
-    - train_embeddings (np.ndarray): Embeddings de treinamento.
-    - train_labels (list): Labels dos dados de treinamento.
-    - train_protein_ids (list): IDs das proteÃ­nas de treinamento.
-    - predict_embeddings (np.ndarray): Embeddings de prediÃ§Ã£o.
-    - predict_labels (list): Labels das prediÃ§Ãµes.
-    - predict_protein_ids (list): IDs das proteÃ­nas das prediÃ§Ãµes.
-    - output_dir (str): DiretÃ³rio para salvar os plots t-SNE.
+    Parameters:
+    - train_embeddings (np.ndarray): Training embeddings.
+    - train_labels (list): Training data labels.
+    - train_protein_ids (list): Training protein IDs.
+    - predict_embeddings (np.ndarray): Prediction embeddings.
+    - predict_labels (list): Prediction labels.
+    - predict_protein_ids (list): Prediction protein IDs.
+    - output_dir (str): Directory to save the t-SNE plots.
     
-    Retorna:
-    - tuple: (Figura de Treinamento, Figura de PrediÃ§Ã£o)
+    Returns:
+    - tuple: (Training Figure, Prediction Figure)
     """
     from sklearn.manifold import TSNE
 
-    # ReduÃ§Ã£o de dimensionalidade usando t-SNE
+    # Dimensionality reduction using t-SNE
     tsne_train = TSNE(n_components=3, random_state=42, perplexity=30, n_iter=1000)
     tsne_train_result = tsne_train.fit_transform(train_embeddings)
 
     tsne_predict = TSNE(n_components=3, random_state=42, perplexity=30, n_iter=1000)
     tsne_predict_result = tsne_predict.fit_transform(predict_embeddings)
 
-    # Criar mapas de cores para os dados de treinamento
+    # Create color maps for training data
     unique_train_labels = sorted(list(set(train_labels)))
     color_map_train = px.colors.qualitative.Dark24
     color_dict_train = {label: color_map_train[i % len(color_map_train)] for i, label in enumerate(unique_train_labels)}
 
-    # Criar mapas de cores para as prediÃ§Ãµes
+    # Create color maps for predictions
     unique_predict_labels = sorted(list(set(predict_labels)))
     color_map_predict = px.colors.qualitative.Light24
     color_dict_predict = {label: color_map_predict[i % len(color_map_predict)] for i, label in enumerate(unique_predict_labels)}
 
-    # Converter labels para cores
+    # Convert labels to colors
     train_colors = [color_dict_train.get(label, 'gray') for label in train_labels]
     predict_colors = [color_dict_predict.get(label, 'gray') for label in predict_labels]
 
-    # Plot 1: Dados de Treinamento
+    # Plot 1: Training Data
     fig_train = go.Figure()
     fig_train.add_trace(go.Scatter3d(
         x=tsne_train_result[:, 0],
@@ -1738,21 +1821,21 @@ def plot_dual_tsne(
             color=train_colors,
             opacity=0.8
         ),
-        # IDs de proteÃ­nas reais adicionados ao 'text'
+        # Real protein IDs added to 'text'
         text=[f"Protein ID: {protein_id}<br>Label: {label}" for protein_id, label in zip(train_protein_ids, train_labels)],
         hoverinfo='text',
-        name='Dados de Treinamento'
+        name='Training Data'
     ))
     fig_train.update_layout(
-        title='t-SNE 3D: Dados de Treinamento',
+        title='t-SNE 3D: Training Data',
         scene=dict(
-            xaxis=dict(title='Componente 1'),
-            yaxis=dict(title='Componente 2'),
-            zaxis=dict(title='Componente 3')
+            xaxis=dict(title='Component 1'),
+            yaxis=dict(title='Component 2'),
+            zaxis=dict(title='Component 3')
         )
     )
 
-    # Plot 2: PrediÃ§Ãµes
+    # Plot 2: Predictions
     fig_predict = go.Figure()
     fig_predict.add_trace(go.Scatter3d(
         x=tsne_predict_result[:, 0],
@@ -1764,29 +1847,29 @@ def plot_dual_tsne(
             color=predict_colors,
             opacity=0.8
         ),
-        # IDs de proteÃ­nas adicionados ao 'text'
+        # Prediction protein IDs added to 'text'
         text=[f"Protein ID: {protein_id}<br>Label: {label}" for protein_id, label in zip(predict_protein_ids, predict_labels)],
         hoverinfo='text',
-        name='PrediÃ§Ãµes'
+        name='Predictions'
     ))
     fig_predict.update_layout(
-        title='t-SNE 3D: PrediÃ§Ãµes',
+        title='t-SNE 3D: Predictions',
         scene=dict(
-            xaxis=dict(title='Componente 1'),
-            yaxis=dict(title='Componente 2'),
-            zaxis=dict(title='Componente 3')
+            xaxis=dict(title='Component 1'),
+            yaxis=dict(title='Component 2'),
+            zaxis=dict(title='Component 3')
         )
     )
 
-    # Salvar os plots como arquivos HTML
+    # Save the plots as HTML files
     tsne_train_html = os.path.join(output_dir, "tsne_train_3d.html")
     tsne_predict_html = os.path.join(output_dir, "tsne_predict_3d.html")
     
     pio.write_html(fig_train, file=tsne_train_html, auto_open=False)
     pio.write_html(fig_predict, file=tsne_predict_html, auto_open=False)
     
-    logging.info(f"Plot t-SNE de Treinamento salvo como {tsne_train_html}")
-    logging.info(f"Plot t-SNE de PrediÃ§Ãµes salvo como {tsne_predict_html}")
+    logging.info(f"t-SNE Training plot saved as {tsne_train_html}")
+    logging.info(f"t-SNE Predictions plot saved as {tsne_predict_html}")
 
     return fig_train, fig_predict
 
@@ -1802,46 +1885,46 @@ def plot_dual_umap(
     output_dir: str
 ) -> tuple:
     """
-    Plota dois grÃ¡ficos UMAP 3D e os salva como arquivos HTML:
-    - Plot 1: Dados de Treinamento.
-    - Plot 2: PrediÃ§Ãµes.
+    Plots two 3D UMAP plots and saves them as HTML files:
+    - Plot 1: Training Data.
+    - Plot 2: Predictions.
     
-    ParÃ¢metros:
-    - train_embeddings (np.ndarray): Embeddings de treinamento.
-    - train_labels (list): Labels dos dados de treinamento.
-    - train_protein_ids (list): IDs das proteÃ­nas de treinamento.
-    - predict_embeddings (np.ndarray): Embeddings de prediÃ§Ã£o.
-    - predict_labels (list): Labels das prediÃ§Ãµes.
-    - predict_protein_ids (list): IDs das proteÃ­nas das prediÃ§Ãµes.
-    - var_assoc_original (list): VariÃ¡veis associadas dos dados originais.
-    - var_assoc_synthetic (list): VariÃ¡veis associadas dos dados sintÃ©ticos.
-    - output_dir (str): DiretÃ³rio para salvar os plots UMAP.
+    Parameters:
+    - train_embeddings (np.ndarray): Training embeddings.
+    - train_labels (list): Training data labels.
+    - train_protein_ids (list): Training protein IDs.
+    - predict_embeddings (np.ndarray): Prediction embeddings.
+    - predict_labels (list): Prediction labels.
+    - predict_protein_ids (list): Prediction protein IDs.
+    - var_assoc_original (list): Associated variables of original data.
+    - var_assoc_synthetic (list): Associated variables of synthetic data.
+    - output_dir (str): Directory to save the UMAP plots.
     
-    Retorna:
-    - tuple: (Figura de Treinamento, Figura de PrediÃ§Ã£o)
+    Returns:
+    - tuple: (Training Figure, Prediction Figure)
     """
-    # ReduÃ§Ã£o de dimensionalidade usando UMAP
+    # Dimensionality reduction using UMAP
     umap_train = umap.UMAP(n_components=3, random_state=42, n_neighbors=15, min_dist=0.1)
     umap_train_result = umap_train.fit_transform(train_embeddings)
 
     umap_predict = umap.UMAP(n_components=3, random_state=42, n_neighbors=15, min_dist=0.1)
     umap_predict_result = umap_predict.fit_transform(predict_embeddings)
 
-    # Criar mapas de cores para os dados de treinamento
+    # Create color maps for training data
     unique_train_labels = sorted(list(set(train_labels)))
     color_map_train = px.colors.qualitative.Dark24
     color_dict_train = {label: color_map_train[i % len(color_map_train)] for i, label in enumerate(unique_train_labels)}
 
-    # Criar mapas de cores para as prediÃ§Ãµes
+    # Create color maps for predictions
     unique_predict_labels = sorted(list(set(predict_labels)))
     color_map_predict = px.colors.qualitative.Light24
     color_dict_predict = {label: color_map_predict[i % len(color_map_predict)] for i, label in enumerate(unique_predict_labels)}
 
-    # Converter labels para cores
+    # Convert labels to colors
     train_colors = [color_dict_train.get(label, 'gray') for label in train_labels]
     predict_colors = [color_dict_predict.get(label, 'gray') for label in predict_labels]
 
-    # Plot 1: Dados de Treinamento
+    # Plot 1: Training Data
     fig_train = go.Figure()
     fig_train.add_trace(go.Scatter3d(
         x=umap_train_result[:, 0],
@@ -1853,21 +1936,21 @@ def plot_dual_umap(
             color=train_colors,
             opacity=0.8
         ),
-        # IDs de proteÃ­nas reais adicionados ao 'text'
+        # Real protein IDs added to 'text'
         text=[f"Protein ID: {protein_id}<br>Label: {label}" for protein_id, label in zip(train_protein_ids, train_labels)],
         hoverinfo='text',
-        name='Dados de Treinamento'
+        name='Training Data'
     ))
     fig_train.update_layout(
-        title='UMAP 3D: Dados de Treinamento',
+        title='UMAP 3D: Training Data',
         scene=dict(
-            xaxis=dict(title='Componente 1'),
-            yaxis=dict(title='Componente 2'),
-            zaxis=dict(title='Componente 3')
+            xaxis=dict(title='Component 1'),
+            yaxis=dict(title='Component 2'),
+            zaxis=dict(title='Component 3')
         )
     )
 
-    # Plot 2: PrediÃ§Ãµes
+    # Plot 2: Predictions
     fig_predict = go.Figure()
     fig_predict.add_trace(go.Scatter3d(
         x=umap_predict_result[:, 0],
@@ -1879,29 +1962,29 @@ def plot_dual_umap(
             color=predict_colors,
             opacity=0.8
         ),
-        # IDs de proteÃ­nas adicionados ao 'text'
+        # Prediction protein IDs added to 'text'
         text=[f"Protein ID: {protein_id}<br>Label: {label}" for protein_id, label in zip(predict_protein_ids, predict_labels)],
         hoverinfo='text',
-        name='PrediÃ§Ãµes'
+        name='Predictions'
     ))
     fig_predict.update_layout(
-        title='UMAP 3D: PrediÃ§Ãµes',
+        title='UMAP 3D: Predictions',
         scene=dict(
-            xaxis=dict(title='Componente 1'),
-            yaxis=dict(title='Componente 2'),
-            zaxis=dict(title='Componente 3')
+            xaxis=dict(title='Component 1'),
+            yaxis=dict(title='Component 2'),
+            zaxis=dict(title='Component 3')
         )
     )
 
-    # Salvar os plots como arquivos HTML
+    # Save the plots as HTML files
     umap_train_html = os.path.join(output_dir, "umap_train_3d.html")
     umap_predict_html = os.path.join(output_dir, "umap_predict_3d.html")
     
     pio.write_html(fig_train, file=umap_train_html, auto_open=False)
     pio.write_html(fig_predict, file=umap_predict_html, auto_open=False)
     
-    logging.info(f"Plot UMAP de Treinamento salvo como {umap_train_html}")
-    logging.info(f"Plot UMAP de PrediÃ§Ãµes salvo como {umap_predict_html}")
+    logging.info(f"UMAP Training plot saved as {umap_train_html}")
+    logging.info(f"UMAP Predictions plot saved as {umap_predict_html}")
 
     return fig_train, fig_predict
 
@@ -1911,38 +1994,38 @@ def plot_predictions_scatterplot_custom(
     top_n: int = 1
 ) -> None:
     """
-    Gera um scatter plot mostrando apenas a categoria principal com a maior soma de probabilidades para cada proteÃ­na.
+    Generates a scatter plot showing only the main category with the highest sum of probabilities for each protein.
     
-    Eixo Y: ID de acesso da proteÃ­na
-    Eixo X: Specificidades de C4 a C18 (escala fixa)
-    Cada ponto representa a especificidade correspondente para a proteÃ­na.
-    Apenas a categoria principal (top 1) Ã© plotada por proteÃ­na.
-    Pontos sÃ£o coloridos em uma Ãºnica cor uniforme, estilizados para publicaÃ§Ã£o cientÃ­fica.
+    Y-Axis: Protein accession ID
+    X-Axis: Specificities from C4 to C18 (fixed scale)
+    Each point represents the corresponding specificity for the protein.
+    Only the main category (top 1) is plotted per protein.
+    Points are colored in a single uniform color, styled for scientific publication.
     
-    ParÃ¢metros:
-    - results (dict): DicionÃ¡rio contendo prediÃ§Ãµes e rankings para proteÃ­nas.
-    - output_path (str): Caminho para salvar o scatter plot.
-    - top_n (int): NÃºmero de top categorias principais a plotar (padrÃ£o Ã© 1).
+    Parameters:
+    - results (dict): Dictionary containing predictions and rankings for proteins.
+    - output_path (str): Path to save the scatter plot.
+    - top_n (int): Number of top main categories to plot (default is 1).
     """
-    # Preparar dados
+    # Prepare data
     protein_specificities = {}
     
     for seq_id, info in results.items():
         for model_type in ['random_forest', 'lightgbm', 'xgboost', 'catboost']:
             associated_rankings = info.get(f'{model_type}_ranking', [])
             if not associated_rankings:
-                logging.warning(f"Sem dados de ranking associados para a proteÃ­na {seq_id} com {model_type}. Pulando...")
+                logging.warning(f"No associated ranking data for protein {seq_id} with {model_type}. Skipping...")
                 continue
 
-            # Usar a funÃ§Ã£o format_and_sum_probabilities para obter a categoria principal
+            # Use the format_and_sum_probabilities function to get the main category
             top_category_with_confidence, confidence, top_two_categories = format_and_sum_probabilities(associated_rankings)
             if top_category_with_confidence is None:
-                logging.warning(f"Sem formataÃ§Ã£o vÃ¡lida para a proteÃ­na {seq_id} com {model_type}. Pulando...")
+                logging.warning(f"No valid formatting for protein {seq_id} with {model_type}. Skipping...")
                 continue
 
-            # Extrair a categoria sem confianÃ§a
+            # Extract the category without confidence
             category = top_category_with_confidence.split(" (")[0]
-            confidence = confidence  # Soma das probabilidades para a categoria principal
+            confidence = confidence  # Sum of probabilities for the main category
 
             protein_specificities[f"{seq_id}_{model_type}"] = {
                 'top_category': category,
@@ -1950,39 +2033,39 @@ def plot_predictions_scatterplot_custom(
             }
 
     if not protein_specificities:
-        logging.warning("Nenhum dado disponÃ­vel para plotar o scatter plot.")
+        logging.warning("No data available to plot the scatter plot.")
         return
 
-    # Ordenar IDs de proteÃ­nas para melhor visualizaÃ§Ã£o
+    # Sort protein IDs for better visualization
     unique_proteins = sorted(protein_specificities.keys())
     protein_order = {protein: idx for idx, protein in enumerate(unique_proteins)}
 
-    # Criar a figura
-    fig, ax = plt.subplots(figsize=(12, max(6, len(unique_proteins) * 0.5)))  # Ajustar altura baseada no nÃºmero de proteÃ­nas
+    # Create the figure
+    fig, ax = plt.subplots(figsize=(12, max(6, len(unique_proteins) * 0.5)))  # Adjust height based on the number of proteins
 
-    # Escala fixa para o Eixo X de C4 a C18
+    # Fixed scale for X-Axis from C4 to C18
     x_values = list(range(4, 19))
 
-    # Plotar pontos para todas as proteÃ­nas com sua categoria principal
+    # Plot points for all proteins with their main category
     for protein, data in protein_specificities.items():
         y = protein_order[protein]
         category = data['top_category']
         confidence = data['confidence']
 
-        # Extrair specificidades da string da categoria
+        # Extract specificities from the category string
         specificities = [int(x[1:]) for x in category.split('-') if x.startswith('C')]
 
         for spec in specificities:
             ax.scatter(
                 spec, y,
-                color='#1f78b4',  # Cor uniforme
+                color='#1f78b4',  # Uniform color
                 edgecolors='black',
                 linewidth=0.5,
                 s=100,
-                label='_nolegend_'  # Evitar duplicaÃ§Ã£o na legenda
+                label='_nolegend_'  # Avoid duplication in the legend
             )
 
-        # Conectar pontos com linhas se houver mÃºltiplas specificidades
+        # Connect points with lines if there are multiple specificities
         if len(specificities) > 1:
             ax.plot(
                 specificities,
@@ -1993,35 +2076,159 @@ def plot_predictions_scatterplot_custom(
                 alpha=0.7
             )
 
-    # Personalizar o plot para melhor qualidade de publicaÃ§Ã£o cientÃ­fica
+    # Customize the plot for better scientific publication quality
     ax.set_xlabel('Specificity (C4 to C18)', fontsize=14, fontweight='bold', color='white')
     ax.set_ylabel('Proteins', fontsize=14, fontweight='bold', color='white')
     ax.set_title('Scatter Plot of Predictions for New Sequences (SS Prediction)', fontsize=16, fontweight='bold', pad=20, color='white')
 
-    # Definir escala fixa e formataÃ§Ã£o para o Eixo X
+    # Define fixed scale and formatting for the X-Axis
     ax.set_xticks(x_values)
     ax.set_xticklabels([f'C{spec}' for spec in x_values], fontsize=12, color='white')
     ax.set_yticks(range(len(unique_proteins)))
     ax.set_yticklabels(unique_proteins, fontsize=10, color='white')
 
-    # Definir grade e remover spines desnecessÃ¡rios para um visual limpo
+    # Define grid and remove unnecessary spines for a clean look
     ax.grid(True, axis='x', linestyle='--', alpha=0.5, color='gray')
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     ax.spines['left'].set_color('white')
     ax.spines['bottom'].set_color('white')
 
-    # Ticks menores no Eixo X para melhor visibilidade
+    # Minor ticks on the X-Axis for better visibility
     ax.xaxis.set_minor_locator(ticker.AutoMinorLocator())
     ax.grid(which='minor', axis='x', linestyle=':', linewidth=0.5, alpha=0.6)
 
-    # Ajustar layout para evitar corte de labels
+    # Adjust layout to avoid cutting off labels
     plt.tight_layout()
 
-    # Salvar a figura em alta qualidade para publicaÃ§Ã£o
-    plt.savefig(output_path, facecolor='#0B3C5D', dpi=600, bbox_inches='tight')  # Combina com a cor de fundo
+    # Save the figure in high quality for scientific publication
+    plt.savefig(output_path, facecolor='#0B3C5D', dpi=600, bbox_inches='tight')  # Matches background color
     plt.close()
-    logging.info(f"Scatter plot salvo em {output_path}")
+    logging.info(f"Scatter plot saved at {output_path}")
+
+
+
+# ============================================
+# Additional Functions for t-SNE
+# ============================================
+
+def plot_dual_tsne(
+    train_embeddings: np.ndarray, 
+    train_labels: list,
+    train_protein_ids: list,
+    predict_embeddings: np.ndarray, 
+    predict_labels: list, 
+    predict_protein_ids: list, 
+    output_dir: str
+) -> tuple:
+    """
+    Plots two 3D t-SNE plots and saves them as HTML files:
+    - Plot 1: Training Data.
+    - Plot 2: Predictions.
+    
+    Parameters:
+    - train_embeddings (np.ndarray): Training embeddings.
+    - train_labels (list): Training data labels.
+    - train_protein_ids (list): Training protein IDs.
+    - predict_embeddings (np.ndarray): Prediction embeddings.
+    - predict_labels (list): Prediction labels.
+    - predict_protein_ids (list): Prediction protein IDs.
+    - output_dir (str): Directory to save the t-SNE plots.
+    
+    Returns:
+    - tuple: (Training Figure, Prediction Figure)
+    """
+    from sklearn.manifold import TSNE
+
+    # Dimensionality reduction using t-SNE
+    tsne_train = TSNE(n_components=3, random_state=42, perplexity=30, n_iter=1000)
+    tsne_train_result = tsne_train.fit_transform(train_embeddings)
+
+    tsne_predict = TSNE(n_components=3, random_state=42, perplexity=30, n_iter=1000)
+    tsne_predict_result = tsne_predict.fit_transform(predict_embeddings)
+
+    # Create color maps for training data
+    unique_train_labels = sorted(list(set(train_labels)))
+    color_map_train = px.colors.qualitative.Dark24
+    color_dict_train = {label: color_map_train[i % len(color_map_train)] for i, label in enumerate(unique_train_labels)}
+
+    # Create color maps for predictions
+    unique_predict_labels = sorted(list(set(predict_labels)))
+    color_map_predict = px.colors.qualitative.Light24
+    color_dict_predict = {label: color_map_predict[i % len(color_map_predict)] for i, label in enumerate(unique_predict_labels)}
+
+    # Convert labels to colors
+    train_colors = [color_dict_train.get(label, 'gray') for label in train_labels]
+    predict_colors = [color_dict_predict.get(label, 'gray') for label in predict_labels]
+
+    # Plot 1: Training Data
+    fig_train = go.Figure()
+    fig_train.add_trace(go.Scatter3d(
+        x=tsne_train_result[:, 0],
+        y=tsne_train_result[:, 1],
+        z=tsne_train_result[:, 2],
+        mode='markers',
+        marker=dict(
+            size=5,
+            color=train_colors,
+            opacity=0.8
+        ),
+        # Real protein IDs added to 'text'
+        text=[f"Protein ID: {protein_id}<br>Label: {label}" for protein_id, label in zip(train_protein_ids, train_labels)],
+        hoverinfo='text',
+        name='Training Data'
+    ))
+    fig_train.update_layout(
+        title='t-SNE 3D: Training Data',
+        scene=dict(
+            xaxis=dict(title='Component 1'),
+            yaxis=dict(title='Component 2'),
+            zaxis=dict(title='Component 3')
+        )
+    )
+
+    # Plot 2: Predictions
+    fig_predict = go.Figure()
+    fig_predict.add_trace(go.Scatter3d(
+        x=tsne_predict_result[:, 0],
+        y=tsne_predict_result[:, 1],
+        z=tsne_predict_result[:, 2],
+        mode='markers',
+        marker=dict(
+            size=5,
+            color=predict_colors,
+            opacity=0.8
+        ),
+        # Prediction protein IDs added to 'text'
+        text=[f"Protein ID: {protein_id}<br>Label: {label}" for protein_id, label in zip(predict_protein_ids, predict_labels)],
+        hoverinfo='text',
+        name='Predictions'
+    ))
+    fig_predict.update_layout(
+        title='t-SNE 3D: Predictions',
+        scene=dict(
+            xaxis=dict(title='Component 1'),
+            yaxis=dict(title='Component 2'),
+            zaxis=dict(title='Component 3')
+        )
+    )
+
+    # Save the plots as HTML files
+    tsne_train_html = os.path.join(output_dir, "tsne_train_3d.html")
+    tsne_predict_html = os.path.join(output_dir, "tsne_predict_3d.html")
+    
+    pio.write_html(fig_train, file=tsne_train_html, auto_open=False)
+    pio.write_html(fig_predict, file=tsne_predict_html, auto_open=False)
+    
+    logging.info(f"t-SNE Training plot saved as {tsne_train_html}")
+    logging.info(f"t-SNE Predictions plot saved as {tsne_predict_html}")
+
+    return fig_train, fig_predict
+
+
+# ============================================
+# Functions for Processing Results and Interface
+# ============================================
 
 # FunÃ§Ã£o para carregar e redimensionar imagens com ajuste de DPI
 def load_and_resize_image_with_dpi(image_path: str, base_width: int, dpi: int = 300) -> Image.Image:
@@ -2132,205 +2339,60 @@ img_tags = "".join(
 # Renderiza o rodapÃ©
 st.markdown(footer_html.format(img_tags), unsafe_allow_html=True)
 
-# ============================================
-# Fim do Script
-# ============================================
 
 # ============================================
-# FunÃ§Ãµes Adicionais para t-SNE
-# ============================================
-
-def plot_dual_tsne(
-    train_embeddings: np.ndarray, 
-    train_labels: list,
-    train_protein_ids: list,
-    predict_embeddings: np.ndarray, 
-    predict_labels: list, 
-    predict_protein_ids: list, 
-    output_dir: str
-) -> tuple:
-    """
-    Plota dois grÃ¡ficos t-SNE 3D e os salva como arquivos HTML:
-    - Plot 1: Dados de Treinamento.
-    - Plot 2: PrediÃ§Ãµes.
-    
-    ParÃ¢metros:
-    - train_embeddings (np.ndarray): Embeddings de treinamento.
-    - train_labels (list): Labels dos dados de treinamento.
-    - train_protein_ids (list): IDs das proteÃ­nas de treinamento.
-    - predict_embeddings (np.ndarray): Embeddings de prediÃ§Ã£o.
-    - predict_labels (list): Labels das prediÃ§Ãµes.
-    - predict_protein_ids (list): IDs das proteÃ­nas das prediÃ§Ãµes.
-    - output_dir (str): DiretÃ³rio para salvar os plots t-SNE.
-    
-    Retorna:
-    - tuple: (Figura de Treinamento, Figura de PrediÃ§Ã£o)
-    """
-    from sklearn.manifold import TSNE
-
-    # ReduÃ§Ã£o de dimensionalidade usando t-SNE
-    tsne_train = TSNE(n_components=3, random_state=42, perplexity=30, n_iter=1000)
-    tsne_train_result = tsne_train.fit_transform(train_embeddings)
-
-    tsne_predict = TSNE(n_components=3, random_state=42, perplexity=30, n_iter=1000)
-    tsne_predict_result = tsne_predict.fit_transform(predict_embeddings)
-
-    # Criar mapas de cores para os dados de treinamento
-    unique_train_labels = sorted(list(set(train_labels)))
-    color_map_train = px.colors.qualitative.Dark24
-    color_dict_train = {label: color_map_train[i % len(color_map_train)] for i, label in enumerate(unique_train_labels)}
-
-    # Criar mapas de cores para as prediÃ§Ãµes
-    unique_predict_labels = sorted(list(set(predict_labels)))
-    color_map_predict = px.colors.qualitative.Light24
-    color_dict_predict = {label: color_map_predict[i % len(color_map_predict)] for i, label in enumerate(unique_predict_labels)}
-
-    # Converter labels para cores
-    train_colors = [color_dict_train.get(label, 'gray') for label in train_labels]
-    predict_colors = [color_dict_predict.get(label, 'gray') for label in predict_labels]
-
-    # Plot 1: Dados de Treinamento
-    fig_train = go.Figure()
-    fig_train.add_trace(go.Scatter3d(
-        x=tsne_train_result[:, 0],
-        y=tsne_train_result[:, 1],
-        z=tsne_train_result[:, 2],
-        mode='markers',
-        marker=dict(
-            size=5,
-            color=train_colors,
-            opacity=0.8
-        ),
-        # IDs de proteÃ­nas reais adicionados ao 'text'
-        text=[f"Protein ID: {protein_id}<br>Label: {label}" for protein_id, label in zip(train_protein_ids, train_labels)],
-        hoverinfo='text',
-        name='Dados de Treinamento'
-    ))
-    fig_train.update_layout(
-        title='t-SNE 3D: Dados de Treinamento',
-        scene=dict(
-            xaxis=dict(title='Componente 1'),
-            yaxis=dict(title='Componente 2'),
-            zaxis=dict(title='Componente 3')
-        )
-    )
-
-    # Plot 2: PrediÃ§Ãµes
-    fig_predict = go.Figure()
-    fig_predict.add_trace(go.Scatter3d(
-        x=tsne_predict_result[:, 0],
-        y=tsne_predict_result[:, 1],
-        z=tsne_predict_result[:, 2],
-        mode='markers',
-        marker=dict(
-            size=5,
-            color=predict_colors,
-            opacity=0.8
-        ),
-        # IDs de proteÃ­nas adicionados ao 'text'
-        text=[f"Protein ID: {protein_id}<br>Label: {label}" for protein_id, label in zip(predict_protein_ids, predict_labels)],
-        hoverinfo='text',
-        name='PrediÃ§Ãµes'
-    ))
-    fig_predict.update_layout(
-        title='t-SNE 3D: PrediÃ§Ãµes',
-        scene=dict(
-            xaxis=dict(title='Componente 1'),
-            yaxis=dict(title='Componente 2'),
-            zaxis=dict(title='Componente 3')
-        )
-    )
-
-    # Salvar os plots como arquivos HTML
-    tsne_train_html = os.path.join(output_dir, "tsne_train_3d.html")
-    tsne_predict_html = os.path.join(output_dir, "tsne_predict_3d.html")
-    
-    pio.write_html(fig_train, file=tsne_train_html, auto_open=False)
-    pio.write_html(fig_predict, file=tsne_predict_html, auto_open=False)
-    
-    logging.info(f"Plot t-SNE de Treinamento salvo como {tsne_train_html}")
-    logging.info(f"Plot t-SNE de PrediÃ§Ãµes salvo como {tsne_predict_html}")
-
-    return fig_train, fig_predict
-
-# ============================================
-# Fim das FunÃ§Ãµes Adicionais para t-SNE
+# End of Functions for Processing Results
 # ============================================
 
 # ============================================
-# FunÃ§Ãµes de Processamento de Resultados e Interface
+# Execution of the Streamlit Interface
 # ============================================
 
-def get_base64_image(image_path: str) -> str:
-    """
-    Codifica um arquivo de imagem para uma string base64.
+# Sidebar for input parameters
+st.sidebar.header("Input Parameters")
 
-    ParÃ¢metros:
-    - image_path (str): Caminho para o arquivo de imagem.
-
-    Retorna:
-    - str: String base64 da imagem.
-    """
-    try:
-        with open(image_path, "rb") as img_file:
-            return base64.b64encode(img_file.read()).decode("utf-8")
-    except FileNotFoundError:
-        logging.error(f"Imagem nÃ£o encontrada em {image_path}.")
-        return ""
-
-# ============================================
-# Fim das FunÃ§Ãµes de Processamento de Resultados
-# ============================================
-
-# ============================================
-# ExecuÃ§Ã£o da Interface do Streamlit
-# ============================================
-
-# Barra lateral para parÃ¢metros de entrada
-st.sidebar.header("ParÃ¢metros de Entrada")
-
-# FunÃ§Ã£o para salvar arquivos enviados
+# Function to save uploaded files
 def save_uploaded_file(uploaded_file, save_path: str) -> str:
     """
-    Salva um arquivo enviado pelo usuÃ¡rio.
+    Saves a file uploaded by the user.
     
-    ParÃ¢metros:
-    - uploaded_file: Arquivo enviado pelo usuÃ¡rio.
-    - save_path (str): Caminho para salvar o arquivo.
+    Parameters:
+    - uploaded_file: File uploaded by the user.
+    - save_path (str): Path to save the file.
     
-    Retorna:
-    - str: Caminho para o arquivo salvo.
+    Returns:
+    - str: Path to the saved file.
     """
     with open(save_path, 'wb') as f:
         f.write(uploaded_file.getbuffer())
     return save_path
 
-# OpÃ§Ãµes de entrada
-use_default_train = st.sidebar.checkbox("Usar Dados de Treinamento PadrÃ£o", value=True)
+# Input options
+use_default_train = st.sidebar.checkbox("Use Default Training Data", value=True)
 if not use_default_train:
-    train_fasta_file = st.sidebar.file_uploader("Upload de Arquivo FASTA de Treinamento", type=["fasta", "fa", "fna"])
-    train_table_file = st.sidebar.file_uploader("Upload de Arquivo de Tabela de Treinamento (TSV)", type=["tsv"])
+    train_fasta_file = st.sidebar.file_uploader("Upload Training FASTA File", type=["fasta", "fa", "fna"])
+    train_table_file = st.sidebar.file_uploader("Upload Training Table File (TSV)", type=["tsv"])
 else:
     train_fasta_file = None
     train_table_file = None
 
-predict_fasta_file = st.sidebar.file_uploader("Upload de Arquivo FASTA para PrediÃ§Ã£o", type=["fasta", "fa", "fna"])
+predict_fasta_file = st.sidebar.file_uploader("Upload FASTA File for Prediction", type=["fasta", "fa", "fna"])
 
-kmer_size = st.sidebar.number_input("Tamanho do K-mer", min_value=1, max_value=10, value=3, step=1)
-step_size = st.sidebar.number_input("Tamanho do Passo", min_value=1, max_value=10, value=1, step=1)
+kmer_size = st.sidebar.number_input("k-mer Size", min_value=1, max_value=10, value=3, step=1)
+step_size = st.sidebar.number_input("Step Size", min_value=1, max_value=10, value=1, step=1)
 
 aggregation_method = st.sidebar.selectbox(
-    "MÃ©todo de AgregaÃ§Ã£o",
-    options=['none', 'mean'],  # Apenas 'none' e 'mean' sÃ£o opÃ§Ãµes
+    "Aggregation Method",
+    options=['none', 'mean'],  # Only 'none' and 'mean' are options
     index=0
 )
 
-# ParÃ¢metros opcionais do Word2Vec
-st.sidebar.header("Personalizar ParÃ¢metros do Word2Vec")
-custom_word2vec = st.sidebar.checkbox("Personalizar ParÃ¢metros do Word2Vec", value=False)
+# Optional Word2Vec parameters
+st.sidebar.header("Customize Word2Vec Parameters")
+custom_word2vec = st.sidebar.checkbox("Customize Word2Vec Parameters", value=False)
 if custom_word2vec:
     window = st.sidebar.number_input(
-        "Tamanho da Janela", min_value=5, max_value=20, value=10, step=5
+        "Window Size", min_value=5, max_value=20, value=10, step=5
     )
     workers = st.sidebar.number_input(
         "Workers", min_value=1, max_value=112, value=8, step=8
@@ -2339,25 +2401,25 @@ if custom_word2vec:
         "Epochs", min_value=1, max_value=2500, value=2500, step=100
     )
 else:
-    window = 10  # Valor padrÃ£o
-    workers = 8  # Valor padrÃ£o
-    epochs = 2500  # Valor padrÃ£o
+    window = 10  # Default value
+    workers = 8  # Default value
+    epochs = 2500  # Default value
 
-# DiretÃ³rio de saÃ­da baseado no mÃ©todo de agregaÃ§Ã£o
+# Output directory based on the aggregation method
 model_dir = create_unique_model_directory("results", aggregation_method)
 output_dir = model_dir
 
-# BotÃ£o para iniciar o processamento
-if st.sidebar.button("Executar AnÃ¡lise"):
-    # Caminhos para dados internos
+# Button to start processing
+if st.sidebar.button("Run Analysis"):
+    # Paths for internal data
     internal_train_fasta = "data/train.fasta"
     internal_train_table = "data/train_table.tsv"
 
-    # Tratamento dos dados de treinamento
+    # Handling training data
     if use_default_train:
         train_fasta_path = internal_train_fasta
         train_table_path = internal_train_table
-        st.markdown("<span style='color:white'>Usando dados de treinamento padrÃ£o.</span>", unsafe_allow_html=True)
+        st.markdown("<span style='color:white'>Using default training data.</span>", unsafe_allow_html=True)
 
     else:
         if train_fasta_file is not None and train_table_file is not None:
@@ -2365,21 +2427,21 @@ if st.sidebar.button("Executar AnÃ¡lise"):
             train_table_path = os.path.join(output_dir, "uploaded_train_table.tsv")
             save_uploaded_file(train_fasta_file, train_fasta_path)
             save_uploaded_file(train_table_file, train_table_path)
-            st.markdown("<span style='color:white'>Dados de treinamento enviados serÃ£o usados.</span>", unsafe_allow_html=True)
+            st.markdown("<span style='color:white'>Uploaded training data will be used.</span>", unsafe_allow_html=True)
 
         else:
-            st.error("Por favor, faÃ§a o upload tanto do arquivo FASTA de treinamento quanto do arquivo de tabela TSV.")
+            st.error("Please upload both the training FASTA file and the TSV table file.")
             st.stop()
 
-    # Tratamento dos dados de prediÃ§Ã£o
+    # Handling prediction data
     if predict_fasta_file is not None:
         predict_fasta_path = os.path.join(output_dir, "uploaded_predict.fasta")
         save_uploaded_file(predict_fasta_file, predict_fasta_path)
     else:
-        st.error("Por favor, faÃ§a o upload de um arquivo FASTA para prediÃ§Ã£o.")
+        st.error("Please upload a FASTA file for prediction.")
         st.stop()
         
-    # ParÃ¢metros restantes
+    # Remaining parameters
     args = argparse.Namespace(
         train_fasta=train_fasta_path,
         train_table=train_table_path,
@@ -2394,26 +2456,26 @@ if st.sidebar.button("Executar AnÃ¡lise"):
         learning_curve_associated=os.path.join(output_dir, "learning_curve_associated.png"),
         rf_model_associated="rf_model_associated.pkl",
         word2vec_model="word2vec_model.bin",
-        scaler="scaler_associated.pkl",  # Nome correto do scaler
+        scaler="scaler_associated.pkl",  # Correct scaler name
         model_dir=model_dir,
         scatterplot_output=os.path.join(output_dir, "scatterplot_predictions.png"),
     )
 
-    # Criar diretÃ³rio de modelo se nÃ£o existir
+    # Create model directory if it doesn't exist
     if not os.path.exists(args.model_dir):
         os.makedirs(args.model_dir)
 
-    # Executar a funÃ§Ã£o principal de anÃ¡lise
-    st.markdown("<span style='color:white'>Processando dados e executando anÃ¡lise...</span>", unsafe_allow_html=True)
+    # Execute the main analysis function
+    st.markdown("<span style='color:white'>Processing data and running analysis...</span>", unsafe_allow_html=True)
     try:
         main(args)
 
     except Exception as e:
-        st.error(f"Ocorreu um erro durante o processamento: {e}")
-        logging.error(f"Ocorreu um erro: {e}")
+        st.error(f"An error occurred during processing: {e}")
+        logging.error(f"An error occurred: {e}")
 
 # ============================================
-# FunÃ§Ãµes para Processamento de Resultados e Interface
+# End of Functions for Processing Results and Interface
 # ============================================
 
 def plot_predictions_scatterplot_custom(
@@ -2422,38 +2484,38 @@ def plot_predictions_scatterplot_custom(
     top_n: int = 1
 ) -> None:
     """
-    Gera um scatter plot mostrando apenas a categoria principal com a maior soma de probabilidades para cada proteÃ­na.
+    Generates a scatter plot showing only the main category with the highest sum of probabilities for each protein.
     
-    Eixo Y: ID de acesso da proteÃ­na
-    Eixo X: Specificidades de C4 a C18 (escala fixa)
-    Cada ponto representa a especificidade correspondente para a proteÃ­na.
-    Apenas a categoria principal (top 1) Ã© plotada por proteÃ­na.
-    Pontos sÃ£o coloridos em uma Ãºnica cor uniforme, estilizados para publicaÃ§Ã£o cientÃ­fica.
+    Y-Axis: Protein accession ID
+    X-Axis: Specificities from C4 to C18 (fixed scale)
+    Each point represents the corresponding specificity for the protein.
+    Only the main category (top 1) is plotted per protein.
+    Points are colored in a single uniform color, styled for scientific publication.
     
-    ParÃ¢metros:
-    - results (dict): DicionÃ¡rio contendo prediÃ§Ãµes e rankings para proteÃ­nas.
-    - output_path (str): Caminho para salvar o scatter plot.
-    - top_n (int): NÃºmero de top categorias principais a plotar (padrÃ£o Ã© 1).
+    Parameters:
+    - results (dict): Dictionary containing predictions and rankings for proteins.
+    - output_path (str): Path to save the scatter plot.
+    - top_n (int): Number of top main categories to plot (default is 1).
     """
-    # Preparar dados
+    # Prepare data
     protein_specificities = {}
     
     for seq_id, info in results.items():
         for model_type in ['random_forest', 'lightgbm', 'xgboost', 'catboost']:
             associated_rankings = info.get(f'{model_type}_ranking', [])
             if not associated_rankings:
-                logging.warning(f"Sem dados de ranking associados para a proteÃ­na {seq_id} com {model_type}. Pulando...")
+                logging.warning(f"No associated ranking data for protein {seq_id} with {model_type}. Skipping...")
                 continue
 
-            # Usar a funÃ§Ã£o format_and_sum_probabilities para obter a categoria principal
+            # Use the format_and_sum_probabilities function to get the main category
             top_category_with_confidence, confidence, top_two_categories = format_and_sum_probabilities(associated_rankings)
             if top_category_with_confidence is None:
-                logging.warning(f"Sem formataÃ§Ã£o vÃ¡lida para a proteÃ­na {seq_id} com {model_type}. Pulando...")
+                logging.warning(f"No valid formatting for protein {seq_id} with {model_type}. Skipping...")
                 continue
 
-            # Extrair a categoria sem confianÃ§a
+            # Extract the category without confidence
             category = top_category_with_confidence.split(" (")[0]
-            confidence = confidence  # Soma das probabilidades para a categoria principal
+            confidence = confidence  # Sum of probabilities for the main category
 
             protein_specificities[f"{seq_id}_{model_type}"] = {
                 'top_category': category,
@@ -2461,39 +2523,39 @@ def plot_predictions_scatterplot_custom(
             }
 
     if not protein_specificities:
-        logging.warning("Nenhum dado disponÃ­vel para plotar o scatter plot.")
+        logging.warning("No data available to plot the scatter plot.")
         return
 
-    # Ordenar IDs de proteÃ­nas para melhor visualizaÃ§Ã£o
+    # Sort protein IDs for better visualization
     unique_proteins = sorted(protein_specificities.keys())
     protein_order = {protein: idx for idx, protein in enumerate(unique_proteins)}
 
-    # Criar a figura
-    fig, ax = plt.subplots(figsize=(12, max(6, len(unique_proteins) * 0.5)))  # Ajustar altura baseada no nÃºmero de proteÃ­nas
+    # Create the figure
+    fig, ax = plt.subplots(figsize=(12, max(6, len(unique_proteins) * 0.5)))  # Adjust height based on the number of proteins
 
-    # Escala fixa para o Eixo X de C4 a C18
+    # Fixed scale for X-Axis from C4 to C18
     x_values = list(range(4, 19))
 
-    # Plotar pontos para todas as proteÃ­nas com sua categoria principal
+    # Plot points for all proteins with their main category
     for protein, data in protein_specificities.items():
         y = protein_order[protein]
         category = data['top_category']
         confidence = data['confidence']
 
-        # Extrair specificidades da string da categoria
+        # Extract specificities from the category string
         specificities = [int(x[1:]) for x in category.split('-') if x.startswith('C')]
 
         for spec in specificities:
             ax.scatter(
                 spec, y,
-                color='#1f78b4',  # Cor uniforme
+                color='#1f78b4',  # Uniform color
                 edgecolors='black',
                 linewidth=0.5,
                 s=100,
-                label='_nolegend_'  # Evitar duplicaÃ§Ã£o na legenda
+                label='_nolegend_'  # Avoid duplication in the legend
             )
 
-        # Conectar pontos com linhas se houver mÃºltiplas specificidades
+        # Connect points with lines if there are multiple specificities
         if len(specificities) > 1:
             ax.plot(
                 specificities,
@@ -2504,38 +2566,36 @@ def plot_predictions_scatterplot_custom(
                 alpha=0.7
             )
 
-    # Personalizar o plot para melhor qualidade de publicaÃ§Ã£o cientÃ­fica
+    # Customize the plot for better scientific publication quality
     ax.set_xlabel('Specificity (C4 to C18)', fontsize=14, fontweight='bold', color='white')
     ax.set_ylabel('Proteins', fontsize=14, fontweight='bold', color='white')
     ax.set_title('Scatter Plot of Predictions for New Sequences (SS Prediction)', fontsize=16, fontweight='bold', pad=20, color='white')
 
-    # Definir escala fixa e formataÃ§Ã£o para o Eixo X
+    # Define fixed scale and formatting for the X-Axis
     ax.set_xticks(x_values)
     ax.set_xticklabels([f'C{spec}' for spec in x_values], fontsize=12, color='white')
     ax.set_yticks(range(len(unique_proteins)))
     ax.set_yticklabels(unique_proteins, fontsize=10, color='white')
 
-    # Definir grade e remover spines desnecessÃ¡rios para um visual limpo
+    # Define grid and remove unnecessary spines for a clean look
     ax.grid(True, axis='x', linestyle='--', alpha=0.5, color='gray')
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     ax.spines['left'].set_color('white')
     ax.spines['bottom'].set_color('white')
 
-    # Ticks menores no Eixo X para melhor visibilidade
+    # Minor ticks on the X-Axis for better visibility
     ax.xaxis.set_minor_locator(ticker.AutoMinorLocator())
     ax.grid(which='minor', axis='x', linestyle=':', linewidth=0.5, alpha=0.6)
 
-    # Ajustar layout para evitar corte de labels
+    # Adjust layout to avoid cutting off labels
     plt.tight_layout()
 
-    # Salvar a figura em alta qualidade para publicaÃ§Ã£o
-    plt.savefig(output_path, facecolor='#0B3C5D', dpi=600, bbox_inches='tight')  # Combina com a cor de fundo
+    # Save the figure in high quality for scientific publication
+    plt.savefig(output_path, facecolor='#0B3C5D', dpi=600, bbox_inches='tight')  # Matches background color
     plt.close()
-    logging.info(f"Scatter plot salvo em {output_path}")
+    logging.info(f"Scatter plot saved at {output_path}")
 
 # ============================================
-# Fim das FunÃ§Ãµes de Processamento de Resultados e Interface
+# End of Functions for Processing Results and Interface
 # ============================================
-
-
