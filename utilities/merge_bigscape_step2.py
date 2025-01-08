@@ -5,6 +5,8 @@ import csv
 import logging
 import sys
 
+# ### Comando:
+####python3 merge_tablev4.py merged_Network_Annotations_Full_modificada__clans_0.30_0.70.tsv Supplementary_table2.tsv merged_Network_Annotations_Full_modificada__clans_0.30_0.70_final.tsv
 def extract_assembly_key(bgc_name):
     """
     Extracts the assembly key from the BGC name.
