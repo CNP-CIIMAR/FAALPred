@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import sys
 import math
 import pandas as pd
@@ -8,21 +11,25 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
 from ete3 import NCBITaxa
-####
-###python3 pie_chart.py Genomes_Total_proteinas_taxonomy_FAAL_metadata_nodup.tsv results_all_lista_proteins.faals_cdd.tsv Bacteria 6 Phylum Cyanobacteriota,Myxococcota,Actinomycetota,Planctomycetota,Nitrospirota,Acidobacteriota,Thermodesulfobacteriota,Chloroflexota,Gemmatimonadota,Pseudomonadota 300
-# Inicializa o objeto NCBITaxa
+
+
+#
+### How perform:
+# python3 pie_chart.py Genomes_Total_proteinas_taxonomy_FAAL_metadata_nodup.tsv results_all_lista_proteins.faals_cdd.tsv Bacteria 6 Phylum "Cyanobacteriota,"Candidatus Rokubacteriota,Myxococcota,Actinomycetota,Planctomycetota,Nitrospirota,Acidobacteriota,Thermodesulfobacteriota,Chloroflexota,Gemmatimonadota,Pseudomonadota" 300
+
+# Inicializa NCBITaxa
 ncbi = NCBITaxa()
 
-# -----------------------------------------------------------
+# ----------------------------------------------------------------
 # 1) Combinar descrições de assinatura
-# -----------------------------------------------------------
+# ----------------------------------------------------------------
 def combine_signature_descriptions(df):
     """
-    Gera a coluna 'Combined.description' para cada 'Protein.accession'
+    Cria a coluna 'Combined.description' para cada 'Protein.accession'
     a partir de 'Signature.description'. Substitui 'FAAL' por 'FAAL stand-alone'.
     """
     if 'Signature.description' not in df.columns:
-        raise ValueError("Erro: A coluna 'Signature.description' não foi encontrada no DataFrame.")
+        raise ValueError("A coluna 'Signature.description' não foi encontrada no DataFrame.")
 
     def simplify_signature(description):
         if 'NRPS' in description:
@@ -52,12 +59,12 @@ def combine_signature_descriptions(df):
     )
     return df
 
-# -----------------------------------------------------------
+# ----------------------------------------------------------------
 # 2) Carregar dados
-# -----------------------------------------------------------
+# ----------------------------------------------------------------
 def load_data(table1_path, table2_path):
     """
-    Lê as duas tabelas (TSV) e verifica colunas básicas.
+    Lê as duas tabelas (TSV) e faz checagens básicas.
     """
     print(f"Carregando dados de: {table1_path} e {table2_path}")
     df1 = pd.read_csv(table1_path, sep='\t')
@@ -73,13 +80,13 @@ def load_data(table1_path, table2_path):
 
     valid_assemblies = df1['Assembly'].str.startswith(('GCA', 'GCF'))
     if not valid_assemblies.any():
-        raise ValueError("Nenhum Assembly ID válido (iniciando com GCA ou GCF) em DF1.")
+        raise ValueError("Nenhum Assembly ID válido (iniciando com GCA ou GCF) encontrado em DF1.")
 
     return df1, df2
 
-# -----------------------------------------------------------
+# ----------------------------------------------------------------
 # 3) Mesclar tabelas
-# -----------------------------------------------------------
+# ----------------------------------------------------------------
 def merge_tables(df1, df2, on='Protein.accession'):
     """
     Mescla df1 e df2 no campo 'Protein.accession' (inner join).
@@ -98,9 +105,9 @@ def merge_tables(df1, df2, on='Protein.accession'):
     print("Coluna 'Combined.description' criada com sucesso.")
     return merged_df
 
-# -----------------------------------------------------------
-# 4) Extrair níveis taxonômicos (Lineage)
-# -----------------------------------------------------------
+# ----------------------------------------------------------------
+# 4) Extrair níveis taxonômicos
+# ----------------------------------------------------------------
 def extract_taxonomic_levels(lineage):
     """
     Retorna um dicionário com superkingdom, phylum, class, order, family, genus, species
@@ -138,9 +145,9 @@ def get_phylum(lineage):
                 return taxon
     return None
 
-# -----------------------------------------------------------
+# ----------------------------------------------------------------
 # 5) Atualizar linhagem e filtrar por domínio
-# -----------------------------------------------------------
+# ----------------------------------------------------------------
 def update_lineage(df, domain_name):
     """
     Aplica extract_taxonomic_levels linha a linha.
@@ -164,22 +171,27 @@ def update_lineage(df, domain_name):
     print("DataFrame filtrado:", df.shape)
     return df
 
-# -----------------------------------------------------------
-# 6) Plotar no maximo 2 pies por linha, 
-#    sem autopct, mas com as porcentagens na LEGENDA
-# -----------------------------------------------------------
+# ----------------------------------------------------------------
+# 6) Plotar no máximo 2 "pies" por linha
+#    Aceitando nomes compostos (com espaços) passados na CLI,
+#    basta colocar as strings entre aspas na chamada do script.
+# ----------------------------------------------------------------
 def plot_topN_multidomain_in_one_figure(df, taxonomic_level, taxon_list, top_n, dpi):
     """
-    Cria subplots em 2 colunas, no máximo 2 "pies" por linha,
-    sem autopct no pie, mas as porcentagens aparecem na legenda
-    no formato "Nome (XX.X%)".
+    Cria subplots de 2 colunas, exibindo no máximo 2 "pies" por linha.
+    Cada subplot exibe um pie chart (estilo doughnut) com as Top N arquiteturas
+    (incluindo 'FAAL stand-alone').
 
-    Margens:
+    Se exceder N arquiteturas, soma as extras em 'Others'.
+
+    Exibe as porcentagens na legenda (sem autopct dentro do pie).
+
+    Margens ajustadas:
       left=0.229, right=1.0, wspace=0.0
-    Aumenta figsize para (10, 6*n_rows).
-
-    Legenda sem moldura (frameon=False).
+    figsize=(10, 6*n_rows) para ficar maior.
+    Legenda à esquerda (bbox_to_anchor com x negativo).
     """
+
     level_col = taxonomic_level.lower()
     if level_col not in df.columns:
         print(f"Coluna '{level_col}' não encontrada no DataFrame. Abortando.")
@@ -190,11 +202,10 @@ def plot_topN_multidomain_in_one_figure(df, taxonomic_level, taxon_list, top_n, 
         print("Nenhum táxon fornecido. Abortando.")
         return
 
-    # 2 colunas, calcular linhas
     n_cols = 2
     n_rows = math.ceil(num_taxons / n_cols)
 
-    # Tamanho maior para os pies
+    # Tamanho maior para cada linha.
     fig, axes = plt.subplots(
         n_rows, n_cols,
         figsize=(10, 6*n_rows)
@@ -203,7 +214,6 @@ def plot_topN_multidomain_in_one_figure(df, taxonomic_level, taxon_list, top_n, 
     if n_rows == 1:
         axes = [axes]
 
-    # Ajustar as margens e wspace=0
     plt.subplots_adjust(
         left=0.229,
         right=1.0,
@@ -213,23 +223,24 @@ def plot_topN_multidomain_in_one_figure(df, taxonomic_level, taxon_list, top_n, 
         hspace=0.3
     )
 
-    # Nao usar suptitle com "Top N..."
+    # Sem suptitle "Top N..."
 
     for i, taxon_name in enumerate(taxon_list):
         row_i = i // n_cols
         col_i = i % n_cols
         ax = axes[row_i][col_i]
 
+        # Filtra o DataFrame para o táxon
         sub_df = df[df[level_col] == taxon_name]
         if sub_df.empty:
             ax.set_title(f"{taxon_name}\n(sem dados)", fontsize=12)
             ax.axis('off')
             continue
 
-        # Contar as arquiteturas
+        # Contar arquiteturas
         arch_counts = sub_df['Combined.description'].value_counts()
 
-        # Top N + Others
+        # Seleciona Top N + Others
         top_arch = arch_counts.head(top_n)
         if len(arch_counts) > top_n:
             others_sum = arch_counts[top_n:].sum()
@@ -238,25 +249,25 @@ def plot_topN_multidomain_in_one_figure(df, taxonomic_level, taxon_list, top_n, 
         labels = top_arch.index.tolist()
         sizes = top_arch.values.tolist()
 
-        # Cores
+        # Paleta de cores
         colors = plt.cm.viridis(np.linspace(0, 1, len(labels)))
 
         # Criar o pie sem autopct
-        wedges, text_labels= ax.pie(
+        wedges, text_labels = ax.pie(
             sizes,
             labels=None,
             startangle=140,
             colors=colors
         )
 
-        # Doughnut
+        # Efeito doughnut
         centre_circle = plt.Circle((0, 0), 0.6, edgecolor='black', facecolor='white', fill=True)
         ax.add_artist(centre_circle)
 
         ax.set_title(taxon_name, fontsize=12, pad=10)
         ax.axis('equal')
 
-        # Montar patches com porcentagem no nome
+        # Montar patches da legenda (com %)
         patches = []
         total = sum(sizes)
         for (lbl, val, c) in zip(labels, sizes, colors):
@@ -271,10 +282,10 @@ def plot_topN_multidomain_in_one_figure(df, taxonomic_level, taxon_list, top_n, 
             loc='center left',
             bbox_to_anchor=(-0.15, 0.5),
             fontsize=9,
-            frameon=False,  # sem moldura
+            frameon=False
         )
 
-    # Subplots extras, se for impar
+    # Subplots extras se for ímpar
     total_subplots = n_rows * n_cols
     if total_subplots > num_taxons:
         for idx in range(num_taxons, total_subplots):
@@ -289,32 +300,34 @@ def plot_topN_multidomain_in_one_figure(df, taxonomic_level, taxon_list, top_n, 
     plt.savefig(f"{base_name}.jpeg", dpi=dpi, bbox_inches='tight')
 
     print(f"Figuras salvas: {base_name}.png, .svg, .jpeg (DPI={dpi})")
-
-    # Exibe
     plt.show()
 
-# -----------------------------------------------------------
+# ----------------------------------------------------------------
 # 7) Função Principal
-# -----------------------------------------------------------
+# ----------------------------------------------------------------
 def main():
     """
-    python3 pie_chart.py <table1> <table2> <domain_name> <top_n> <taxonomic_level> <taxon_list> <dpi>
-
+    Uso:
+      python3 pie_chart.py <table1> <table2> <domain_name> <top_n> <taxonomic_level> <taxon_list> <dpi>
+    
     Exemplo:
-      python3 pie_chart.py \\
-        Genomes_Total_proteinas_taxonomy_FAAL_metadata_nodup.tsv \\
-        results_all_lista_proteins.faals_cdd.tsv \\
-        Bacteria 6 Phylum 'Cyanobacteriota,Actinomycetota' 300
+      python3 pie_chart.py \
+        Genomes_Total_proteinas_taxonomy_FAAL_metadata_nodup.tsv \
+        results_all_lista_proteins.faals_cdd.tsv \
+        Bacteria 6 Phylum "Candidatus Rokubacteriota, Actinomycetota" 300
+
+    Observe o uso de aspas em "Candidatus Rokubacteriota, Actinomycetota"
+    se houver espaços nos nomes.
     """
     if len(sys.argv) < 8:
         print(
             "Uso: python3 pie_chart.py <table1_path> <table2_path> <domain_name> <top_n> "
-            "<taxonomic_level> <taxon_list> <dpi>\n"
+            "<taxonomic_level> <taxon_list> <dpi>\n\n"
             "Exemplo:\n"
             "  python3 pie_chart.py \\\n"
             "    Genomes_Total_proteinas_taxonomy_FAAL_metadata_nodup.tsv \\\n"
             "    results_all_lista_proteins.faals_cdd.tsv \\\n"
-            "    Bacteria 6 Phylum 'Cyanobacteriota,Actinomycetota' 300\n"
+            "    Bacteria 6 Phylum \"Candidatus Rokubacteriota, Actinomycetota\" 300\n"
         )
         sys.exit(1)
 
@@ -326,6 +339,7 @@ def main():
     taxon_list_str = sys.argv[6]
     dpi = int(sys.argv[7])
 
+    # Validacoes
     if domain_name not in ['Bacteria', 'Archaea', 'Eukaryota']:
         print("Erro: <domain_name> deve ser 'Bacteria', 'Archaea' ou 'Eukaryota'.")
         sys.exit(1)
@@ -334,23 +348,22 @@ def main():
         print("Erro: <taxonomic_level> deve ser 'Phylum', 'Order' ou 'Genus'.")
         sys.exit(1)
 
+    # Permitir nomes compostos, ex: "Candidatus Rokubacteriota, Actinomycetota"
+    # splitted via ','
     taxon_list = [x.strip() for x in taxon_list_str.split(',') if x.strip()]
 
-    # Carrega e mescla
     df1, df2 = load_data(table1_path, table2_path)
     merged_df = merge_tables(df1, df2)
     filtered_df = update_lineage(merged_df, domain_name)
-
     if filtered_df.empty:
         print(f"Nenhum dado encontrado para o domínio {domain_name}. Encerrando.")
         sys.exit(0)
 
-    # Gera figure
     plot_topN_multidomain_in_one_figure(filtered_df, taxonomic_level, taxon_list, top_n, dpi)
 
-# -----------------------------------------------------------
-# Execucao
-# -----------------------------------------------------------
+# ----------------------------------------------------------------
+# 8) Execucao
+# ----------------------------------------------------------------
 if __name__ == "__main__":
     main()
 
