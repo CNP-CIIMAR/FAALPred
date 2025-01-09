@@ -6,7 +6,7 @@ import matplotlib
 import re
 
 ## Example: python3 pie_bgc_classe.py merged_Network_Annotations_Full_modificada__clans_0.30_0.70_final.tsv
-## Later: Cyanobacteriota, Myxococcota, Actinomycetota, Plactomycetota, Nistrospirota, Deltaproteobacteria, Acidobacteria, Thermodesulfobacteriota, Chloflexota, Gemmatimonadota, Pseudomonadota, Verrucomicrobiota, Bacteroidota, Bacillota
+## Later: Cyanobacteriota, Myxococcota, Actinomycetota, Planctomycetota, Nitrospirota, Deltaproteobacteria, Acidobacteriota, Thermodesulfobacteriota, Chloroflexota, Gemmatimonadota, Pseudomonadota, Verrucomicrobiota, Bacteroidota, Bacillota
 
 # Configura o backend do matplotlib para TkAgg ou Qt5Agg, dependendo do seu sistema
 matplotlib.use('TkAgg')  # Ou 'Qt5Agg', dependendo do seu sistema
