@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
 from ete3 import NCBITaxa
-
+####
+###python3 pie_chart.py Genomes_Total_proteinas_taxonomy_FAAL_metadata_nodup.tsv results_all_lista_proteins.faals_cdd.tsv Bacteria 6 Phylum Cyanobacteriota,Myxococcota,Actinomycetota,Planctomycetota,Nitrospirota,Acidobacteriota,Thermodesulfobacteriota,Chloroflexota,Gemmatimonadota,Pseudomonadota 300
 # Inicializa o objeto NCBITaxa
 ncbi = NCBITaxa()
 
@@ -241,7 +242,7 @@ def plot_topN_multidomain_in_one_figure(df, taxonomic_level, taxon_list, top_n, 
         colors = plt.cm.viridis(np.linspace(0, 1, len(labels)))
 
         # Criar o pie sem autopct
-        wedges, text_labels, _ = ax.pie(
+        wedges, text_labels= ax.pie(
             sizes,
             labels=None,
             startangle=140,
@@ -352,3 +353,5 @@ def main():
 # -----------------------------------------------------------
 if __name__ == "__main__":
     main()
+
+
