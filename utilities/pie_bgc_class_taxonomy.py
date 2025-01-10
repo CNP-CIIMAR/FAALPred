@@ -5,287 +5,338 @@ import sys
 import matplotlib
 import re
 
-## Example: python3 pie_bgc_classe.py merged_Network_Annotations_Full_modificada__clans_0.30_0.70_final.tsv
-## Later: Cyanobacteriota, Myxococcota, Actinomycetota, Planctomycetota, Nitrospirota, Deltaproteobacteria, Acidobacteriota, Thermodesulfobacteriota, Chloroflexota, Gemmatimonadota, Pseudomonadota, Verrucomicrobiota, Bacteroidota, Bacillota
-
-# Configura o backend do matplotlib para TkAgg ou Qt5Agg, dependendo do seu sistema
+# Configure o backend do matplotlib para TkAgg ou Qt5Agg, dependendo do seu sistema
 matplotlib.use('TkAgg')  # Ou 'Qt5Agg', dependendo do seu sistema
 
 import matplotlib.pyplot as plt
 
 
-def carregar_dados(caminho_arquivo):
+def load_data(file_path):
     """
-    Carrega os dados de um arquivo CSV separado por tabulaÃ§Ãµes.
+    Carrega dados de um arquivo CSV separado por tabulaÃ§Ãµes.
 
     Args:
-        caminho_arquivo (str): Caminho para o arquivo CSV.
+        file_path (str): Caminho para o arquivo CSV.
 
     Returns:
-        pd.DataFrame or None: DataFrame com os dados carregados ou None se ocorrer um erro.
+        pd.DataFrame ou None: DataFrame com os dados carregados ou None se ocorrer um erro.
     """
     try:
-        dataframe = pd.read_csv(caminho_arquivo, sep='\t')
-        print(f"Arquivo '{caminho_arquivo}' carregado com sucesso.")
+        dataframe = pd.read_csv(file_path, sep='\t', encoding='utf-8')
+        print(f"Arquivo '{file_path}' carregado com sucesso.")
         return dataframe
     except FileNotFoundError:
-        print(f"Arquivo '{caminho_arquivo}' nÃ£o encontrado.")
+        print(f"Arquivo '{file_path}' nÃ£o encontrado.")
         return None
     except pd.errors.ParserError:
-        print(f"Erro ao analisar o arquivo '{caminho_arquivo}'. Verifique o formato do arquivo.")
+        print(f"Erro ao analisar o arquivo '{file_path}'. Verifique o formato do arquivo.")
+        return None
+    except UnicodeDecodeError:
+        print(f"Erro de codificaÃ§Ã£o ao ler o arquivo '{file_path}'. Verifique a codificaÃ§Ã£o do arquivo.")
         return None
     except Exception as e:
         print(f"Ocorreu um erro inesperado: {e}")
         return None
 
 
-def filtrar_dados(dataframe, nivel, nomes):
-    if nivel not in dataframe.columns:
-        print(f"Coluna '{nivel}' nÃ£o encontrada no DataFrame.")
+def filter_data(dataframe, level, names):
+    if level not in dataframe.columns:
+        print(f"Coluna '{level}' nÃ£o encontrada no DataFrame.")
         return pd.DataFrame()
-    if nivel == "Phylum":
-        return dataframe[dataframe['Taxonomy'].str.contains('|'.join(nomes), case=False, na=False)]
-    return dataframe[dataframe[nivel].isin(nomes)]
+    if level == "Phylum":
+        return dataframe[dataframe['Taxonomy'].str.contains('|'.join(names), case=False, na=False)]
+    return dataframe[dataframe[level].isin(names)]
 
 
-def ajustar_nivel_taxonomico(dataframe, nivel):
+def adjust_taxonomic_level(dataframe, level):
     """
     Ajusta o nÃ­vel taxonÃ´mico especificado no DataFrame.
 
     Args:
         dataframe (pd.DataFrame): DataFrame contendo os dados.
-        nivel (str): NÃ­vel taxonÃ´mico a ser ajustado ('Phylum', 'Order', 'Genus').
+        level (str): NÃ­vel taxonÃ´mico a ajustar ('Phylum', 'Order', 'Genus').
 
     Returns:
         pd.DataFrame: DataFrame com o nÃ­vel taxonÃ´mico ajustado.
     """
     dataframe['Taxonomy'] = dataframe['Taxonomy'].fillna("Unknown")
-    if nivel == "Phylum":
-        dataframe[nivel] = dataframe['Taxonomy'].apply(corrigir_phylum)
-    elif nivel == "Order":
-        dataframe[nivel] = dataframe['Taxonomy'].apply(corrigir_order)
-    elif nivel == "Genus":
-        dataframe[nivel] = dataframe['Taxonomy'].apply(corrigir_genus)
+    if level == "Phylum":
+        dataframe[level] = dataframe['Taxonomy'].apply(correct_phylum)
+    elif level == "Order":
+        dataframe[level] = dataframe['Taxonomy'].apply(correct_order)
+    elif level == "Genus":
+        dataframe[level] = dataframe['Taxonomy'].apply(correct_genus)
     else:
-        print(f"NÃ­vel taxonÃ´mico '{nivel}' nÃ£o reconhecido. Nenhuma alteraÃ§Ã£o serÃ¡ feita.")
+        print(f"NÃ­vel taxonÃ´mico '{level}' nÃ£o reconhecido. Nenhuma alteraÃ§Ã£o serÃ¡ feita.")
     return dataframe
 
 
-def corrigir_phylum(taxonomy):
+def correct_phylum(taxonomy):
     """
-    Extrai e corrige o nÃ­vel de Filo (Phylum) da taxonomia.
+    Extrai e corrige o nÃ­vel de Phylum a partir da string de taxonomia.
 
     Args:
         taxonomy (str): String de taxonomia.
 
     Returns:
-        str: Nome do Filo ou 'Unknown' se nÃ£o puder ser determinado.
+        str: Nome do Phylum ou 'Unknown' se nÃ£o puder ser determinado.
     """
     if not isinstance(taxonomy, str):
         return "Unknown"
-    niveis = taxonomy.split(',')
-    for nivel in niveis:
-        if "group" not in nivel.lower():
-            return nivel.strip()
+    levels = taxonomy.split(',')
+    for lvl in levels:
+        if "group" not in lvl.lower():
+            return lvl.strip()
     return "Unknown"
 
 
-def corrigir_order(taxonomy):
+def correct_order(taxonomy):
     """
-    Extrai e corrige o nÃ­vel de Ordem (Order) da taxonomia.
+    Extrai e corrige o nÃ­vel de Order a partir da string de taxonomia.
 
     Args:
         taxonomy (str): String de taxonomia.
 
     Returns:
-        str: Nome da Ordem ou 'Unknown' se nÃ£o puder ser determinado.
+        str: Nome do Order ou 'Unknown' se nÃ£o puder ser determinado.
     """
     if not isinstance(taxonomy, str):
         return "Unknown"
-    niveis = taxonomy.split(',')
-    # Supondo que a Ordem esteja no segundo nÃ­vel
-    if len(niveis) >= 2:
-        return niveis[1].strip()
+    levels = taxonomy.split(',')
+    # Supondo que Order estÃ¡ no segundo nÃ­vel
+    if len(levels) >= 2:
+        return levels[1].strip()
     return "Unknown"
 
 
-def corrigir_genus(taxonomy):
+def correct_genus(taxonomy):
     """
-    Extrai e corrige o nÃ­vel de GÃªnero (Genus) da taxonomia.
+    Extrai e corrige o nÃ­vel de Genus a partir da string de taxonomia.
 
     Args:
         taxonomy (str): String de taxonomia.
 
     Returns:
-        str: Nome do GÃªnero ou 'Unknown' se nÃ£o puder ser determinado.
+        str: Nome do Genus ou 'Unknown' se nÃ£o puder ser determinado.
     """
     if not isinstance(taxonomy, str):
         return "Unknown"
-    niveis = taxonomy.split(',')
-    # Supondo que o GÃªnero esteja no terceiro nÃ­vel
-    if len(niveis) >= 3:
-        return niveis[2].strip()
+    levels = taxonomy.split(',')
+    # Supondo que Genus estÃ¡ no terceiro nÃ­vel
+    if len(levels) >= 3:
+        return levels[2].strip()
     return "Unknown"
 
 
-def selecionar_nivel_taxonomico():
+def select_taxonomic_level():
     """
-    Permite que o usuÃ¡rio selecione o nÃ­vel taxonÃ´mico e insira os nomes correspondentes.
+    Permite ao usuÃ¡rio selecionar o nÃ­vel taxonÃ´mico e inserir os nomes correspondentes.
 
     Returns:
         tuple: NÃ­vel taxonÃ´mico selecionado e lista de nomes inseridos pelo usuÃ¡rio.
     """
-    niveis_taxonomicos = ['Phylum', 'Order', 'Genus']
+    taxonomic_levels = ['Phylum', 'Order', 'Genus']
     print("Selecione o nÃ­vel taxonÃ´mico para filtrar:")
-    for indice, nivel in enumerate(niveis_taxonomicos, 1):
-        print(f"{indice}. {nivel}")
-    escolha = input("Digite o nÃºmero correspondente ao nÃ­vel taxonÃ´mico: ")
+    for index, level in enumerate(taxonomic_levels, 1):
+        print(f"{index}. {level}")
+    choice = input("Digite o nÃºmero correspondente ao nÃ­vel taxonÃ´mico: ")
 
     try:
-        escolha_numero = int(escolha)
-        if escolha_numero < 1 or escolha_numero > len(niveis_taxonomicos):
+        choice_number = int(choice)
+        if choice_number < 1 or choice_number > len(taxonomic_levels):
             raise IndexError
-        nivel_selecionado = niveis_taxonomicos[escolha_numero - 1]
-        nomes = input(f"Digite os nomes de {nivel_selecionado} separados por vÃ­rgulas: ")
-        nomes_lista = [nome.strip() for nome in nomes.split(',') if nome.strip()]
-        if not nomes_lista:
+        selected_level = taxonomic_levels[choice_number - 1]
+        names = input(f"Digite os nomes de {selected_level} separados por vÃ­rgulas: ")
+        names_list = [name.strip() for name in names.split(',') if name.strip()]
+        if not names_list:
             print("Nenhum nome vÃ¡lido foi inserido.")
             sys.exit(1)
-        return nivel_selecionado, nomes_lista
+        return selected_level, names_list
     except (ValueError, IndexError):
         print("Entrada invÃ¡lida. Por favor, selecione um nÃºmero vÃ¡lido.")
         sys.exit(1)
 
 
-def calcular_proporcao_e_genomas(dataframe):
-    dataframe = dataframe.copy()  # Garantir que estamos trabalhando com uma cÃ³pia
+def calculate_proportion_and_genomes(dataframe):
+    dataframe = dataframe.copy()  # Garante que estamos trabalhando com uma cÃ³pia
     dataframe['Genome_ID'] = dataframe['BGC'].str.extract(
         r'(^[\w]+[\w]+|^[\w\.]+\.region\d+|NODE[\w\.]+)', expand=False
     )
 
-    proporcao = dataframe.groupby('BiG-SCAPE class').size().reset_index(name='Count')
-    total = proporcao['Count'].sum()
-    proporcao['Proportion'] = proporcao['Count'] / total
+    proportion = dataframe.groupby('BiG-SCAPE class').size().reset_index(name='Count')
+    total = proportion['Count'].sum()
+    proportion['Proportion'] = proportion['Count'] / total
 
-    numero_genomas = dataframe['Genome_ID'].nunique()
+    number_of_genomes = dataframe['Genome_ID'].nunique()
 
-    return proporcao, numero_genomas
+    return proportion, number_of_genomes
 
 
-def remover_classes_proporcao_zero(dataframe, coluna_taxon):
+def remove_low_proportion_classes(dataframe, taxon_column):
     """
     Remove classes especÃ­ficas ('Saccharides', 'Ripps', 'Terpenes') do DataFrame
-    se a proporÃ§Ã£o associada for menor que 0.1%.
+    se sua proporÃ§Ã£o for menor que 0.1%.
 
     Args:
         dataframe (pd.DataFrame): DataFrame contendo os dados.
-        coluna_taxon (str): Nome da coluna que contÃ©m as classes a serem filtradas.
+        taxon_column (str): Nome da coluna contendo as classes a serem filtradas.
 
     Returns:
         tuple: DataFrame filtrado e DataFrame removido.
     """
-    padrao = r"\b(?:Saccharides|Ripps|Terpenes)\b"
+    pattern = r"\b(?:Saccharides|Ripps|Terpenes)\b"
     if 'Proportion' not in dataframe.columns:
         print("Coluna 'Proportion' nÃ£o encontrada. Pulando filtragem.")
         return dataframe, pd.DataFrame()
 
-    condicao_remocao = (
-        dataframe[coluna_taxon].str.contains(padrao, case=False, na=False, regex=True) &
+    removal_condition = (
+        dataframe[taxon_column].str.contains(pattern, case=False, na=False, regex=True) &
         (dataframe['Proportion'] < 0.001)  # Menor que 0.1%
     )
-    return dataframe[~condicao_remocao], dataframe[condicao_remocao]
-
-
-def plotar_grafico_pizza(dataframe_filtrado, nivel, nomes_taxon, num_genomas, color_mapping, ax=None):
+    return dataframe[~removal_condition], dataframe[removal_condition]
+def plot_pie_chart(filtered_dataframe, level, taxon_names, num_genomes, color_mapping, ax=None):
     """
-    Gera o grÃ¡fico de pizza com base no DataFrame filtrado.
-    Adiciona caixas externas para valores entre 0.1% e 2%.
-    Evita sobreposiÃ§Ã£o de rÃ³tulos e duplicidade.
+    Gera um grÃ¡fico de pizza baseado no DataFrame filtrado.
+    - Fatias â‰¥5%:
+        - Porcentagem exibida dentro da fatia.
+        - DescriÃ§Ã£o movida para fora, mas sem caixinhas.
+    - Fatias entre 0.1% e 2%:
+        - DescriÃ§Ã£o e porcentagem exibidas externamente em caixas conectadas por setas.
 
     Args:
-        dataframe_filtrado (pd.DataFrame): DataFrame filtrado para plotagem.
-        nivel (str): NÃ­vel taxonÃ´mico utilizado para filtragem.
-        nomes_taxon (list): Lista de nomes taxonÃ´micos inseridos pelo usuÃ¡rio.
-        num_genomas (int): NÃºmero total de genomas.
-        color_mapping (dict): Mapeamento de cores para cada classe de BiG-SCAPE.
+        filtered_dataframe (pd.DataFrame): DataFrame filtrado para plotagem.
+        level (str): NÃ­vel taxonÃ´mico usado para filtragem.
+        taxon_names (list): Lista de nomes taxonÃ´micos inseridos pelo usuÃ¡rio.
+        num_genomes (int): NÃºmero total de genomas.
+        color_mapping (dict): Mapeamento de cores para cada classe BiG-SCAPE.
         ax (matplotlib.axes.Axes, optional): Eixo onde o grÃ¡fico serÃ¡ plotado.
     """
-    proporcao = dataframe_filtrado.groupby('BiG-SCAPE class').size().reset_index(name='Count')
-    proporcao['Proportion'] = proporcao['Count'] / proporcao['Count'].sum()
+    proportion = filtered_dataframe.groupby('BiG-SCAPE class').size().reset_index(name='Count')
+    proportion['Proportion'] = proportion['Count'] / proportion['Count'].sum()
 
-    if proporcao.empty:
+    if proportion.empty:
         print("Nenhum dado disponÃ­vel para o grÃ¡fico de pizza.")
         return
 
-    rotulos = proporcao['BiG-SCAPE class']
-    tamanhos = proporcao['Proportion']
+    labels = proportion['BiG-SCAPE class']
+    sizes = proportion['Proportion']
 
     # Atribuir cores com base no mapeamento
-    cores = rotulos.map(color_mapping)
+    colors = labels.map(color_mapping)
 
-    # Se nenhum eixo foi fornecido, crie um novo
+    # Se nenhum eixo for fornecido, criar um novo
     if ax is None:
-        fig, ax = plt.subplots(figsize=(8, 8))
+        fig, ax = plt.subplots(figsize=(6, 6))
 
-    # CriaÃ§Ã£o do grÃ¡fico de pizza
-    fatias, textos, autotextos = ax.pie(
-        tamanhos,
-        labels=[
-            rotulo if not (rotulo in ['Ripps', 'Saccharides', 'Terpenes'] and np.isclose(tamanho, 0.0)) and not (0.001 <= tamanho <= 0.02) else ""
-            for rotulo, tamanho in zip(rotulos, tamanhos)
-        ],
-        colors=cores,
+    # Criar o grÃ¡fico de pizza
+    wedges, texts, autotexts = ax.pie(
+        sizes,
+        labels=None,  # Sem labels no pie
+        colors=colors,
         startangle=140,
-        autopct=lambda pct: f"{pct:.1f}%" if pct > 2 else "",
+        autopct=lambda p: f'{p:.1f}%' if p > 5 else '',  # Exibir porcentagens > 5% dentro das fatias
+        pctdistance=0.6,  # DistÃ¢ncia das etiquetas internas do centro
         wedgeprops=dict(edgecolor='w', linewidth=1.2),
+        textprops=dict(color="white", fontsize=10),
     )
 
-    # Aumentar o tamanho da fonte dos rÃ³tulos do grÃ¡fico
-    for text in textos:
-        text.set_fontsize(14)
+    # Ajustar porcentagens para que fiquem bem posicionadas e legÃ­veis
+    for autotext in autotexts:
+        autotext.set_fontsize(8)
+        if autotext.get_text() == '':
+            autotext.set_visible(False)  # Ocultar porcentagens nÃ£o relevantes
 
-    # A fonte dentro do pie (autotextos) fica branca e com fonte maior
-    for autotext in autotextos:
-        autotext.set_color('white')
-        autotext.set_fontsize(14)
+    # Adicionar descriÃ§Ãµes externas para fatias >=5%
+    annotations = []
+    for idx, (label, size, wedge) in enumerate(zip(labels, sizes, wedges)):
+        if size >= 0.05:
+            angle = (wedge.theta2 - wedge.theta1) / 2. + wedge.theta1
+            x = np.cos(np.deg2rad(angle))
+            y = np.sin(np.deg2rad(angle))
 
-    deslocamento_vertical = 0  # Controla a posiÃ§Ã£o das caixas para evitar sobreposiÃ§Ã£o
-
-    # Adicionar caixas externas para valores entre 0.1% e 2%
-    for idx, (rotulo, tamanho) in enumerate(zip(rotulos, tamanhos)):
-        if 0.001 <= tamanho <= 0.02:  # Valores entre 0.1% e 2%
-            angulo = (fatias[idx].theta2 - fatias[idx].theta1) / 2. + fatias[idx].theta1
-            x = np.cos(np.deg2rad(angulo))
-            y = np.sin(np.deg2rad(angulo))
-            alinhamento_horizontal = "left" if x > 0 else "right"
-
-            ax.annotate(
-                f"{rotulo}: {tamanho * 100:.1f}%",
-                xy=(x, y),
-                xytext=(1.5 * np.sign(x), 1.5 * y + deslocamento_vertical),
-                arrowprops=dict(arrowstyle="-", connectionstyle="angle,angleA=0,angleB=90"),
-                horizontalalignment=alinhamento_horizontal,
-                bbox=dict(boxstyle="round,pad=0.3", edgecolor="black", facecolor="white"),
-                fontsize=9,
+            # Posicionar descriÃ§Ã£o do lado externo, sem caixinha
+            annotation = ax.text(
+                1.2 * x, 1.2 * y, label,
+                horizontalalignment="center" if x > 0 else "right",
+                verticalalignment="center",
+                fontsize=10, color="black"
             )
+            annotations.append(annotation)
 
-            deslocamento_vertical += 0.3  # Incrementa para evitar sobreposiÃ§Ã£o
+    # Adicionar caixas externas para fatias entre 0.1% e 2%
+    external_annotations = []
+    for idx, (label, size, wedge) in enumerate(zip(labels, sizes, wedges)):
+        if 0.001 <= size < 0.05:
+            angle = (wedge.theta2 - wedge.theta1) / 2. + wedge.theta1
+            x = np.cos(np.deg2rad(angle))
+            y = np.sin(np.deg2rad(angle))
+            horizontal_alignment = "left" if x > 0 else "right"
 
-    # ConfiguraÃ§Ã£o do tÃ­tulo personalizado sem o nÃ­vel taxonÃ´mico, alinhado Ã  direita
-    nome_taxon_str = ', '.join(nomes_taxon)
+            # Calcular posiÃ§Ã£o para a caixa externa com ajuste adicional de seta
+            text_x = 1.4 * np.sign(x)
+            text_y = 1.4 * y
+
+            # Ajustar direÃ§Ã£o da seta com base no Ã¢ngulo
+            arrow_offset = 0.2 if y > 0 else -0.2
+            annotation = ax.annotate(
+                f"{label} ({size * 100:.1f}%)",
+                xy=(x, y),
+                xytext=(text_x, text_y + arrow_offset),
+                arrowprops=dict(
+                    arrowstyle="-",
+                    linewidth=1.0,
+                    connectionstyle="arc3,rad=0.2",  # Adicionar curva suave
+                    color='black'
+                ),
+                horizontalalignment=horizontal_alignment,
+                verticalalignment='center',
+                fontsize=8,
+            )
+            external_annotations.append(annotation)
+
+    # Ajustar posiÃ§Ãµes das anotaÃ§Ãµes externas para evitar sobreposiÃ§Ãµes
+    adjust_annotations(external_annotations, spacing=0.2)
+
+    # Configurar o tÃ­tulo personalizado com o nome do taxon e nÃºmero total de genomas
+    taxon_name_str = ', '.join(taxon_names)
     ax.set_title(
-        f"{nome_taxon_str}, Total Genomes: {num_genomas}",
-        fontsize=16,  # Aumentado o tamanho do tÃ­tulo
+        f"{taxon_name_str}\nTotal Genomes: {num_genomes}",
+        fontsize=12,
         weight="bold",
-        pad=30,        # MantÃ©m a distÃ¢ncia
-        loc='right'    # Alinhamento Ã  direita
+        pad=10,        # Ajustar a distÃ¢ncia do tÃ­tulo
+        loc='center'   # Centralizar o tÃ­tulo
     )
 
-    # Se nenhum eixo foi fornecido, ajustar o layout e mostrar
-    if ax is None:
-        plt.tight_layout()
-        plt.show()
+    # Garantir que o grÃ¡fico de pizza seja desenhado como um cÃ­rculo
+    ax.axis('equal')
 
+def adjust_annotations(annotations, spacing=0.2):
+    """
+    Ajusta manualmente as posiÃ§Ãµes das anotaÃ§Ãµes externas para evitar sobreposiÃ§Ãµes.
+
+    Args:
+        annotations (list): Lista de objetos de anotaÃ§Ã£o a serem ajustados.
+        spacing (float): EspaÃ§amento mÃ­nimo entre as linhas das anotaÃ§Ãµes.
+    """
+    if not annotations:
+        return
+
+    # Ordenar anotaÃ§Ãµes externas por y para ajustar de cima para baixo
+    annotations_sorted = sorted(annotations, key=lambda ann: ann.xyann[1], reverse=True)
+
+    for i in range(1, len(annotations_sorted)):
+        prev = annotations_sorted[i - 1].xyann[1]
+        current = annotations_sorted[i].xyann[1]
+        if abs(current - prev) < spacing:
+            # Ajustar a posiÃ§Ã£o y da anotaÃ§Ã£o atual
+            x, y = annotations_sorted[i].xyann
+            if y < 0:
+                y_new = y - spacing
+            else:
+                y_new = y + spacing
+            # Limitar a posiÃ§Ã£o y para nÃ£o sair dos limites do grÃ¡fico
+            y_new = max(min(y_new, 1.5), -1.5)
+            annotations_sorted[i].xyann = (x, y_new)
 
 def main():
     """
@@ -295,76 +346,80 @@ def main():
         print("Uso: python3 script.py <caminho_para_o_arquivo>")
         sys.exit(1)
 
-    caminho_arquivo = sys.argv[1]
-    dataframe = carregar_dados(caminho_arquivo)
+    file_path = sys.argv[1]
+    dataframe = load_data(file_path)
 
     if dataframe is not None:
         # Verificar se as colunas necessÃ¡rias existem
-        colunas_necessarias = ['Taxonomy', 'BiG-SCAPE class', 'BGC']
-        for coluna in colunas_necessarias:
-            if coluna not in dataframe.columns:
-                print(f"Coluna '{coluna}' nÃ£o encontrada no arquivo. Por favor, verifique o arquivo de entrada.")
+        required_columns = ['Taxonomy', 'BiG-SCAPE class', 'BGC']
+        for column in required_columns:
+            if column not in dataframe.columns:
+                print(f"Coluna '{column}' nÃ£o encontrada no arquivo. Verifique o arquivo de entrada.")
                 sys.exit(1)
-        nivel, nomes_taxon = selecionar_nivel_taxonomico()
-        dataframe = ajustar_nivel_taxonomico(dataframe, nivel)
+        level, taxon_names = select_taxonomic_level()
+        dataframe = adjust_taxonomic_level(dataframe, level)
 
-        lista_proporcoes = []
-        lista_numero_genomas = []
+        proportion_list = []
+        genome_number_list = []
 
         # Filtrar dados para todos os taxons selecionados primeiro
-        dados_filtrados = []
-        numero_genomas_list = []
+        filtered_data = []
+        genome_number_list = []
         all_classes = set()  # Coletar todas as classes Ãºnicas
 
-        for nome_taxon in nomes_taxon:
-            dataframe_filtrado = filtrar_dados(dataframe, nivel, [nome_taxon])
+        for taxon_name in taxon_names:
+            filtered_df = filter_data(dataframe, level, [taxon_name])
 
-            if dataframe_filtrado.empty:
-                print(f"No data found for {nome_taxon}.")
+            if filtered_df.empty:
+                print(f"Nenhum dado encontrado para {taxon_name}.")
                 continue
 
-            proporcao, numero_genomas = calcular_proporcao_e_genomas(dataframe_filtrado)
+            proportion, num_genomes = calculate_proportion_and_genomes(filtered_df)
 
-            # Realizar merge em uma nova variÃ¡vel para evitar sobrescrever dataframe_filtrado
-            dataframe_filtrado_com_proporcao = dataframe_filtrado.merge(
-                proporcao[['BiG-SCAPE class', 'Proportion']],
+            # Mesclar em uma nova variÃ¡vel para evitar sobrescrever filtered_df
+            filtered_df_with_proportion = filtered_df.merge(
+                proportion[['BiG-SCAPE class', 'Proportion']],
                 on='BiG-SCAPE class',
                 how='left'
             )
 
-            # Aplicar a remoÃ§Ã£o na coluna 'BiG-SCAPE class'
-            dataframe_filtrado_final, dataframe_removido = remover_classes_proporcao_zero(
-                dataframe_filtrado_com_proporcao,
+            # Aplicar remoÃ§Ã£o na coluna 'BiG-SCAPE class'
+            final_filtered_df, removed_df = remove_low_proportion_classes(
+                filtered_df_with_proportion,
                 'BiG-SCAPE class'
             )
 
-            print("\nClasses Removidas (ProporÃ§Ã£o < 0.1%):")
-            if not dataframe_removido.empty:
+            print("\nClasses Removidas (ProporÃ§Ã£o < 0,1%):")
+            if not removed_df.empty:
                 print(
-                    dataframe_removido[['BiG-SCAPE class', 'Proportion']].drop_duplicates()
+                    removed_df[['BiG-SCAPE class', 'Proportion']].drop_duplicates()
                 )
             else:
                 print("Nenhuma classe foi removida.")
 
             print("\nDataFrame Filtrado (Apenas Classes VÃ¡lidas):")
-            print(dataframe_filtrado_final.head())  # Exibe as primeiras linhas para verificaÃ§Ã£o
+            print(final_filtered_df.head())  # Exibir as primeiras linhas para verificaÃ§Ã£o
 
-            # Armazenar os dados para plotagem
-            dados_filtrados.append((dataframe_filtrado_final, nivel, [nome_taxon], numero_genomas))
-            numero_genomas_list.append(numero_genomas)
+            # Armazenar dados para plotagem
+            filtered_data.append((final_filtered_df, level, [taxon_name], num_genomes))
+            genome_number_list.append(num_genomes)
 
             # Coletar todas as classes Ãºnicas
-            all_classes.update(proporcao['BiG-SCAPE class'].unique())
+            all_classes.update(proportion['BiG-SCAPE class'].unique())
+
+        if not all_classes:
+            print("Nenhuma classe encontrada para mapeamento de cores.")
+            sys.exit(1)
 
         # Criar um mapeamento de cores para cada classe usando a paleta viridis
         sorted_classes = sorted(all_classes)
         num_classes = len(sorted_classes)
-        cmap = plt.get_cmap('viridis')  # Usar a paleta viridis
+        cmap = plt.get_cmap('viridis')  # MantÃ©m a paleta viridis
         if num_classes > cmap.N:
-            # Se houver mais classes do que cores disponÃ­veis na paleta, distribuir as cores igualmente
+            # Se houver mais classes do que cores disponÃ­veis na paleta, distribuir cores igualmente
             colors = [cmap(i / num_classes) for i in range(num_classes)]
         else:
-            # Distribuir as cores uniformemente pela paleta
+            # Distribuir cores uniformemente pela paleta
             if num_classes > 1:
                 colors = [cmap(i / (num_classes - 1)) for i in range(num_classes)]
             else:
@@ -372,18 +427,22 @@ def main():
         color_mapping = dict(zip(sorted_classes, colors))
 
         # Determinar o nÃºmero de taxons vÃ¡lidos para plotagem
-        num_pies = len(dados_filtrados)
+        num_pies = len(filtered_data)
         if num_pies == 0:
             print("Nenhum dado vÃ¡lido para plotagem.")
             sys.exit(1)
 
-        # Calcular o nÃºmero de colunas e linhas para os subplots
-        num_cols = min(3, num_pies)  # AtÃ© 3 colunas para evitar subplots muito largos
+        # Definir o nÃºmero de colunas como 3
+        num_cols = 3
         num_rows = (num_pies + num_cols - 1) // num_cols
 
-        # Criar a figura e os subplots com espaÃ§amento adicional entre as linhas
-        fig, axes = plt.subplots(num_rows, num_cols, figsize=(6 * num_cols, 6 * num_rows))
-        plt.subplots_adjust(hspace=0.6)  # Aumentado para maior espaÃ§amento vertical entre os subplots
+        # Ajustar as dimensÃµes da figura para caber em uma pÃ¡gina do Word
+        # Considerando que uma pÃ¡gina do Word tem cerca de 6 polegadas de largura utilizÃ¡vel
+        fig_width = 18  # 6 polegadas por subplot
+        fig_height = 6 * num_rows  # 6 polegadas por linha
+
+        fig, axes = plt.subplots(num_rows, num_cols, figsize=(fig_width, fig_height))
+        plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05, hspace=0.5, wspace=0.3)  # Ajuste de margens e espaÃ§amentos
 
         # Garantir que 'axes' seja um array 1D
         if num_pies == 1:
@@ -392,10 +451,10 @@ def main():
             axes = np.array(axes).flatten()
 
         # Plotar cada grÃ¡fico de pizza no subplot correspondente
-        for idx, (dados, nivel_plot, nomes_taxon_plot, num_genomas_plot) in enumerate(dados_filtrados):
+        for idx, (data, plot_level, taxon_names_plot, num_genomes_plot) in enumerate(filtered_data):
             if idx < len(axes):
                 ax = axes[idx]
-                plotar_grafico_pizza(dados, nivel_plot, nomes_taxon_plot, num_genomas_plot, color_mapping, ax=ax)
+                plot_pie_chart(data, plot_level, taxon_names_plot, num_genomes_plot, color_mapping, ax=ax)
 
         # Remover subplots vazios, se houver
         total_subplots = num_rows * num_cols
@@ -406,7 +465,7 @@ def main():
         # Ajustar layout antes de salvar
         plt.tight_layout()
 
-        # Salvar a figura em JPEG, SVG e PNG com 300 DPI
+        # Salvar a figura nos formatos JPEG, SVG e PNG com 300 DPI
         plt.savefig('pie_charts.png', dpi=300, format='png')
         plt.savefig('pie_charts.jpeg', dpi=300, format='jpeg')
         plt.savefig('pie_charts.svg', dpi=300, format='svg')
@@ -417,4 +476,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
