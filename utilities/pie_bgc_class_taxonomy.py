@@ -4,6 +4,7 @@ import numpy as np
 import sys
 import matplotlib
 import re
+#python3 pie_bgc_class.py merged_Network_Annotations_Full_modificada__clans_0.30_0.70_final.tsv
 
 # Configure o backend do matplotlib para TkAgg ou Qt5Agg, dependendo do seu sistema
 matplotlib.use('TkAgg')  # Ou 'Qt5Agg', dependendo do seu sistema
