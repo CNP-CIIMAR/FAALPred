@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import numpy as np  # Importação necessária para funções do numpy
 import math
 
+#python3 bgc_class_bigscape.py bigscape_update.tsv
+
 # Configurar o backend do matplotlib para TkAgg
 matplotlib.use('TkAgg')
 
