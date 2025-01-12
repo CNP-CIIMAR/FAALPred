@@ -1,313 +1,343 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
-import numpy as np
 import sys
 import matplotlib
-import re
-## OK so para Phylum
-# Configure o backend do matplotlib para TkAgg ou Qt5Agg, dependendo do seu sistema
-matplotlib.use('TkAgg')  # Ou 'Qt5Agg', dependendo do seu sistema
-
+import re   # Para expressões regulares
+from ete3 import NCBITaxa
 import matplotlib.pyplot as plt
+import numpy as np  # Importação necessária para funções do numpy
+import math
 
+# Configurar o backend do matplotlib para TkAgg
+matplotlib.use('TkAgg')
+
+# Inicializar NCBITaxa para consulta taxonômica via Ete3
+ncbi = NCBITaxa()
 
 def load_data(file_path):
     """
-    Carrega dados de um arquivo CSV separado por tabulaÃƒÂ§ÃƒÂµes.
-
-    Args:
-        file_path (str): Caminho para o arquivo CSV.
-
-    Returns:
-        pd.DataFrame ou None: DataFrame com os dados carregados ou None se ocorrer um erro.
+    Carrega o arquivo de dados (TSV) e retorna um DataFrame.
     """
     try:
-        dataframe = pd.read_csv(file_path, sep='\t', encoding='utf-8')
+        df = pd.read_csv(file_path, sep='\t', encoding='utf-8', low_memory=False)
         print(f"Arquivo '{file_path}' carregado com sucesso.")
-        return dataframe
-    except FileNotFoundError:
-        print(f"Arquivo '{file_path}' nÃƒÂ£o encontrado.")
-        return None
-    except pd.errors.ParserError:
-        print(f"Erro ao analisar o arquivo '{file_path}'. Verifique o formato do arquivo.")
-        return None
-    except UnicodeDecodeError:
-        print(f"Erro de codificaÃƒÂ§ÃƒÂ£o ao ler o arquivo '{file_path}'. Verifique a codificaÃƒÂ§ÃƒÂ£o do arquivo.")
-        return None
+        return df
     except Exception as e:
-        print(f"Ocorreu um erro inesperado: {e}")
+        print(f"Erro ao carregar o arquivo: {e}")
+        sys.exit(1)
+
+def extract_species_from_taxonomy(taxonomy):
+    """
+    Extrai a espécie a partir do último nível da string 'Taxonomy'.
+    Usa vírgulas ou ponto e vírgula como separadores.
+    """
+    if not isinstance(taxonomy, str):
+        return None
+    taxonomy = taxonomy.replace(';', ',')
+    tokens = [tok.strip() for tok in taxonomy.split(',') if tok.strip()]
+    return tokens[-1] if tokens else None
+
+def extract_taxonomic_group_ete3(taxonomy, level):
+    """
+    Extrai o nível taxonômico (ex.: phylum ou genus) utilizando a biblioteca Ete3.
+    A partir da última parte da Taxonomy (espécie), extrai o gênero e consulta o NCBI.
+    """
+    try:
+        species = extract_species_from_taxonomy(taxonomy)
+        if not species:
+            return None
+        tokens = species.split()
+        if len(tokens) < 1:
+            return None
+        genus = tokens[0]
+        taxid_dict = ncbi.get_name_translator([genus])
+        if genus in taxid_dict:
+            taxid = taxid_dict[genus][0]
+            return extract_level_from_taxid(taxid, level)
+    except Exception as e:
+        print(f"Erro ao extrair {level}: {e}")
         return None
 
-
-def filter_data(dataframe, level, names):
-    if level not in dataframe.columns:
-        print(f"Coluna '{level}' nÃƒÂ£o encontrada no DataFrame.")
-        return pd.DataFrame()
-    if level == "Phylum":
-        return dataframe[dataframe['Taxonomy'].str.contains('|'.join(names), case=False, na=False)]
-    return dataframe[dataframe[level].isin(names)]
-
-
-def adjust_taxonomic_level(dataframe, level):
+def extract_level_from_taxid(taxid, level):
     """
-    Ajusta o nÃƒÂ­vel taxonÃƒÂ´mico especificado no DataFrame.
-
-    Args:
-        dataframe (pd.DataFrame): DataFrame contendo os dados.
-        level (str): NÃƒÂ­vel taxonÃƒÂ´mico a ajustar ('Phylum', 'Order', 'Genus').
-
-    Returns:
-        pd.DataFrame: DataFrame com o nÃƒÂ­vel taxonÃƒÂ´mico ajustado.
+    A partir do taxid, retorna o nome do nível taxonômico especificado.
     """
-    dataframe['Taxonomy'] = dataframe['Taxonomy'].fillna("Unknown")
+    try:
+        lineage = ncbi.get_lineage(taxid)
+        ranks = ncbi.get_rank(lineage)
+        names = ncbi.get_taxid_translator(lineage)
+        for tid in lineage:
+            if ranks[tid] == level.lower():
+                return names[tid]
+    except Exception as e:
+        print(f"Erro ao processar taxid {taxid}: {e}")
+    return None
+
+def extract_order(taxonomy, genus):
+    """
+    Extrai o nível "Order" da coluna Taxonomy seguindo as regras:
+      1. Procura por um termo que termine com "ales".
+      2. Se não encontrar, utiliza o penúltimo termo (após dividir a string por vírgulas).
+      3. Se não houver, utiliza o Genus e consulta o NCBI via Ete3.
+    """
+    if not isinstance(taxonomy, str):
+        return None
+    taxonomy = taxonomy.replace(';', ',')
+    terms = [term.strip() for term in taxonomy.split(',') if term.strip()]
+    for term in reversed(terms):
+        if term.lower().endswith("ales"):
+            return term
+    if len(terms) >= 2:
+        return terms[-2]
+    if genus:
+        try:
+            taxid_dict = ncbi.get_name_translator([genus])
+            if genus in taxid_dict:
+                taxid = taxid_dict[genus][0]
+                lineage = ncbi.get_lineage(taxid)
+                ranks = ncbi.get_rank(lineage)
+                names = ncbi.get_taxid_translator(lineage)
+                for tid in lineage:
+                    if ranks[tid] == "order":
+                        return names[tid]
+        except Exception as e:
+            print(f"Erro ao extrair Order para o gênero {genus}: {e}")
+    return None
+
+def extract_phylum(taxonomy):
+    """
+    Extrai o Phylum a partir da coluna Taxonomy.
+    
+    Lógica:
+      - A string é separada por vírgulas ou ponto e vírgula.
+      - O primeiro token é o domínio (ex.: "Bacteria").
+      - A partir do token de índice 1, se um token contiver a palavra "group" 
+        (ignorando maiúsculas/minúsculas), pula-o e vai para o próximo.
+      - Retorna o primeiro token que não contenha "group". 
+      - Caso nenhum token adequado seja encontrado, retorna uma string vazia.
+    """
+    if not isinstance(taxonomy, str):
+        return ""
+    taxonomy = taxonomy.replace(';', ',')
+    tokens = [token.strip() for token in taxonomy.split(',') if token.strip()]
+    if len(tokens) < 2:
+        return ""
+    # Inicia a partir do primeiro token após o domínio (índice 1)
+    i = 1
+    while i < len(tokens) and re.search(r'group', tokens[i], flags=re.IGNORECASE):
+        i += 1
+    result = tokens[i] if i < len(tokens) else ""
+    return result.strip()
+
+def extract_genome_id(df):
+    """
+    Cria a coluna "Genome_ID" a partir da coluna "BGC" utilizando uma lógica similar ao comando grep/awk:
+      - Se o valor inicia com "BGC": divide a string por "." e utiliza o primeiro token.
+      - Se o valor inicia com "GCA_" ou "GCF_": divide a string por "_" e utiliza a concatenação do primeiro e do segundo token.
+      - Se nenhum dos padrões for identificado, retorna o valor original.
+    """
+    def get_id(val):
+        if pd.isna(val):
+            return None
+        val = val.strip()
+        # Se inicia com BGC
+        if val.startswith("BGC"):
+            parts = val.split(".")
+            return parts[0] if parts else val
+        # Se inicia com GCA_ ou GCF_
+        if val.startswith("GCA_") or val.startswith("GCF_"):
+            tokens = val.split("_")
+            if len(tokens) >= 2:
+                return tokens[0] + "_" + tokens[1]
+        # Se nenhum padrão conhecido se aplicar, retorna o valor original
+        return val
+
+    df["Genome_ID"] = df["BGC"].apply(get_id)
+    return df
+
+def adjust_taxonomic_level(df, level):
+    """
+    Cria ou ajusta a coluna correspondente ao nível taxonômico selecionado.
+      - Para "Phylum":
+            utiliza a função extract_phylum para extrair o phylum diretamente da coluna Taxonomy.
+      - Para "Order":
+            se a coluna "Order" já existir e tiver valores, utiliza-a; caso contrário,
+            utiliza a função extract_order.
+      - Para "Genus":
+            utiliza extração via Ete3.
+    """
     if level == "Phylum":
-        dataframe[level] = dataframe['Taxonomy'].apply(correct_phylum)
+        df[level] = df["Taxonomy"].apply(lambda x: extract_phylum(x))
     elif level == "Order":
-        dataframe[level] = dataframe['Taxonomy'].apply(correct_order)
+        if "Order" in df.columns and df["Order"].notna().sum() > 0:
+            df[level] = df["Order"]
+        else:
+            df[level] = df.apply(lambda row: extract_order(row["Taxonomy"], row.get("Genus")), axis=1)
     elif level == "Genus":
-        dataframe[level] = dataframe['Taxonomy'].apply(correct_genus)
+        df[level] = df["Taxonomy"].apply(lambda x: extract_taxonomic_group_ete3(x, "genus"))
     else:
-        print(f"NÃƒÂ­vel taxonÃƒÂ´mico '{level}' nÃƒÂ£o reconhecido. Nenhuma alteraÃƒÂ§ÃƒÂ£o serÃƒÂ¡ feita.")
-    return dataframe
-
-
-def correct_phylum(taxonomy):
-    """
-    Extrai e corrige o nÃƒÂ­vel de Phylum a partir da string de taxonomia.
-
-    Args:
-        taxonomy (str): String de taxonomia.
-
-    Returns:
-        str: Nome do Phylum ou 'Unknown' se nÃƒÂ£o puder ser determinado.
-    """
-    if not isinstance(taxonomy, str):
-        return "Unknown"
-    levels = taxonomy.split(',')
-    for lvl in levels:
-        if "group" not in lvl.lower():
-            return lvl.strip()
-    return "Unknown"
-
-
-def correct_order(taxonomy):
-    """
-    Identifica e retorna o nÃƒÂ­vel de Order na string de taxonomia com base no sufixo 'ales'.
-
-    Args:
-        taxonomy (str): String de taxonomia.
-
-    Returns:
-        str: Nome do Order ou 'Unknown' se nÃƒÂ£o puder ser determinado.
-    """
-    if not isinstance(taxonomy, str):
-        return "Unknown"
-    
-    # Dividir os nÃƒÂ­veis por vÃƒÂ­rgula
-    levels = taxonomy.split(',')
-    
-    # Buscar o nÃƒÂ­vel que termina com 'ales'
-    for lvl in levels:
-        if lvl.strip().endswith('ales'):
-            return lvl.strip()
-    
-    return "Unknown"
-
-
-
-def correct_genus(taxonomy):
-    """
-    Extrai e corrige o nÃƒÂ­vel de Genus a partir da string de taxonomia.
-
-    Args:
-        taxonomy (str): String de taxonomia.
-
-    Returns:
-        str: Nome do Genus ou 'Unknown' se nÃƒÂ£o puder ser determinado.
-    """
-    if not isinstance(taxonomy, str):
-        return "Unknown"
-    levels = taxonomy.split(',')
-    # Supondo que Genus estÃƒÂ¡ no terceiro nÃƒÂ­vel
-    if len(levels) >= 3:
-        return levels[2].strip()
-    return "Unknown"
-
+        print(f"Nível taxonômico '{level}' não reconhecido. Encerrando.")
+        sys.exit(1)
+    return df
 
 def select_taxonomic_level():
     """
-    Permite ao usuÃƒÂ¡rio selecionar o nÃƒÂ­vel taxonÃƒÂ´mico e inserir os nomes correspondentes.
-
-    Returns:
-        tuple: NÃƒÂ­vel taxonÃƒÂ´mico selecionado e lista de nomes inseridos pelo usuÃƒÂ¡rio.
+    Permite ao usuário selecionar interativamente o nível taxonômico (Phylum, Order ou Genus)
+    e informar os nomes para filtragem (separados por vírgulas).
     """
-    taxonomic_levels = ['Phylum', 'Order', 'Genus']
-    print("Selecione o nÃƒÂ­vel taxonÃƒÂ´mico para filtrar:")
-    for index, level in enumerate(taxonomic_levels, 1):
-        print(f"{index}. {level}")
-    choice = input("Digite o nÃƒÂºmero correspondente ao nÃƒÂ­vel taxonÃƒÂ´mico: ")
-
+    options = ["Phylum", "Order", "Genus"]
+    print("Selecione o nível taxonômico para filtrar:")
+    for i, opt in enumerate(options, 1):
+        print(f"{i}. {opt}")
     try:
-        choice_number = int(choice)
-        if choice_number < 1 or choice_number > len(taxonomic_levels):
-            raise IndexError
-        selected_level = taxonomic_levels[choice_number - 1]
-        names = input(f"Digite os nomes de {selected_level} separados por vÃƒÂ­rgulas: ")
-        names_list = [name.strip() for name in names.split(',') if name.strip()]
-        if not names_list:
-            print("Nenhum nome vÃƒÂ¡lido foi inserido.")
-            sys.exit(1)
-        return selected_level, names_list
+        choice = int(input("Digite o número correspondente: "))
+        level = options[choice - 1]
+        taxa = input(f"Digite os nomes de {level} separados por vírgula: ")
+        taxa_list = [t.strip() for t in taxa.split(",") if t.strip()]
+        return level, taxa_list
     except (ValueError, IndexError):
-        print("Entrada invÃƒÂ¡lida. Por favor, selecione um nÃƒÂºmero vÃƒÂ¡lido.")
+        print("Entrada inválida. Encerrando.")
         sys.exit(1)
 
-
-#def calculate_proportion_and_genomes(dataframe):
-#    dataframe = dataframe.copy()  # Garante que estamos trabalhando com uma cÃƒÂ³pia
-#    dataframe['Genome_ID'] = dataframe['BGC'].str.extract(
-#        r'(^[\w]+[\w]+|^[\w\.]+\.region\d+|NODE[\w\.]+)', expand=False#
-#    )
-
-#    proportion = dataframe.groupby('BiG-SCAPE class').size().reset_index(name='Count')
-#    total = proportion['Count'].sum()
-#    proportion['Proportion'] = proportion['Count'] / total
-
-#    number_of_genomes = dataframe['Genome_ID'].nunique()
-
-#    return proportion, number_of_genomes
-    
-def calculate_proportion_and_genomes(dataframe):
+def calculate_proportion_and_genomes(df, taxon_value, level):
     """
-    Calcula as proporÃƒÂ§ÃƒÂµes das classes BiG-SCAPE e o nÃƒÂºmero de genomas ÃƒÂºnicos com base nos IDs extraÃƒÂ­dos.
-    
-    Args:
-        dataframe (pd.DataFrame): DataFrame contendo os dados com colunas 'BGC' e 'BiG-SCAPE class'.
-    
-    Returns:
-        tuple: DataFrame com proporÃƒÂ§ÃƒÂµes e nÃƒÂºmero de genomas ÃƒÂºnicos.
+    Para o taxon_value (do nível selecionado) faz duas coisas:
+      1. Para a contagem dos genomas: utiliza os Genome_ID únicos.
+         - A filtragem da tabela é feita de acordo com a coluna correspondente ao nível taxonômico.
+           Para evitar discrepâncias, os valores são convertidos para minúsculas e espaços são retirados.
+         - Para o nível "Phylum", o filtro é feito utilizando 'str.contains' na coluna Taxonomy,
+           de forma semelhante ao exemplo fornecido.
+         - Para fins de debug, imprime os IDs dos phylums selecionados.
+      2. Para calcular as proporções das classes BiG-SCAPE: cada registro (BGC) é contado.
+         Assim, agrupa por "BiG-SCAPE class" utilizando a contagem total de linhas (não dos Genome_IDs únicos).
     """
-    dataframe = dataframe.copy()  # Garante que estamos trabalhando com uma cÃƒÂ³pia
+    if level.lower() == "phylum":
+        # Para Phylum, filtrar utilizando a coluna Taxonomy
+        filtered = df[df['Taxonomy'].str.contains('|'.join([taxon_value]), case=False, na=False)].copy()
+    else:
+        # Padroniza a coluna para comparação: converte para string, strip e minúsculas
+        df[level] = df[level].astype(str).str.strip().str.lower()
+        taxon_value_norm = taxon_value.strip().lower()
+        filtered = df[df[level] == taxon_value_norm].copy()
+    if filtered.empty:
+        return pd.DataFrame(), 0
 
-    # ExpressÃƒÂµes regulares separadas
-    regex_default = r'(^[\w]+[\w]+|^[\w\.]+\.region\d+|NODE[\w\.]+)'
-    regex_bgc = r'(^BGC[\w]+)'
+    # Se o nível for phylum, imprime os valores de debug
+    if level.lower() == "phylum":
+        unique_phylum_ids = set(filtered["Taxonomy"].apply(lambda x: extract_phylum(x).strip().lower() if isinstance(x, str) and extract_phylum(x) else ""))
+        print(f"DEBUG: Phylum IDs encontrados para '{taxon_value}':")
+        for pid in sorted(unique_phylum_ids):
+            print(pid)
+    
+    # Contagem de genomas (únicos)
+    unique_genomes = set(filtered["Genome_ID"].dropna())
+    
+    # Para as classes BiG-SCAPE, conta cada registro (BGC)
+    grp = filtered.groupby("BiG-SCAPE class")["BGC"].count().reset_index(name="Count")
+    total_count = grp["Count"].sum()
+    grp["Proportion"] = grp["Count"] / total_count
+    print(f"\nGenome IDs únicos para {taxon_value} ({level.title()}):")
+    for gid in sorted(unique_genomes):
+        print(gid)
+    print(f"Total de genomas únicos: {len(unique_genomes)}\n")
+    
+    return grp, len(unique_genomes)
 
-    # Inicializar a coluna Genome_ID com valores vazios
-    dataframe['Genome_ID'] = None
-
-    # Aplicar a primeira expressÃƒÂ£o regular
-    mask_default = dataframe['BGC'].str.extract(regex_default, expand=False)
-    dataframe.loc[~mask_default.isna(), 'Genome_ID'] = mask_default
-
-    # Aplicar a segunda expressÃƒÂ£o regular (BGC) apenas onde Genome_ID ainda estÃƒÂ¡ vazio
-    mask_bgc = dataframe['BGC'].str.extract(regex_bgc, expand=False)
-    dataframe.loc[dataframe['Genome_ID'].isna() & ~mask_bgc.isna(), 'Genome_ID'] = mask_bgc
-
-    # Calculando proporÃƒÂ§ÃƒÂµes
-    proportion = dataframe.groupby('BiG-SCAPE class').size().reset_index(name='Count')
-    total = proportion['Count'].sum()
-    proportion['Proportion'] = proportion['Count'] / total
-
-    # Calculando o nÃƒÂºmero de genomas ÃƒÂºnicos
-    number_of_genomes = dataframe['Genome_ID'].nunique()
-
-    return proportion, number_of_genomes
-
-
-
-def remove_low_proportion_classes(dataframe, taxon_column):
+def adjust_annotations(annotations, spacing=0.2):
     """
-    Remove classes especÃƒÂ­ficas ('Saccharides', 'Ripps', 'Terpenes') do DataFrame
-    se sua proporÃƒÂ§ÃƒÂ£o for menor que 0.1%.
+    Ajusta manualmente as posições das anotações externas para evitar sobreposições.
 
     Args:
-        dataframe (pd.DataFrame): DataFrame contendo os dados.
-        taxon_column (str): Nome da coluna contendo as classes a serem filtradas.
-
-    Returns:
-        tuple: DataFrame filtrado e DataFrame removido.
+        annotations (list): Lista de objetos de anotação a serem ajustados.
+        spacing (float): Espaçamento mínimo entre as linhas das anotações.
     """
-    pattern = r"\b(?:Saccharides|Ripps|Terpenes)\b"
-    if 'Proportion' not in dataframe.columns:
-        print("Coluna 'Proportion' nÃƒÂ£o encontrada. Pulando filtragem.")
-        return dataframe, pd.DataFrame()
-
-    removal_condition = (
-        dataframe[taxon_column].str.contains(pattern, case=False, na=False, regex=True) &
-        (dataframe['Proportion'] < 0.001)  # Menor que 0.1%
-    )
-    return dataframe[~removal_condition], dataframe[removal_condition]
-def plot_pie_chart(filtered_dataframe, level, taxon_names, num_genomes, color_mapping, ax=None):
-    """
-    Gera um grÃƒÂ¡fico de pizza baseado no DataFrame filtrado.
-    - Fatias Ã¢â€°Â¥5%:
-        - Porcentagem exibida dentro da fatia.
-        - DescriÃƒÂ§ÃƒÂ£o movida para fora, mas sem caixinhas.
-    - Fatias entre 0.1% e 2%:
-        - DescriÃƒÂ§ÃƒÂ£o e porcentagem exibidas externamente em caixas conectadas por setas.
-
-    Args:
-        filtered_dataframe (pd.DataFrame): DataFrame filtrado para plotagem.
-        level (str): NÃƒÂ­vel taxonÃƒÂ´mico usado para filtragem.
-        taxon_names (list): Lista de nomes taxonÃƒÂ´micos inseridos pelo usuÃƒÂ¡rio.
-        num_genomes (int): NÃƒÂºmero total de genomas.
-        color_mapping (dict): Mapeamento de cores para cada classe BiG-SCAPE.
-        ax (matplotlib.axes.Axes, optional): Eixo onde o grÃƒÂ¡fico serÃƒÂ¡ plotado.
-    """
-    proportion = filtered_dataframe.groupby('BiG-SCAPE class').size().reset_index(name='Count')
-    proportion['Proportion'] = proportion['Count'] / proportion['Count'].sum()
-
-    if proportion.empty:
-        print("Nenhum dado disponÃƒÂ­vel para o grÃƒÂ¡fico de pizza.")
+    if not annotations:
         return
 
-    labels = proportion['BiG-SCAPE class']
-    sizes = proportion['Proportion']
+    # Ordenar as anotações externas por 'y' para ajustar de cima para baixo
+    annotations_sorted = sorted(annotations, key=lambda ann: ann.xyann[1], reverse=True)
 
-    # Atribuir cores com base no mapeamento
-    colors = labels.map(color_mapping)
+    for i in range(1, len(annotations_sorted)):
+        prev = annotations_sorted[i - 1].xyann[1]
+        current = annotations_sorted[i].xyann[1]
+        if abs(current - prev) < spacing:
+            # Ajusta a posição y da anotação atual
+            x, y = annotations_sorted[i].xyann
+            if y < 0:
+                y_new = y - spacing
+            else:
+                y_new = y + spacing
+            # Limita o valor de y para não sair dos limites do gráfico
+            y_new = max(min(y_new, 1.5), -1.5)
+            annotations_sorted[i].xyann = (x, y_new)
 
-    # Se nenhum eixo for fornecido, criar um novo
+def plot_pie_chart(prop_df, level, taxon_names, num_genomes, color_mapping, ax=None):
+    """
+    Gera um gráfico de pizza baseado no DataFrame contendo os dados de proporção já calculados.
+    - Fatias ≥5%:
+        - Porcentagem exibida dentro da fatia.
+        - Descrição movida para fora, mas sem caixinhas.
+    - Fatias entre 0.1% e 5%:
+        - Descrição e porcentagem exibidas externamente em caixas conectadas por setas.
+    
+    Args:
+        prop_df (pd.DataFrame): DataFrame com as colunas 'BiG-SCAPE class', 'Count' e 'Proportion'.
+        level (str): Nível taxonômico usado para filtragem.
+        taxon_names (list): Lista de nomes taxonômicos inseridos pelo usuário.
+        num_genomes (int): Número total de genomas.
+        color_mapping (dict): Mapeamento de cores para cada classe BiG-SCAPE.
+        ax (matplotlib.axes.Axes, opcional): Eixo onde o gráfico será plotado.
+    """
+    if prop_df.empty:
+        print("Nenhum dado disponível para o gráfico de pizza.")
+        return
+
+    labels = prop_df['BiG-SCAPE class']
+    sizes = prop_df['Proportion']
+
+    # Atribui cores com base no mapeamento; se alguma classe não estiver mapeada, usa cor padrão
+    colors = [color_mapping.get(lbl, "#333333") for lbl in labels]
+
+    # Se nenhum eixo for fornecido, cria um novo
     if ax is None:
         fig, ax = plt.subplots(figsize=(6, 6))
 
-    # Criar o grÃƒÂ¡fico de pizza
+    # Cria o gráfico de pizza
+    ### Label das fatias wedges
     wedges, texts, autotexts = ax.pie(
         sizes,
-        labels=None,  # Sem labels no pie
+        labels=None,  # Sem labels diretos
         colors=colors,
         startangle=140,
-        autopct=lambda p: f'{p:.1f}%' if p > 5 else '',  # Exibir porcentagens > 5% dentro das fatias
-        pctdistance=0.6,  # DistÃƒÂ¢ncia das etiquetas internas do centro
+        autopct=lambda p: f'{p:.1f}%' if p > 5 else '',  # Exibe porcentagens > 5%
+        pctdistance=0.6,
         wedgeprops=dict(edgecolor='w', linewidth=1.2),
-        textprops=dict(color="white", fontsize=10),
+        textprops=dict(color="white", fontsize=16),
     )
 
-    # Ajustar porcentagens para que fiquem bem posicionadas e legÃƒÂ­veis
+    # Ajusta a fonte das porcentagens
     for autotext in autotexts:
-        autotext.set_fontsize(8)
+		### Fonte das porcentagens
+        autotext.set_fontsize(14)
         if autotext.get_text() == '':
-            autotext.set_visible(False)  # Ocultar porcentagens nÃƒÂ£o relevantes
+            autotext.set_visible(False)
 
-    # Adicionar descriÃƒÂ§ÃƒÂµes externas para fatias >=5%
+    # Adiciona descrições externas para fatias ≥5%
     annotations = []
     for idx, (label, size, wedge) in enumerate(zip(labels, sizes, wedges)):
         if size >= 0.05:
             angle = (wedge.theta2 - wedge.theta1) / 2. + wedge.theta1
             x = np.cos(np.deg2rad(angle))
             y = np.sin(np.deg2rad(angle))
-
-            # Posicionar descriÃƒÂ§ÃƒÂ£o do lado externo, sem caixinha
             annotation = ax.text(
                 1.2 * x, 1.2 * y, label,
                 horizontalalignment="center" if x > 0 else "right",
                 verticalalignment="center",
-                fontsize=10, color="black"
+                fontsize=16, color="black"
             )
             annotations.append(annotation)
 
-    # Adicionar caixas externas para fatias entre 0.1% e 2%
+    # Adiciona caixas externas para fatias entre 0.1% e 5%
     external_annotations = []
     for idx, (label, size, wedge) in enumerate(zip(labels, sizes, wedges)):
         if 0.001 <= size < 0.05:
@@ -315,12 +345,8 @@ def plot_pie_chart(filtered_dataframe, level, taxon_names, num_genomes, color_ma
             x = np.cos(np.deg2rad(angle))
             y = np.sin(np.deg2rad(angle))
             horizontal_alignment = "left" if x > 0 else "right"
-
-            # Calcular posiÃƒÂ§ÃƒÂ£o para a caixa externa com ajuste adicional de seta
             text_x = 1.4 * np.sign(x)
             text_y = 1.4 * y
-
-            # Ajustar direÃƒÂ§ÃƒÂ£o da seta com base no ÃƒÂ¢ngulo
             arrow_offset = 0.2 if y > 0 else -0.2
             annotation = ax.annotate(
                 f"{label} ({size * 100:.1f}%)",
@@ -329,7 +355,7 @@ def plot_pie_chart(filtered_dataframe, level, taxon_names, num_genomes, color_ma
                 arrowprops=dict(
                     arrowstyle="-",
                     linewidth=1.0,
-                    connectionstyle="arc3,rad=0.2",  # Adicionar curva suave
+                    connectionstyle="arc3,rad=0.2",
                     color='black'
                 ),
                 horizontalalignment=horizontal_alignment,
@@ -338,185 +364,78 @@ def plot_pie_chart(filtered_dataframe, level, taxon_names, num_genomes, color_ma
             )
             external_annotations.append(annotation)
 
-    # Ajustar posiÃƒÂ§ÃƒÂµes das anotaÃƒÂ§ÃƒÂµes externas para evitar sobreposiÃƒÂ§ÃƒÂµes
     adjust_annotations(external_annotations, spacing=0.2)
 
-    # Configurar o tÃƒÂ­tulo personalizado com o nome do taxon e nÃƒÂºmero total de genomas
+    # Configura o título com o nome do taxon e o número total de genomas
     taxon_name_str = ', '.join(taxon_names)
     ax.set_title(
         f"{taxon_name_str}\nTotal Genomes: {num_genomes}",
         fontsize=12,
         weight="bold",
-        pad=10,        # Ajustar a distÃƒÂ¢ncia do tÃƒÂ­tulo
-        loc='center'   # Centralizar o tÃƒÂ­tulo
+        pad=10,
+        loc='center'
     )
 
-    # Garantir que o grÃƒÂ¡fico de pizza seja desenhado como um cÃƒÂ­rculo
     ax.axis('equal')
 
-def adjust_annotations(annotations, spacing=0.2):
-    """
-    Ajusta manualmente as posiÃƒÂ§ÃƒÂµes das anotaÃƒÂ§ÃƒÂµes externas para evitar sobreposiÃƒÂ§ÃƒÂµes.
-
-    Args:
-        annotations (list): Lista de objetos de anotaÃƒÂ§ÃƒÂ£o a serem ajustados.
-        spacing (float): EspaÃƒÂ§amento mÃƒÂ­nimo entre as linhas das anotaÃƒÂ§ÃƒÂµes.
-    """
-    if not annotations:
-        return
-
-    # Ordenar anotaÃƒÂ§ÃƒÂµes externas por y para ajustar de cima para baixo
-    annotations_sorted = sorted(annotations, key=lambda ann: ann.xyann[1], reverse=True)
-
-    for i in range(1, len(annotations_sorted)):
-        prev = annotations_sorted[i - 1].xyann[1]
-        current = annotations_sorted[i].xyann[1]
-        if abs(current - prev) < spacing:
-            # Ajustar a posiÃƒÂ§ÃƒÂ£o y da anotaÃƒÂ§ÃƒÂ£o atual
-            x, y = annotations_sorted[i].xyann
-            if y < 0:
-                y_new = y - spacing
-            else:
-                y_new = y + spacing
-            # Limitar a posiÃƒÂ§ÃƒÂ£o y para nÃƒÂ£o sair dos limites do grÃƒÂ¡fico
-            y_new = max(min(y_new, 1.5), -1.5)
-            annotations_sorted[i].xyann = (x, y_new)
-
 def main():
-    """
-    FunÃƒÂ§ÃƒÂ£o principal que coordena o fluxo do script.
-    """
     if len(sys.argv) < 2:
         print("Uso: python3 script.py <caminho_para_o_arquivo>")
         sys.exit(1)
-
     file_path = sys.argv[1]
-    dataframe = load_data(file_path)
-
-    if dataframe is not None:
-        # Verificar se as colunas necessÃƒÂ¡rias existem
-        required_columns = ['Taxonomy', 'BiG-SCAPE class', 'BGC']
-        for column in required_columns:
-            if column not in dataframe.columns:
-                print(f"Coluna '{column}' nÃƒÂ£o encontrada no arquivo. Verifique o arquivo de entrada.")
-                sys.exit(1)
-        level, taxon_names = select_taxonomic_level()
-        dataframe = adjust_taxonomic_level(dataframe, level)
-
-        proportion_list = []
-        genome_number_list = []
-
-        # Filtrar dados para todos os taxons selecionados primeiro
-        filtered_data = []
-        genome_number_list = []
-        all_classes = set()  # Coletar todas as classes ÃƒÂºnicas
-
-        for taxon_name in taxon_names:
-            filtered_df = filter_data(dataframe, level, [taxon_name])
-
-            if filtered_df.empty:
-                print(f"Nenhum dado encontrado para {taxon_name}.")
-                continue
-
-            proportion, num_genomes = calculate_proportion_and_genomes(filtered_df)
-
-            # Mesclar em uma nova variÃƒÂ¡vel para evitar sobrescrever filtered_df
-            filtered_df_with_proportion = filtered_df.merge(
-                proportion[['BiG-SCAPE class', 'Proportion']],
-                on='BiG-SCAPE class',
-                how='left'
-            )
-
-            # Aplicar remoÃƒÂ§ÃƒÂ£o na coluna 'BiG-SCAPE class'
-            final_filtered_df, removed_df = remove_low_proportion_classes(
-                filtered_df_with_proportion,
-                'BiG-SCAPE class'
-            )
-
-            print("\nClasses Removidas (ProporÃƒÂ§ÃƒÂ£o < 0,1%):")
-            if not removed_df.empty:
-                print(
-                    removed_df[['BiG-SCAPE class', 'Proportion']].drop_duplicates()
-                )
-            else:
-                print("Nenhuma classe foi removida.")
-
-            print("\nDataFrame Filtrado (Apenas Classes VÃƒÂ¡lidas):")
-            print(final_filtered_df.head())  # Exibir as primeiras linhas para verificaÃƒÂ§ÃƒÂ£o
-
-            # Armazenar dados para plotagem
-            filtered_data.append((final_filtered_df, level, [taxon_name], num_genomes))
-            genome_number_list.append(num_genomes)
-
-            # Coletar todas as classes ÃƒÂºnicas
-            all_classes.update(proportion['BiG-SCAPE class'].unique())
-
-        if not all_classes:
-            print("Nenhuma classe encontrada para mapeamento de cores.")
-            sys.exit(1)
-
-        # Criar um mapeamento de cores para cada classe usando a paleta viridis
-        sorted_classes = sorted(all_classes)
-        num_classes = len(sorted_classes)
-        cmap = plt.get_cmap('viridis')  # MantÃƒÂ©m a paleta viridis
-        if num_classes > cmap.N:
-            # Se houver mais classes do que cores disponÃƒÂ­veis na paleta, distribuir cores igualmente
-            colors = [cmap(i / num_classes) for i in range(num_classes)]
-        else:
-            # Distribuir cores uniformemente pela paleta
-            if num_classes > 1:
-                colors = [cmap(i / (num_classes - 1)) for i in range(num_classes)]
-            else:
-                colors = [cmap(0.5)]  # Escolher uma cor central se houver apenas uma classe
-        color_mapping = dict(zip(sorted_classes, colors))
-
-        # Determinar o nÃƒÂºmero de taxons vÃƒÂ¡lidos para plotagem
-        num_pies = len(filtered_data)
-        if num_pies == 0:
-            print("Nenhum dado vÃƒÂ¡lido para plotagem.")
-            sys.exit(1)
-
-        # Definir o nÃƒÂºmero de colunas como 3
-        num_cols = 3
-        num_rows = (num_pies + num_cols - 1) // num_cols
-
-        # Ajustar as dimensÃƒÂµes da figura para caber em uma pÃƒÂ¡gina do Word
-        # Considerando que uma pÃƒÂ¡gina do Word tem cerca de 6 polegadas de largura utilizÃƒÂ¡vel
-        fig_width = 18  # 6 polegadas por subplot
-        fig_height = 6 * num_rows  # 6 polegadas por linha
-
-        fig, axes = plt.subplots(num_rows, num_cols, figsize=(fig_width, fig_height))
-        plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05, hspace=0.5, wspace=0.3)  # Ajuste de margens e espaÃƒÂ§amentos
-
-        # Garantir que 'axes' seja um array 1D
-        if num_pies == 1:
-            axes = np.array([axes])
-        else:
-            axes = np.array(axes).flatten()
-
-        # Plotar cada grÃƒÂ¡fico de pizza no subplot correspondente
-        for idx, (data, plot_level, taxon_names_plot, num_genomes_plot) in enumerate(filtered_data):
-            if idx < len(axes):
-                ax = axes[idx]
-                plot_pie_chart(data, plot_level, taxon_names_plot, num_genomes_plot, color_mapping, ax=ax)
-
-        # Remover subplots vazios, se houver
-        total_subplots = num_rows * num_cols
-        if total_subplots > num_pies:
-            for idx in range(num_pies, total_subplots):
-                fig.delaxes(axes[idx])
-
-        # Ajustar layout antes de salvar
-        plt.tight_layout()
-
-        # Salvar a figura nos formatos JPEG, SVG e PNG com 300 DPI
-        plt.savefig('pie_charts.png', dpi=300, format='png')
-        plt.savefig('pie_charts.jpeg', dpi=300, format='jpeg')
-        plt.savefig('pie_charts.svg', dpi=300, format='svg')
-
-        # Exibir a figura
-        plt.show()
-
+    df = load_data(file_path)
+    if df is None or "BGC" not in df.columns:
+        print("Erro: coluna 'BGC' não encontrada no arquivo.")
+        sys.exit(1)
+    
+    # Extrai a coluna Genome_ID utilizando a mesma lógica do grep/awk
+    df = extract_genome_id(df)
+    if df["Genome_ID"].isna().all():
+        print("Erro: a coluna 'Genome_ID' não foi criada corretamente.")
+        sys.exit(1)
+    print("Coluna 'Genome_ID' criada com sucesso. Primeiros valores:")
+    print(df[["BGC", "Genome_ID"]].head())
+    
+    # Seleciona o nível taxonômico (Phylum, Order ou Genus) e os nomes para filtragem
+    level, taxa_list = select_taxonomic_level()
+    df = adjust_taxonomic_level(df, level)
+    
+    # Preparar o layout para 3 gráficos por linha, tamanho para publicação (ex.: página A4)
+    num_taxa = len(taxa_list)
+    cols = 3
+    rows = math.ceil(num_taxa / cols)
+    
+    fig_width = 18   # Largura em polegadas (aproximadamente A4)
+    #fig_height = 11.69 # Altura em polegadas (aproximadamente A4)
+    fig_height = 6 * rows  # Altura proporcional ao número de linhas
+    # Cria os subplots
+    fig, axes = plt.subplots(rows, cols, figsize=(fig_width, fig_height))
+    plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05, hspace=0.5, wspace=0.3)
+    axes = axes.flatten()
+    
+    # Remover eixos vazios, se houver
+    for idx in range(num_taxa, len(axes)):
+        fig.delaxes(axes[idx])
+    
+    # Mapeamento de cores para as classes BiG-SCAPE
+    unique_classes = sorted(df["BiG-SCAPE class"].dropna().unique())
+    cmap = plt.get_cmap("viridis")
+    color_mapping = {bgc_class: cmap(i / (len(unique_classes) - 1) if len(unique_classes) > 1 else 0.5)
+                     for i, bgc_class in enumerate(unique_classes)}
+    
+    for ax, taxon in zip(axes, taxa_list):
+        prop_df, unique_genomes_count = calculate_proportion_and_genomes(df, taxon, level)
+        if prop_df.empty:
+            print(f"Nenhum dado encontrado para {taxon}.")
+            continue
+        plot_pie_chart(prop_df, level, [taxon], unique_genomes_count, color_mapping, ax)
+    plt.tight_layout()
+    # Salvar a figura com as mesmas dimensões e proporções
+    output_formats = ['png', 'jpeg', 'svg']
+    for fmt in output_formats:
+        plt.savefig(f'pie_charts.{fmt}', dpi=300, format=fmt, bbox_inches='tight')
+    
+    plt.show()
 
 if __name__ == "__main__":
     main()
