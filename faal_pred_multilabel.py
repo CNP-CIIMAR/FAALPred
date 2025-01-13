@@ -569,6 +569,7 @@ class Support:
             fold_number += 1
             X_train, X_test = X_smote[train_idx], X_smote[test_idx]
             y_train, y_test = y_smote[train_idx], y_smote[test_idx]
+            logging.debug(f"Fold X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
             base_rf = RandomForestClassifier(**self.init_params, n_jobs=self.n_jobs, random_state=self.seed)
             self.model = OneVsRestClassifier(base_rf)
             self.model.fit(X_train, y_train)
@@ -629,10 +630,17 @@ class Support:
             logging.info(f"Calibrated model saved as {calibrated_model_filename} for {model_name_prefix}")
         return self.model
     def _perform_grid_search(self, X_train, y_train) -> tuple:
+        assert X_train.ndim == 2, f"X_train deve ser 2D, mas tem {X_train.ndim} dimensões."
+        assert y_train.ndim == 2, f"y_train deve ser 2D, mas tem {y_train.ndim} dimensões."
+
+
         base_rf = RandomForestClassifier(random_state=self.seed)
         estimator = OneVsRestClassifier(base_rf)
         kf = KFold(n_splits=self.cv, shuffle=True, random_state=self.seed)
         scorer = make_scorer(multilabel_f1_scorer)
+        logging.debug(f"X_train shape: {X_train.shape}")
+        logging.debug(f"y_train shape: {y_train.shape}")
+        logging.debug(f"Sample of y_train: {y_train[:5]}")  # Apenas para verificar o formato
         grid_search = GridSearchCV(
             estimator,
             self.parameters,
