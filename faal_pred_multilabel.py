@@ -30,7 +30,7 @@ import streamlit as st
 # Scikit-learn and imbalanced-learn imports
 from imblearn.over_sampling import RandomOverSampler
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import f1_score, average_precision_score, roc_auc_score, roc_curve, auc, make_scorer
+from sklearn.metrics import f1_score, average_precision_score, roc_curve, auc, make_scorer
 from sklearn.model_selection import GridSearchCV, train_test_split, KFold, StratifiedKFold
 from sklearn.preprocessing import StandardScaler, MultiLabelBinarizer
 from tabulate import tabulate
@@ -579,8 +579,12 @@ class Support:
             logging.info(f"Fold {fold_number} [{model_name_prefix}]: F1 Score (samples average) = {f1_metric}")
             logging.info(f"Fold {fold_number} [{model_name_prefix}]: PR AUC (samples average) = {pr_auc}")
             try:
-                roc_auc = roc_auc_score(y_test, y_pred_proba, average='samples')
-                self.roc_results.append(roc_auc)
+                roc_values = []
+                for i in range(y_test.shape[1]):
+                    fpr, tpr, _ = roc_curve(y_test[:, i], y_pred_proba[:, i])
+                    roc_values.append(auc(fpr, tpr))
+                roc_value = np.mean(roc_values)
+                self.roc_results.append(roc_value)
             except ValueError:
                 logging.warning(f"Unable to calculate ROC AUC for fold {fold_number}.")
         # Grid search to find the best parameters
@@ -685,7 +689,7 @@ class Support:
                 roc_values.append(auc(fpr, tpr))
             roc_value = np.mean(roc_values)
         except ValueError:
-            roc_value = 0.0
+            roc_value = float('nan')
         return roc_value, f1_value, pr_auc_value, self.parameter_grid, ovr_model, X_test, y_test
 
 # ============================================
@@ -887,7 +891,7 @@ class ProteinEmbeddingGenerator:
         raw_labels_list = []
         for entry in self.embeddings:
             embeddings_list.append(entry['embedding'])
-            # Preserve the original associated variable name(s)
+            # Preserve the original string labels (e.g., "C12")
             label_value = entry[label_type]
             if isinstance(label_value, str):
                 split_labels = [lbl.strip() for lbl in label_value.split(',')]
@@ -1087,7 +1091,6 @@ def main(args: argparse.Namespace) -> None:
         joblib.dump(best_model, rf_model_associated_full_path)
         logging.info(f"Random Forest model (multi-label) saved at {rf_model_associated_full_path}")
         y_pred_proba_test = best_model.predict_proba(X_test_)
-        # Use the mlb classes from the training embedding generator
         mlb_classes = protein_embedding_train.mlb_classes_
         plot_global_roc_curve(y_test_, y_pred_proba_test, title="ROC Curve Multi-label (Associated)",
                               save_as=args.roc_curve_associated, classes=mlb_classes)
@@ -1133,7 +1136,6 @@ def main(args: argparse.Namespace) -> None:
         sys.exit(1)
     X_predict_scaled = scaler_associated_predict.transform(X_predict)
     predictions_associated = calibrated_model_associated.predict(X_predict_scaled)
-    # Pass mlb classes so that ranking shows the actual associated variable names
     mlb_classes = protein_embedding_train.mlb_classes_
     rankings_associated = get_global_class_rankings(calibrated_model_associated, X_predict_scaled, mlb_classes=mlb_classes)
     results = {}
