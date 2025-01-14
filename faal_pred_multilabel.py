@@ -83,7 +83,7 @@ def create_unique_model_directory(base_directory: str, aggregation_method: str) 
     return model_directory
 
 def realign_sequences_with_mafft(input_path: str, output_path: str, threads: int = 8) -> None:
-    """Realign sequences using MAFFT command line."""
+    """Realign sequences using the MAFFT command line tool."""
     mafft_command = ['mafft', '--thread', str(threads), '--maxiterate', '1000', '--localpair', input_path]
     try:
         with open(output_path, "w") as outfile:
@@ -207,7 +207,8 @@ def plot_global_roc_curve(y_true: np.ndarray, y_pred_proba: np.ndarray,
     plt.close()
 
 def get_global_class_rankings(model, X: np.ndarray, mlb_classes: list = None) -> list:
-    """Compute class rankings from predicted probabilities and display the original associated variable names if provided."""
+    """Compute class rankings from predicted probabilities.
+    If mlb_classes is provided, use those as the labels."""
     y_pred_proba = model.predict_proba(X)
     if mlb_classes is not None:
         class_labels = mlb_classes
@@ -245,7 +246,7 @@ def visualize_latent_space_with_similarity(X_original: np.ndarray, X_synthetic: 
                                              original_protein_ids: list, synthetic_protein_ids: list, 
                                              original_associated_variables: list, synthetic_associated_variables: list, 
                                              output_directory: str = None) -> Figure:
-    """Visualize latent space with similarity overlay using UMAP for both original and synthetic data."""
+    """Visualize latent space with similarity overlay using UMAP."""
     X_combined = np.vstack([X_original, X_synthetic])
     y_combined = np.vstack([y_original, y_synthetic])
     umap_reducer = umap.UMAP(n_components=3, random_state=42, n_neighbors=15, min_dist=0.1)
@@ -311,7 +312,7 @@ def visualize_latent_space_with_similarity(X_original: np.ndarray, X_synthetic: 
     return figure
 
 def format_and_sum_probabilities(associated_rankings: list) -> tuple:
-    """Format the ranking of associated variables by summing up the probabilities for defined categories."""
+    """Format rankings for associated variables by summing probabilities across predefined categories."""
     category_sums = {}
     categories = ['C4-C6-C8', 'C6-C8-C10', 'C8-C10-C12', 'C10-C12-C14', 'C12-C14-C16', 'C14-C16-C18']
     pattern_mapping = {
@@ -348,7 +349,7 @@ def format_and_sum_probabilities(associated_rankings: list) -> tuple:
 class MultiLabelSMOTE:
     """
     Class to implement the Multi-Label Synthetic Minority Over-sampling Technique (MLSMOTE).
-    This implementation performs random oversampling for minority classes and then generates synthetic samples by interpolation.
+    This implementation performs random oversampling for minority classes and generates synthetic samples via interpolation.
     """
     def __init__(self, num_neighbors: int = 5, random_state: int = None, min_samples: int = 5):
         self.num_neighbors = num_neighbors
@@ -707,7 +708,7 @@ class Support:
 class ProteinEmbeddingGenerator:
     """
     Class to generate protein embeddings using Word2Vec.
-    If sequences are not aligned, they are realigned with MAFFT.
+    If sequences are not aligned, they are realigned using MAFFT.
     """
     def __init__(self, sequences_path: str, table_data: pd.DataFrame = None, aggregation_method: str = 'none'):
         aligned_path = sequences_path
@@ -981,6 +982,9 @@ def plot_dual_umap(train_embeddings: np.ndarray, train_labels: list, train_prote
     return train_umap_figure, predict_umap_figure
 
 def plot_predictions_scatterplot_custom(results: dict, output_path: str, top_n: int = 1) -> None:
+    """Generate a scatterplot of predictions in the same order as in the table.
+       The order is maintained according to the insertion order of results."""
+    # Do not sort the keys; use the insertion order.
     protein_specificities = {}
     for seq_id, info in results.items():
         associated_rankings = info.get('associated_ranking', [])
@@ -991,12 +995,14 @@ def plot_predictions_scatterplot_custom(results: dict, output_path: str, top_n: 
         if top_category is None:
             logging.warning(f"Invalid formatting for protein {seq_id}. Skipping...")
             continue
+        # Use the associated variable name as it appears (e.g., "C12")
         category = top_category.split(" (")[0]
         protein_specificities[seq_id] = {'top_category': category, 'confidence': confidence}
     if not protein_specificities:
         logging.warning("No data available for scatterplot.")
         return
-    unique_proteins = sorted(list(protein_specificities.keys()))
+    # Use the keys in their insertion order
+    unique_proteins = list(protein_specificities.keys())
     protein_order = {protein: idx for idx, protein in enumerate(unique_proteins)}
     fig, ax = plt.subplots(figsize=(12, max(6, len(unique_proteins) * 0.5)))
     x_values = list(range(4, 19))
@@ -1047,8 +1053,8 @@ def main(args: argparse.Namespace) -> None:
     train_table_data = pd.read_csv(train_table_data_path, delimiter="\t")
     logging.info("Training table data loaded successfully.")
     current_step += 1
-    progress_bar.progress(min(current_step/total_steps, 1.0))
-    progress_text.markdown(f"<span style='color:white'>Progress: {int(current_step/total_steps*100)}%</span>", unsafe_allow_html=True)
+    progress_bar.progress(min(current_step / total_steps, 1.0))
+    progress_text.markdown(f"<span style='color:white'>Progress: {int(current_step / total_steps * 100)}%</span>", unsafe_allow_html=True)
     time.sleep(0.1)
     
     protein_embedding_train = ProteinEmbeddingGenerator(train_alignment_path, table_data=train_table_data, aggregation_method=args.aggregation_method)
@@ -1070,8 +1076,8 @@ def main(args: argparse.Namespace) -> None:
     rf_model_associated_full_path = os.path.join(model_directory, args.rf_model_associated)
     calibrated_model_associated_full_path = os.path.join(model_directory, 'calibrated_model_associated.pkl')
     current_step += 1
-    progress_bar.progress(min(current_step/total_steps, 1.0))
-    progress_text.markdown(f"<span style='color:white'>Progress: {int(current_step/total_steps*100)}%</span>", unsafe_allow_html=True)
+    progress_bar.progress(min(current_step / total_steps, 1.0))
+    progress_text.markdown(f"<span style='color:white'>Progress: {int(current_step / total_steps * 100)}%</span>", unsafe_allow_html=True)
     time.sleep(0.1)
     
     if os.path.exists(calibrated_model_associated_full_path):
@@ -1100,8 +1106,8 @@ def main(args: argparse.Namespace) -> None:
         plot_global_roc_curve(y_test_, y_pred_proba_test, title="ROC Curve Multi-label (Associated)",
                               save_as=args.roc_curve_associated, classes=mlb_classes)
     current_step += 1
-    progress_bar.progress(min(current_step/total_steps, 1.0))
-    progress_text.markdown(f"<span style='color:white'>Progress: {int(current_step/total_steps*100)}%</span>", unsafe_allow_html=True)
+    progress_bar.progress(min(current_step / total_steps, 1.0))
+    progress_text.markdown(f"<span style='color:white'>Progress: {int(current_step / total_steps * 100)}%</span>", unsafe_allow_html=True)
     time.sleep(0.1)
     
     # STEP 2: Classifying New Sequences
@@ -1122,8 +1128,8 @@ def main(args: argparse.Namespace) -> None:
     else:
         logging.info(f"Aligned prediction file found: {predict_alignment_path}")
     current_step += 1
-    progress_bar.progress(min(current_step/total_steps, 1.0))
-    progress_text.markdown(f"<span style='color:white'>Progress: {int(current_step/total_steps*100)}%</span>", unsafe_allow_html=True)
+    progress_bar.progress(min(current_step / total_steps, 1.0))
+    progress_text.markdown(f"<span style='color:white'>Progress: {int(current_step / total_steps * 100)}%</span>", unsafe_allow_html=True)
     time.sleep(0.1)
     
     protein_embedding_predict = ProteinEmbeddingGenerator(predict_alignment_path, table_data=None, aggregation_method=args.aggregation_method)
@@ -1173,8 +1179,8 @@ def main(args: argparse.Namespace) -> None:
                                                       model_directory)
     logging.info("Dual t-SNE plots completed.")
     current_step += 1
-    progress_bar.progress(min(current_step/total_steps, 1.0))
-    progress_text.markdown(f"<span style='color:white'>Progress: {int(current_step/total_steps*100)}%</span>", unsafe_allow_html=True)
+    progress_bar.progress(min(current_step / total_steps, 1.0))
+    progress_text.markdown(f"<span style='color:white'>Progress: {int(current_step / total_steps * 100)}%</span>", unsafe_allow_html=True)
     time.sleep(0.1)
     st.success("Analysis completed successfully!")
     st.header("Scatter Plot of Predictions")
@@ -1291,7 +1297,7 @@ def load_and_resize_image_with_dpi(image_path: str, base_width: int, dpi: int = 
         return None
 
 def encode_image(image: Image.Image) -> str:
-    """Encode image to Base64 string."""
+    """Encode an image to a Base64 string."""
     buffer = BytesIO()
     image.save(buffer, format="PNG")
     return base64.b64encode(buffer.getvalue()).decode()
@@ -1305,7 +1311,7 @@ st.markdown(
          border: 2px solid #dddddd; box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1); 
          position: relative;">
         <p style="color: black; font-size: 1.5em; font-weight: bold; margin: 0;">
-            FAALPred: Predicting Fatty Acyl Chain Specificities in Fatty Acyl-AMP Ligases (FAALs) 
+            FAALPred: Predicting Fatty Acyl Chain Specificities in Fatty Acyl-AMP Ligases (FAALs)
             Using Integrated Approaches of Neural Networks, Bioinformatics, and Machine Learning
         </p>
         <p style="color: #2c3e50; font-size: 1.2em; font-weight: normal; margin-top: 10px;">
