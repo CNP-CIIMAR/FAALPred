@@ -207,8 +207,7 @@ def plot_global_roc_curve(y_true: np.ndarray, y_pred_proba: np.ndarray,
     plt.close()
 
 def get_global_class_rankings(model, X: np.ndarray, mlb_classes: list = None) -> list:
-    """Compute class rankings from predicted probabilities.
-    If mlb_classes is provided, use those as the labels."""
+    """Compute class rankings from predicted probabilities. If mlb_classes is provided, use those labels."""
     y_pred_proba = model.predict_proba(X)
     if mlb_classes is not None:
         class_labels = mlb_classes
@@ -224,7 +223,7 @@ def get_global_class_rankings(model, X: np.ndarray, mlb_classes: list = None) ->
     return rankings
 
 def calculate_global_roc_values(model: RandomForestClassifier, X_test: np.ndarray, y_test: np.ndarray) -> pd.DataFrame:
-    """Calculate ROC AUC for each label individually and return a DataFrame of AUC values."""
+    """Calculate ROC AUC for each label individually and return as a DataFrame."""
     num_classes = len(np.unique(y_test))
     y_pred_proba = model.predict_proba(X_test)
     fpr_dict = {}
@@ -312,7 +311,7 @@ def visualize_latent_space_with_similarity(X_original: np.ndarray, X_synthetic: 
     return figure
 
 def format_and_sum_probabilities(associated_rankings: list) -> tuple:
-    """Format rankings for associated variables by summing probabilities across predefined categories."""
+    """Format rankings for associated variables by summing probabilities across defined categories."""
     category_sums = {}
     categories = ['C4-C6-C8', 'C6-C8-C10', 'C8-C10-C12', 'C10-C12-C14', 'C12-C14-C16', 'C14-C16-C18']
     pattern_mapping = {
@@ -349,7 +348,7 @@ def format_and_sum_probabilities(associated_rankings: list) -> tuple:
 class MultiLabelSMOTE:
     """
     Class to implement the Multi-Label Synthetic Minority Over-sampling Technique (MLSMOTE).
-    This implementation performs random oversampling for minority classes and generates synthetic samples via interpolation.
+    This implementation performs random oversampling for minority classes and generates synthetic samples by interpolation.
     """
     def __init__(self, num_neighbors: int = 5, random_state: int = None, min_samples: int = 5):
         self.num_neighbors = num_neighbors
@@ -982,9 +981,9 @@ def plot_dual_umap(train_embeddings: np.ndarray, train_labels: list, train_prote
     return train_umap_figure, predict_umap_figure
 
 def plot_predictions_scatterplot_custom(results: dict, output_path: str, top_n: int = 1) -> None:
-    """Generate a scatterplot of predictions in the same order as in the table.
-       The order is maintained according to the insertion order of results."""
-    # Do not sort the keys; use the insertion order.
+    """Generate a scatterplot of predictions ensuring that the order of proteins is the inverse of the table order.
+       This makes the first protein in the table the first row in the table and the last in the graph."""
+    # Get proteins in insertion order and then reverse the order for the graph.
     protein_specificities = {}
     for seq_id, info in results.items():
         associated_rankings = info.get('associated_ranking', [])
@@ -995,14 +994,14 @@ def plot_predictions_scatterplot_custom(results: dict, output_path: str, top_n: 
         if top_category is None:
             logging.warning(f"Invalid formatting for protein {seq_id}. Skipping...")
             continue
-        # Use the associated variable name as it appears (e.g., "C12")
         category = top_category.split(" (")[0]
         protein_specificities[seq_id] = {'top_category': category, 'confidence': confidence}
     if not protein_specificities:
         logging.warning("No data available for scatterplot.")
         return
-    # Use the keys in their insertion order
-    unique_proteins = list(protein_specificities.keys())
+    # To ensure the order of the proteins in the scatterplot is the inverse of the table,
+    # we simply reverse the insertion order.
+    unique_proteins = list(protein_specificities.keys())[::-1]
     protein_order = {protein: idx for idx, protein in enumerate(unique_proteins)}
     fig, ax = plt.subplots(figsize=(12, max(6, len(unique_proteins) * 0.5)))
     x_values = list(range(4, 19))
@@ -1159,6 +1158,7 @@ def main(args: argparse.Namespace) -> None:
             output_file.write(f"{seq_id}\t{info['associated_prediction']}\t{'; '.join(info['associated_ranking'])}\n")
             logging.info(f"{seq_id} => {info['associated_prediction']}, {info['associated_ranking']}")
     logging.info("Generating scatter plot for new sequence predictions...")
+    # The following function now uses the reversed insertion order so that the table order is inverted in the graph.
     plot_predictions_scatterplot_custom(results, args.scatterplot_output)
     logging.info(f"Scatter plot saved at {args.scatterplot_output}")
     logging.info("Generating dual UMAP plots for training/prediction data...")
