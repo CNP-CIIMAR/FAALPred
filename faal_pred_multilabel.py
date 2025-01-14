@@ -37,17 +37,17 @@ from tabulate import tabulate
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.neighbors import NearestNeighbors
 
-# UMAP
+# UMAP imports
 import umap.umap_ as umap
 import umap
 
-# ============================================
-# Global configuration and reproducibility settings
+# --------------------------------------------
+# Global Configuration and Reproducibility Settings
 GLOBAL_SEED = 42
 np.random.seed(GLOBAL_SEED)
 random.seed(GLOBAL_SEED)
 
-# Logging configuration
+# Logging Configuration
 logging.basicConfig(
     level=logging.INFO,  # Use DEBUG for more detailed logs
     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -57,8 +57,7 @@ logging.basicConfig(
     ],
 )
 
-# ============================================
-# Streamlit configuration
+# Streamlit Configuration
 st.set_page_config(
     page_title="FAAL_Pred",
     page_icon="🧬",
@@ -66,22 +65,25 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ============================================
+# --------------------------------------------
 # Auxiliary Functions
 
 def are_sequences_aligned(fasta_file_path: str) -> bool:
+    """Check if sequences in the FASTA file are aligned."""
     lengths = set()
     for record in SeqIO.parse(fasta_file_path, "fasta"):
         lengths.add(len(record.seq))
     return len(lengths) == 1
 
 def create_unique_model_directory(base_directory: str, aggregation_method: str) -> str:
+    """Create a unique model directory based on the aggregation method."""
     model_directory = os.path.join(base_directory, f"models_{aggregation_method}")
     if not os.path.exists(model_directory):
         os.makedirs(model_directory)
     return model_directory
 
 def realign_sequences_with_mafft(input_path: str, output_path: str, threads: int = 8) -> None:
+    """Realign sequences using MAFFT command line."""
     mafft_command = ['mafft', '--thread', str(threads), '--maxiterate', '1000', '--localpair', input_path]
     try:
         with open(output_path, "w") as outfile:
@@ -93,6 +95,7 @@ def realign_sequences_with_mafft(input_path: str, output_path: str, threads: int
 
 def perform_clustering(data: np.ndarray, method: str = "DBSCAN", eps: float = 0.5,
                        min_samples: int = 5, num_clusters: int = 3) -> np.ndarray:
+    """Perform clustering using either DBSCAN or K-Means."""
     if method == "DBSCAN":
         from sklearn.cluster import DBSCAN
         clustering_model = DBSCAN(eps=eps, min_samples=min_samples)
@@ -107,6 +110,7 @@ def perform_clustering(data: np.ndarray, method: str = "DBSCAN", eps: float = 0.
 def plot_dual_tsne(train_embeddings: np.ndarray, train_labels: list, train_protein_ids: list,
                      predict_embeddings: np.ndarray, predict_labels: list, predict_protein_ids: list,
                      output_directory: str) -> tuple:
+    """Perform 3D t-SNE visualization for training and prediction embeddings."""
     from sklearn.manifold import TSNE
     tsne_model_train = TSNE(n_components=3, random_state=42, perplexity=30, n_iter=1000)
     tsne_result_train = tsne_model_train.fit_transform(train_embeddings)
@@ -169,6 +173,7 @@ def plot_dual_tsne(train_embeddings: np.ndarray, train_labels: list, train_prote
 
 def plot_global_roc_curve(y_true: np.ndarray, y_pred_proba: np.ndarray,
                           title: str, save_as: str = None, classes: list = None) -> None:
+    """Plot a global ROC curve (handles binary and multiclass cases)."""
     line_width = 2
     unique_classes = np.unique(y_true)
     plt.figure()
@@ -202,6 +207,7 @@ def plot_global_roc_curve(y_true: np.ndarray, y_pred_proba: np.ndarray,
     plt.close()
 
 def get_global_class_rankings(model, X: np.ndarray, mlb_classes: list = None) -> list:
+    """Compute class rankings from predicted probabilities and display the original associated variable names if provided."""
     y_pred_proba = model.predict_proba(X)
     if mlb_classes is not None:
         class_labels = mlb_classes
@@ -217,17 +223,18 @@ def get_global_class_rankings(model, X: np.ndarray, mlb_classes: list = None) ->
     return rankings
 
 def calculate_global_roc_values(model: RandomForestClassifier, X_test: np.ndarray, y_test: np.ndarray) -> pd.DataFrame:
+    """Calculate ROC AUC for each label individually and return a DataFrame of AUC values."""
     num_classes = len(np.unique(y_test))
     y_pred_proba = model.predict_proba(X_test)
     fpr_dict = {}
     tpr_dict = {}
     roc_auc_dict = {}
     for i in range(num_classes):
-        fpr_dict[i], tpr_dict[i], _ = roc_curve(y_test, y_pred_proba[:, i], pos_label=i)
-        roc_auc_dict[i] = auc(fpr_dict[i], tpr_dict[i])
+        fpr, tpr, _ = roc_curve(y_test, y_pred_proba[:, i], pos_label=i)
+        roc_auc_dict[i] = auc(fpr, tpr)
         logging.info(f"For class {i}:")
-        logging.info(f"FPR: {fpr_dict[i]}")
-        logging.info(f"TPR: {tpr_dict[i]}")
+        logging.info(f"FPR: {fpr}")
+        logging.info(f"TPR: {tpr}")
         logging.info(f"ROC AUC: {roc_auc_dict[i]}")
         logging.info("--------------------------")
     roc_dataframe = pd.DataFrame(list(roc_auc_dict.items()), columns=['Class', 'ROC AUC'])
@@ -238,6 +245,7 @@ def visualize_latent_space_with_similarity(X_original: np.ndarray, X_synthetic: 
                                              original_protein_ids: list, synthetic_protein_ids: list, 
                                              original_associated_variables: list, synthetic_associated_variables: list, 
                                              output_directory: str = None) -> Figure:
+    """Visualize latent space with similarity overlay using UMAP for both original and synthetic data."""
     X_combined = np.vstack([X_original, X_synthetic])
     y_combined = np.vstack([y_original, y_synthetic])
     umap_reducer = umap.UMAP(n_components=3, random_state=42, n_neighbors=15, min_dist=0.1)
@@ -303,6 +311,7 @@ def visualize_latent_space_with_similarity(X_original: np.ndarray, X_synthetic: 
     return figure
 
 def format_and_sum_probabilities(associated_rankings: list) -> tuple:
+    """Format the ranking of associated variables by summing up the probabilities for defined categories."""
     category_sums = {}
     categories = ['C4-C6-C8', 'C6-C8-C10', 'C8-C10-C12', 'C10-C12-C14', 'C12-C14-C16', 'C14-C16-C18']
     pattern_mapping = {
@@ -333,13 +342,13 @@ def format_and_sum_probabilities(associated_rankings: list) -> tuple:
     top_category_with_confidence = f"{top_category} ({top_sum:.2f}%)"
     return top_category_with_confidence, top_sum, top_two_categories
 
-# ============================================
-# Multi-Label SMOTE Class (Duplicate definition preserved)
+# --------------------------------------------
+# Multi-Label SMOTE Class (Full Definition)
+
 class MultiLabelSMOTE:
     """
     Class to implement the Multi-Label Synthetic Minority Over-sampling Technique (MLSMOTE).
-    This implementation first performs random oversampling for minority classes and then generates synthetic
-    samples via interpolation.
+    This implementation performs random oversampling for minority classes and then generates synthetic samples by interpolation.
     """
     def __init__(self, num_neighbors: int = 5, random_state: int = None, min_samples: int = 5):
         self.num_neighbors = num_neighbors
@@ -466,14 +475,14 @@ class MultiLabelSMOTE:
             new_y = pd.DataFrame(columns=y_sub.columns)
         return new_X, new_y
 
-# ============================================
-# Custom multi-label scoring function
+# --------------------------------------------
+# Custom Multi-label Scoring Function
 
 def multilabel_f1_scorer(y_true, y_pred):
     return f1_score(y_true, y_pred, average='samples', zero_division=0)
 
-# ============================================
-# Support Class for Training and Evaluation
+# --------------------------------------------
+# Support Class for Training and Evaluation (Full Definition)
 
 class Support:
     """
@@ -692,8 +701,8 @@ class Support:
             roc_value = float('nan')
         return roc_value, f1_value, pr_auc_value, self.parameter_grid, ovr_model, X_test, y_test
 
-# ============================================
-# Protein Embedding Generator Class using Word2Vec
+# --------------------------------------------
+# Protein Embedding Generator Class Using Word2Vec (Full Definition)
 
 class ProteinEmbeddingGenerator:
     """
@@ -891,7 +900,6 @@ class ProteinEmbeddingGenerator:
         raw_labels_list = []
         for entry in self.embeddings:
             embeddings_list.append(entry['embedding'])
-            # Preserve the original string labels (e.g., "C12")
             label_value = entry[label_type]
             if isinstance(label_value, str):
                 split_labels = [lbl.strip() for lbl in label_value.split(',')]
@@ -1018,9 +1026,6 @@ def plot_predictions_scatterplot_custom(results: dict, output_path: str, top_n: 
     plt.savefig(output_path, facecolor='#0B3C5D', dpi=600, bbox_inches='tight')
     plt.close()
     logging.info(f"Scatter plot saved at {output_path}")
-
-# ============================================
-# Main Function
 
 def main(args: argparse.Namespace) -> None:
     model_directory = args.model_dir
@@ -1250,7 +1255,7 @@ def main(args: argparse.Namespace) -> None:
         final_file.write(tabulate(formatted_results, headers=headers, tablefmt="grid"))
     logging.info(f"Formatted table saved at {args.formatted_results_table}")
 
-# ============================================
+# --------------------------------------------
 # Streamlit UI Setup
 
 st.markdown(
@@ -1274,6 +1279,7 @@ st.markdown(
 )
 
 def load_and_resize_image_with_dpi(image_path: str, base_width: int, dpi: int = 300) -> Image.Image:
+    """Load and resize an image with DPI adjustment."""
     try:
         image = Image.open(image_path)
         width_percent = (base_width / float(image.size[0]))
@@ -1285,6 +1291,7 @@ def load_and_resize_image_with_dpi(image_path: str, base_width: int, dpi: int = 
         return None
 
 def encode_image(image: Image.Image) -> str:
+    """Encode image to Base64 string."""
     buffer = BytesIO()
     image.save(buffer, format="PNG")
     return base64.b64encode(buffer.getvalue()).decode()
@@ -1410,6 +1417,7 @@ if st.sidebar.button("Run Analysis"):
         logging.error(f"An error occurred: {e}")
 
 def load_and_resize_image(image_path: str, base_width: int, dpi: int = 300) -> Image.Image:
+    """Load and resize an image with DPI adjustment."""
     try:
         img = Image.open(image_path)
         width_percent = (base_width / float(img.size[0]))
@@ -1421,6 +1429,7 @@ def load_and_resize_image(image_path: str, base_width: int, dpi: int = 300) -> I
         return None
 
 def encode_image_to_base64(img: Image.Image) -> str:
+    """Encode an image to a Base64 string."""
     buffer = BytesIO()
     img.save(buffer, format="PNG")
     return base64.b64encode(buffer.getvalue()).decode()
