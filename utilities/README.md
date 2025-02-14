@@ -865,7 +865,51 @@ example_usage: |
   
   # Analyze `.gbk` files for both `CAL_domain` and `AMP-binding`:
   python filter_count_CAL_AMP.py /path/to/input_dir /path/to/log_file.log --search-amp-binding
+
+# BGC Statistics Bar Chart Generator
+
+This repository contains a Python script that processes a TSV table of biosynthetic gene cluster (BGC) annotations, calculates several statistics, and generates a high-resolution bar chart suitable for publication (e.g., for NAR).
+
+## Overview# Script 7: name: Bartplot Figure S20 with data of obtained from BiG-SCAPE for 12,214 bacterial genomes 
+
+The script reads an input file named `Network_Annotations_Full_annotation_mibig_ref_taxo` and performs the following tasks:
+
+- **Data Processing:**
+  - Reads the input TSV file using Pandas.
+  - Processes columns (notably, `BGC` and `Family Number`).
+  - Separates entries into:
+    - **MIBIG BGCs:** Rows where the `BGC` column starts with "BGC".
+    - **Identified BGCs:** Rows that do not start with "BGC" and have a defined `Family Number`.
+
+- **Statistics Computation:**
+  - **New BGCs in MIBIG Families:** Count of identified BGCs whose `Family Number` is among those in the MIBIG set.
+  - **New BGCs outside MIBIG Families:** Count of identified BGCs whose `Family Number` is not in the MIBIG set.
+  - **Total BGCs Families:** The number of unique `Family Number` values among identified BGCs.
+  - **Singleton BGCs Families:** Count of families that appear only once among the identified BGCs.
+  - **Identified BGCs:** Total count of identified BGCs.
   
+- **Fixed Data:**
+  - Two additional fixed bars are added:
+    - **MIBIG BGCs:** 333
+    - **MIBIG BGCs with FAAL:** 122
+
+- **Chart Generation:**
+  - Generates a bar chart that combines the two fixed data bars with the computed statistics (sorted in ascending order).
+  - Configures the chart with larger font sizes and appropriate spacing (labels are wrapped in two lines if needed) to meet NAR publication standards.
+  - Saves the chart in both PNG and SVG formats with 900 dpi resolution.
+
+## Dependencies
+
+- Python 3.x
+- [Pandas](https://pandas.pydata.org/)
+- [NumPy](https://numpy.org/)
+- [Matplotlib](https://matplotlib.org/)
+
+You can install the Python dependencies using pip:
+
+```bash
+pip install pandas numpy matplotlib
+    
 # contact:
   name: "Leandro de Mattos Pereira"
   email: "lmattos@ciimar.up.pt"
