@@ -866,11 +866,11 @@ example_usage: |
   # Analyze `.gbk` files for both `CAL_domain` and `AMP-binding`:
   python filter_count_CAL_AMP.py /path/to/input_dir /path/to/log_file.log --search-amp-binding
 
-# BGC Statistics Bar Chart Generator
+# Overview# Script 7: BGC Statistics Bar Chart
 
 This repository contains a Python script that processes a TSV table of biosynthetic gene cluster (BGC) annotations, calculates several statistics, and generates a high-resolution bar chart suitable for publication (e.g., for NAR).
 
-## Overview# Script 7: name: Bartplot Figure S20 with data of obtained from BiG-SCAPE for 12,214 bacterial genomes 
+#  Figure S20 with results obtained from BiG-SCAPE for 12,214 bacterial genomes 
 
 The script reads an input file named `Network_Annotations_Full_annotation_mibig_ref_taxo` and performs the following tasks:
 
