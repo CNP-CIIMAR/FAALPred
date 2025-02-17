@@ -1,8 +1,9 @@
 import pandas as pd
 import argparse
 
-####python3 merge_bigscape_step1.py Network_Annotations_Full.tsv ./mix_clans_0.30_0.70.tsv merged_Network_Annotations_Full_modificada__clans_0.30_0.70_update.tsv
+####python3 merge_bigscape_step1.py Network_Annotations_Full.tsv ./mix/mix_clans_0.30_0.70.tsv merged_Network_Annotations_Full_modificada__clans_0.30_0.70_update.tsv
 
+## OBS: alterar a coluna a tabela 2 de BGC name para BGC
 def merge_tables(table1_path, table2_path, output_path):
     # Ler as tabelas
     try:
