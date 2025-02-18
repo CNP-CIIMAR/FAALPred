@@ -866,7 +866,15 @@ example_usage: |
   # Analyze `.gbk` files for both `CAL_domain` and `AMP-binding`:
   python filter_count_CAL_AMP.py /path/to/input_dir /path/to/log_file.log --search-amp-binding
 
-# Overview# Script 7: BGC Statistics Bar Chart
+# Overview# Script 7: organize_bigslice.py
+# This script's input are all the directories generated from CAL Domain and GenBank Analyzer.
+
+# Example comand line: 
+
+python3 organize_bigslice.py --bigslice_dir bigslice_dir --antismash_dir filtrados_subdir_CAL/ --taxonomy_table Fungi_supplementar2.tsv
+
+
+# Overview# Script 8: BGC Statistics Bar Chart
 
 This repository contains a Python script that processes a TSV table of biosynthetic gene cluster (BGC) annotations, calculates several statistics, and generates a high-resolution bar chart suitable for publication (e.g., for NAR).
 
