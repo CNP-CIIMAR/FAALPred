@@ -781,7 +781,7 @@ python3 barplot_normalized_counts_faal.py <table1.tsv> <table2.tsv> <Domain> <Ta
 # Example:
 
 ```bash
-python3 barplot_normalized_counts_faal.py organisms.tsv assemblies.tsv Eukaryota Genus 10 300
+python3 barplot_normalized_counts_faal.py Genomes_Total_proteinas_taxonomy_FAAL_metadata_nodup.tsv ncbi_dataset_data_28_january_taxonomy_nodup.tsv Eukaryota Genus 30 300
 ```
 # Input Files
 1. table1.tsv
