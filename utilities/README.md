@@ -637,7 +637,82 @@ additional_resources:
     url: "https://docs.anaconda.com/anaconda/"
     description: "Official documentation for Anaconda, a distribution of Python and R for scientific computing."
 
-# Script 4: FAALs Taxonomic Analysis: barplot_normalized_counts.py
+# Script 4 : bar_mean_faal_genome.py
+
+
+# Taxonomic FAAL Analyzer
+
+This repository contains a Python script that processes a TSV table of genomic and taxonomic data, extracts taxonomic lineages using the ETE3 library, and generates filtered statistics and visualizations of FAAL counts per genome across different taxonomic groups.
+
+## Features
+
+- **Taxonomic Extraction:** Uses the ETE3 library to fetch taxonomic lineage information from NCBI.
+- **Data Filtering:** Filters out unwanted rows (e.g., those with 'environmental samples' or missing assembly information) and applies specific criteria based on taxonomic levels.
+- **Aggregation:** Counts total FAAL occurrences and unique genome assemblies for each taxonomic group.
+- **Visualization:** Generates bar plots that show the mean FAAL count per genome for the top N taxonomic groups, with annotations for genome counts and total FAAL counts.
+- **Output Files:** Saves the merged data in a TSV file and exports plots in PNG, SVG, and JPEG formats.
+
+## Requirements
+
+- Python 3.x
+- [pandas](https://pandas.pydata.org/)
+- [matplotlib](https://matplotlib.org/)
+- [seaborn](https://seaborn.pydata.org/)
+- [numpy](https://numpy.org/)
+- [ete3](http://etetoolkit.org/)
+
+## Installation
+You can install the required packages using `pip`:
+
+# Usage
+Run the script from the command line with the following arguments:
+
+```bash
+python script_name.py <table1.tsv> <Domain> <Taxonomic Level> <Top N> <DPI>
+```
+
+<table1.tsv>: Path to the input TSV file containing genomic and taxonomic data. The file should include columns such as Species, Assembly, and Lineage.
+<Domain>: The domain to filter the data (e.g., Eukaryota or Bacteria).
+<Taxonomic Level>: The taxonomic level for analysis (e.g., Phylum, Order, Family, or Genus).
+<Top N>: The number of top taxonomic groups to visualize, ranked by the mean FAAL count per genome.
+<DPI>: The dots-per-inch resolution for the output images.
+
+
+# Example
+
+```bash
+python3 barplot_mean_FAAL_genomev1.py Genomes_Total_proteinas_taxonomy_FAAL_metadata_nodup.tsv Eukaryota Genus 30 300
+```
+# How It Works
+# Data Loading & Preprocessing:
+
+The script loads the TSV file using pandas.
+It updates the Lineage column by retrieving taxonomic information via the ETE3 toolkit.
+Rows with environmental samples in their lineage or missing Assembly information are removed.
+Taxonomic Group Extraction & Filtering:
+
+For Eukaryota, the lineage is updated and filtered; for other domains, alternative logic is applied.
+Taxonomic groups are extracted from species names based on the specified taxonomic level.
+Specific criteria (e.g., names ending with "ales" for orders or "eae" for families) are applied to filter the results.
+Data Aggregation:
+
+The script calculates the total FAAL count per taxonomic group and the number of unique genomes (assemblies) per group.
+It computes the mean FAAL count per genome and filters out groups with fewer than a minimum number of genomes.
+Visualization:
+
+A bar plot is generated using seaborn, with bars ordered by the mean FAAL count per genome.
+Genome counts and total FAAL counts are annotated on the bars.
+The plot is saved in PNG, SVG, and JPEG formats.
+
+# Output:
+- The merged data is saved as merged_data.tsv.
+- Visualizations are saved as mean_faal_per_genome.png, mean_faal_per_genome.svg, and mean_faal_per_genome.jpeg.
+
+```bash
+pip install pandas matplotlib seaborn numpy ete3
+```
+
+# Script 5: FAALs Taxonomic Analysis: barplot_normalized_counts.py
 
 This repository contains a Python script for analyzing Fatty Acyl AMP Ligases (FAALs) across different taxonomic groups. The script processes input data tables, filters and aggregates FAAL counts, normalizes the data, and generates informative visualizations to help understand the distribution and prevalence of FAALs in various taxonomic levels.
  Load and Update Taxonomic Data: Reads two input TSV files containing organism and assembly information, updates taxonomic lineages using the NCBI taxonomy database via the ete3 library.
@@ -753,7 +828,7 @@ Libraries:
 - numpy
 # Ensure all dependencies are installed before running the script.
 
-# Scriot 5: "Taxonomic Analysis and Visualization Tool" : scatterplot_mean_faal_genome.py 
+# Scriot 6: "Taxonomic Analysis and Visualization Tool" : scatterplot_mean_faal_genome.py 
 
   A Python script designed to process genomic assembly data, perform taxonomic classification,
   filter based on specified criteria, and generate insightful visualizations of FAAL counts
@@ -825,7 +900,7 @@ Libraries:
       7. Selects the top N taxonomic groups based on mean FAAL counts.
       8. Generates and saves scatter plots visualizing the data.
 
-# Script 6: name: CAL Domain and GenBank Analyzer
+# Script 7: name: CAL Domain and GenBank Analyzer
 # description: 
   A Python script to analyze subdirectories containing `.gbk` files for the presence of `CAL_domain` and optionally `AMP-binding` domains. The script calculates the total size of `.gbk` files, checks disk space availability, and copies identified files to a filtered directory with the genome ID as a prefix.
 usage: |
@@ -866,7 +941,7 @@ example_usage: |
   # Analyze `.gbk` files for both `CAL_domain` and `AMP-binding`:
   python filter_count_CAL_AMP.py /path/to/input_dir /path/to/log_file.log --search-amp-binding
 
-# Overview# Script 7: organize_bigslice.py
+# Overview# Script 8: organize_bigslice.py
 # Organize Big Slice
 
 A script to organize antiSMASH directories into BiG-SLiCE datasets, grouped by a user-selected taxonomic level (Phylum, Order, or Genus).
@@ -926,7 +1001,7 @@ Verbose Mode: Use the --verbose flag to enable more detailed debug output.
    git clone https://github.com/your_username/organize_big_slice.git
    cd organize_big_slice
 
-# Overview# Script 8: Merge Bigscape Step 1
+# Overview# Script 9: Merge Bigscape Step 1
 
 A Python script to merge two TSV tables based on the "BGC" column.
 
