@@ -867,11 +867,64 @@ example_usage: |
   python filter_count_CAL_AMP.py /path/to/input_dir /path/to/log_file.log --search-amp-binding
 
 # Overview# Script 7: organize_bigslice.py
-# This script's input are all the directories generated from CAL Domain and GenBank Analyzer.
+# Organize Big Slice
 
+A script to organize antiSMASH directories into BiG-SLiCE datasets, grouped by a user-selected taxonomic level (Phylum, Order, or Genus).
+
+## Description
+
+This script is designed to help organize antiSMASH results into a directory structure compatible with BiG-SLiCE. It performs the following tasks:
+
+- **Taxonomic Grouping:** Uses a TSV taxonomy table to map each genome (identified by its Assembly Accession) to a specific taxonomic level (Phylum, Order, or Genus).
+- **File Copying:** Searches for `.gbk` files in antiSMASH result directories and copies them into a structured dataset directory.
+- **Taxonomy Files Generation:** Creates TSV taxonomy files for each dataset and updates a master `datasets.tsv` file containing information on all datasets.
+- **Detailed Logging:** Provides detailed logs (with a verbose mode option) and supports log file rotation.
+- 
 # Example comand line: 
 
 python3 organize_bigslice.py --bigslice_dir bigslice_dir --antismash_dir filtrados_subdir_CAL/ --taxonomy_table Fungi_supplementar2.tsv
+
+# Arguments
+--bigslice_dir: Path to the directory where BiG-SLiCE datasets will be created.
+--antismash_dir: Path to the directory containing antiSMASH results.
+--taxonomy_table: Path to the taxonomy table (TSV format).
+--assembly_column: Column name in the taxonomy table that contains the Assembly Accession (default: "Assembly Accession").
+--lineage_column: Column name in the taxonomy table that contains the Lineage (default: "Lineage").
+--log_file: Path to the log file (default: organize_big_slice.log).
+--taxonomic_level: Taxonomic level to group results by. Options: Phylum, Order, or Genus (default: Genus).
+--verbose: Enables detailed logging output.
+
+# This command will:
+
+Process antiSMASH result directories located at /data/antismash_results.
+Use the taxonomy information in /data/taxonomy.tsv.
+Group the results based on the "Order" taxonomic level.
+Enable verbose logging to display detailed processing information.
+
+bigslice_dir/
+├── dataset_<taxon_name>/            # A directory for each generated dataset
+│   └── genome_<Assembly>/           # Subdirectories containing the .gbk files for each genome
+├── taxonomy/                        # TSV taxonomy files for each dataset
+│   └── taxonomy_dataset_<taxon_name>.tsv
+└── datasets.tsv                     # A master file with dataset information
+
+# Logging
+Log File: By default, the script creates a log file named organize_big_slice.log to record progress, warnings, and errors.
+Verbose Mode: Use the --verbose flag to enable more detailed debug output.
+
+## Prerequisites
+
+- **Python 3.6+**
+- **Python Libraries:**
+  - `pandas` (for table manipulation)
+  - Other libraries used in the script are part of the Python standard library.
+
+## Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/your_username/organize_big_slice.git
+   cd organize_big_slice
 
 
 # Overview# Script 8: BGC Statistics Bar Chart
