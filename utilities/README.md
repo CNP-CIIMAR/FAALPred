@@ -926,12 +926,66 @@ Verbose Mode: Use the --verbose flag to enable more detailed debug output.
    git clone https://github.com/your_username/organize_big_slice.git
    cd organize_big_slice
 
+# Overview# Script 8: Merge Bigscape Step 1
 
-# Overview# Script 8: BGC Statistics Bar Chart
+A Python script to merge two TSV tables based on the "BGC" column.
+
+## Description
+
+This script reads two TSV (tab-separated values) files and performs a left merge on the "BGC" column using pandas. The resulting merged table is then saved as a new TSV file.
+
+> **Note:**  
+> Ensure that in the second table the column originally named "BGC name" is renamed to "BGC" before running the script.
+
+## Prerequisites
+
+- **Python 3.6+**
+- **Python Packages:**
+  - `pandas` (Install via pip: `pip install pandas`)
+
+## Usage
+
+Run the script from the command line by providing three arguments:
+
+1. Path to the first table (TSV format).
+2. Path to the second table (TSV format).
+3. Path for the output merged table (TSV format).
+
+### Command Line Example
+
+```bash
+python3 merge_bigscape_step1.py Network_Annotations_Full.tsv ./mix/mix_clans_0.30_0.70.tsv merged_Network_Annotations_Full_modificada__clans_0.30_0.70_update.tsv
+```
+OBS: Before run the script merge_bigscape_step1.py rename collum 1 of the table mix_clans_0.30_0.70.tsv for BGC
+
+# Arguments
+table1: Path to the first TSV file.
+table2: Path to the second TSV file (make sure the column "BGC name" is changed to "BGC").
+
+output: Path where the merged TSV file will be saved.
+
+# How It Works
+
+# Reading the Tables:
+
+The script reads the two input TSV files using pandas.read_csv() with a tab separator (\t). The parameter on_bad_lines='skip' is used to ignore any problematic lines.
+
+# Merging the Tables:
+The two tables are merged using a left join on the "BGC" column.
+
+# Saving the Output:
+The merged DataFrame is saved to the specified output file in TSV format.
+
+# Error Handling:
+If an error occurs while reading the input files, an error message is printed and the script exits.
+
+# Overview# Script 9: pie_bgc_classe_domain_S16.py
+
+# BGC Statistics Bar Chart
 
 This repository contains a Python script that processes a TSV table of biosynthetic gene cluster (BGC) annotations, calculates several statistics, and generates a high-resolution bar chart suitable for publication (e.g., for NAR).
 
-#  Figure S20 with results obtained from BiG-SCAPE for 12,214 bacterial genomes 
+#  Figure S16 with results obtained from BiG-SCAPE for 12,214 bacterial genomes 
 
 The script reads an input file named `Network_Annotations_Full_annotation_mibig_ref_taxo` and performs the following tasks:
 
