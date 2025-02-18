@@ -259,3 +259,4 @@ if __name__ == "__main__":
     dpi = int(sys.argv[5])
     
     generate_filtered_table_and_graphs(table1_path, domain_name, taxonomic_level, top_n, dpi)
+
