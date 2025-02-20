@@ -1,32 +1,31 @@
 
-# Script 1: title: "ProteinHMMSearch Tool": protein_hmm_search.py
+# Script 1: ProteinHMMSearch Tool: protein_hmm_search.py
 
-# description: 
-  A Python-based tool designed to execute HMMER's `hmmsearch` on multiple FASTA (.faa) files using a set of HMM (.hmm) models.
-  The tool automates the search process, parses the results, and consolidates them into organized TSV files for further analysis.
+# Description: 
+A Python-based tool designed to execute HMMER's `hmmsearch` on multiple FASTA (.faa) files using a set of HMM (.hmm) models. The tool automates the search process, parses the results, and consolidates them into organized TSV files for further analysis.
 
-# features:
+# Features:
   - Executes `hmmsearch` for multiple HMM models against multiple FASTA files.
   - Parses HMMER output (`tblout`) and extracts relevant information into structured TSV files.
   - Supports specifying custom E-value thresholds for domain searches.
   - Automatically organizes output files based on models and genome accessions.
   - Handles errors gracefully and provides informative messages for troubleshooting.
 
-# dependencies:
+# Dependencies:
   - Anaconda 3.x
   - Python 3.8 or higher
   - pandas
   - HMMER 3.3 or higher
 
-# installation:
-  prerequisites:
+# Installation:
+  Prerequisites:
     - Download and install [Anaconda](https://www.anaconda.com/products/distribution) for your operating system.
     - Ensure that the HMMER suite is installed. You can install it via conda:
       ```bash
       conda install -c bioconda hmmer
       ```
 
-  # steps:
+  Steps:
     - Clone the repository:
       ```bash
       git clone https://github.com/yourusername/proteinHMM.git
@@ -53,32 +52,32 @@
       pip install [package_name]
       ```
 
-usage:
-  description: 
-    The script processes multiple FASTA files containing protein sequences (.faa) against a set of HMM models (.hmm).
-    It performs domain searches using `hmmsearch`, parses the results, and compiles them into consolidated TSV files.
+# Usage:
+  Description: 
+    The script processes multiple FASTA files containing protein sequences (.faa) against a set of HMM models (.hmm). It performs domain searches using `hmmsearch`, parses the results, and compiles them into consolidated TSV files.
 
-  command:
+  Command:
     ```bash
     python3 protein_hmm_search.py <models_dir> <fastas_dir> <output_dir>
     ```
 
-  arguments:
+  Arguments:
     - `<models_dir>`: 
-        description: "Path to the directory containing HMM model files (.hmm)."
-        example: "models/"
+        Description: "Path to the directory containing HMM model files (.hmm)."
+        Example: "models/"
     - `<fastas_dir>`: 
-        description: "Path to the directory containing FASTA files (.faa) to be searched."
-        example: "fastas/"
+        Description: "Path to the directory containing FASTA files (.faa) to be searched."
+        Example: "fastas/"
     - `<output_dir>`: 
-        description: "Path to the directory where output results will be saved."
-        example: "results/"
+        Description: "Path to the directory where output results will be saved."
+        Example: "results/"
 
-  example:
+  Example:
     ```bash
     python3 protein_hmm_search.py models/ fastas/ results/
     ```
-  arguments_details:
+
+  Arguments Details:
     models_dir:
       - Ensure that the directory contains valid HMM model files with a `.hmm` extension.
       - Example files: `model1.hmm`, `model2.hmm`, etc.
@@ -89,13 +88,12 @@ usage:
       - If the directory does not exist, it will be created automatically.
       - Results will be saved as `modelName_genomeAccession_tblout.txt` and consolidated into `modelName_all_results.tsv`.
 
-model_hmm_query:
-  description: >
-    The HMM models used as queries should represent the protein families or domains of interest.
-    These models can be custom-built or sourced from established databases.
+# Model HMM Query:
+  Description: >
+    The HMM models used as queries should represent the protein families or domains of interest. These models can be custom-built or sourced from established databases.
 
-  creating_hmm_profiles:
-    steps:
+  Creating HMM Profiles:
+    Steps:
       - Collect a multiple sequence alignment (MSA) for the protein family of interest.
       - Use HMMER's `hmmbuild` to create an HMM profile from the MSA.
         ```bash
@@ -103,31 +101,32 @@ model_hmm_query:
         ```
       - Validate the created HMM model to ensure its accuracy.
 
-#   download_hmmer_profile_databases:
-    description: >
+# Download HMMER Profile Databases:
+    Description: >
       Pre-built HMM profiles can be downloaded from various sources for commonly studied protein families.
 
-    sources:
+    Sources:
       - NCBI CDD (Conserved Domain Database):
-          url: "https://www.ncbi.nlm.nih.gov/Structure/cdd/cdd.shtml"
-          description: "Provides a comprehensive collection of well-annotated multiple sequence alignment models for ancient domains and full-length proteins."
+          URL: "https://www.ncbi.nlm.nih.gov/Structure/cdd/cdd.shtml"
+          Description: "Provides a comprehensive collection of well-annotated multiple sequence alignment models for ancient domains and full-length proteins."
       - Pfam:
-          url: "https://pfam.xfam.org/"
-          description: "A large collection of protein families, each represented by multiple sequence alignments and profile hidden Markov models."
+          URL: "https://pfam.xfam.org/"
+          Description: "A large collection of protein families, each represented by multiple sequence alignments and profile hidden Markov models."
       - TIGRFAMs:
-          url: "http://www.jcvi.org/cgi-bin/tigrfams/main"
-          description: "Protein families developed by the Joint Genome Institute."
+          URL: "http://www.jcvi.org/cgi-bin/tigrfams/main"
+          Description: "Protein families developed by the Joint Genome Institute."
 
-    example_download_command:
+    Example Download Command:
       ```bash
       wget -O pfam-A.hmm.gz ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam-A.hmm.gz
       gunzip pfam-A.hmm.gz
       ```
-# environment_setup:
-  description: 
+
+# Environment Setup:
+  Description: 
     Instructions to create and activate the Anaconda environment named `proteinHMM`, and install all necessary dependencies.
 
-  steps:
+  Steps:
     - Open your terminal or command prompt.
     - Create the Anaconda environment:
       ```bash
@@ -151,18 +150,18 @@ model_hmm_query:
       hmmsearch -h
       ```
 
-output:
-  description: >
+# Output:
+  Description: >
     The script generates output files containing the results of the HMM searches. These include detailed search results for each model and a consolidated summary.
 
-  files_generated:
+  Files Generated:
     - `<modelName>_<genomeAccession>_tblout.txt`:
-        description: "Detailed HMMER `tblout` results for each model and genome accession, including all hits with E-values below the specified threshold."
+        Description: "Detailed HMMER `tblout` results for each model and genome accession, including all hits with E-values below the specified threshold."
     - `<modelName>_all_results.tsv`:
-        description: "Consolidated TSV file aggregating all hits across different genome accessions for a specific HMM model."
+        Description: "Consolidated TSV file aggregating all hits across different genome accessions for a specific HMM model."
 
-# contributing:
-  guidelines: >
+# Contributing:
+  Guidelines: >
     Contributions are welcome! Please follow these steps to contribute:
       1. Fork the repository.
       2. Create a new branch for your feature or bugfix.
@@ -172,10 +171,9 @@ output:
 
     Ensure that your code follows the existing style and includes appropriate documentation and tests.
 
-
-# troubleshooting:
-  issue: "HMMER commands not found"
-  solution: >
+# Troubleshooting:
+  Issue: "HMMER commands not found"
+  Solution: >
     Ensure that HMMER is installed and properly added to your system's PATH. If installed via conda, activate the `proteinHMM` environment:
       ```bash
       conda activate proteinHMM
@@ -185,22 +183,21 @@ output:
       hmmsearch -h
       ```
 
-  issue: "No data found for the given parameters"
-  solution: >
+  Issue: "No data found for the given parameters"
+  Solution: >
     - Verify that the input directories (`models_dir` and `fastas_dir`) contain the correct file types (.hmm and .faa respectively).
     - Check that the FASTA files are properly formatted.
     - Ensure that the HMM models are compatible with the FASTA sequences.
     - Adjust the E-value threshold if necessary.
 
-# Script 2: title: "NCBI Assembly Metadata Enrichment Tool":  get_genome_metadata.py
+---
 
-# description: 
-  A Python script designed to process NCBI assembly IDs, retrieve comprehensive taxonomic lineages,
-  and fetch additional metadata from the NCBI BioSample database. The tool enriches assembly data with
-  geographic and biome distribution information, outputting both comprehensive and filtered datasets
-  for further analysis.
+# Script 2: NCBI Assembly Metadata Enrichment Tool: get_genome_metadata.py
 
-# features:
+# Description: 
+A Python script designed to process NCBI assembly IDs, retrieve comprehensive taxonomic lineages, and fetch additional metadata from the NCBI BioSample database. The tool enriches assembly data with geographic and biome distribution information, outputting both comprehensive and filtered datasets for further analysis.
+
+# Features:
   - Retrieves taxonomic lineage information using NCBITaxa from the ete3 library.
   - Fetches additional metadata from the NCBI BioSample database using Biopython's Entrez module.
   - Parses XML responses to extract geographic locations, biome distributions, and latitude/longitude coordinates.
@@ -208,19 +205,19 @@ output:
   - Generates both comprehensive and filtered TSV output files containing enriched assembly data.
   - Provides summary statistics on the number of assemblies with specific metadata fields populated.
 
-# dependencies:
+# Dependencies:
   - Anaconda 3.x
   - Python 3.8 or higher
   - pandas
   - ete3
   - biopython
 
-# installation:
-  prerequisites:
+# Installation:
+  Prerequisites:
     - Download and install [Anaconda](https://www.anaconda.com/products/distribution) for your operating system.
     - Ensure you have access to the internet for downloading NCBI databases and fetching metadata.
 
-  steps:
+  Steps:
     - Clone the repository:
       ```bash
       git clone https://github.com/yourusername/yourrepository.git
@@ -246,31 +243,30 @@ output:
       ```bash
       python -m ete3 ncbiupdate
       ```
-# usage:
-  description: >
-    The script processes a tab-separated input file containing NCBI assembly IDs, retrieves taxonomic lineages,
-    fetches additional metadata from the BioSample database, and outputs enriched data files. An additional
-    filtered output file includes only assemblies with specific biome distributions and geographic coordinates.
 
-  command:
+# Usage:
+  Description: >
+    The script processes a tab-separated input file containing NCBI assembly IDs, retrieves taxonomic lineages, fetches additional metadata from the BioSample database, and outputs enriched data files. An additional filtered output file includes only assemblies with specific biome distributions and geographic coordinates.
+
+  Command:
     ```bash
     python3 script.py <input_file_with_assembly_ids> <output_file>
     ```
 
-  arguments:
+  Arguments:
     - `<input_file_with_assembly_ids>`:
-        description: "Path to the input TSV file containing assembly IDs. The file should have a header and assembly IDs in the first column."
-        example: "data/assembly_ids.tsv"
+        Description: "Path to the input TSV file containing assembly IDs. The file should have a header and assembly IDs in the first column."
+        Example: "data/assembly_ids.tsv"
     - `<output_file>`:
-        description: "Path to the output TSV file where enriched assembly data will be saved."
-        example: "results/enriched_assemblies.tsv"
+        Description: "Path to the output TSV file where enriched assembly data will be saved."
+        Example: "results/enriched_assemblies.tsv"
 
-  example:
+  Example:
     ```bash
     python3 script.py data/assembly_ids.tsv results/enriched_assemblies.tsv
     ```
 
-  arguments_details:
+  Arguments Details:
     input_file_with_assembly_ids:
       - Ensure the input file is a TSV with a header row.
       - Assembly IDs should be listed in the first column.
@@ -286,11 +282,11 @@ output:
         - `filtered_<output_file>`: Filtered data with specific biome and geographic information.
       - If the specified output directory does not exist, it will be created automatically.
 
-environment_setup:
-  description: >
+# Environment Setup:
+  Description: >
     Instructions to create and activate the Anaconda environment named `ncbi_metadata`, and install all necessary dependencies.
 
-  steps:
+  Steps:
     - Open your terminal or command prompt.
     - Create the Anaconda environment:
       ```bash
@@ -315,8 +311,9 @@ environment_setup:
       ```bash
       hmmsearch -h  # If HMMER is also used
       ```
-script_details:
-  description: >
+
+# Script Details:
+  Description: >
     The script performs the following operations:
       1. Reads assembly IDs from the input TSV file.
       2. For each assembly ID:
@@ -329,9 +326,9 @@ script_details:
       5. Generates a filtered output file containing only assemblies with known biome distributions and geographic coordinates.
       6. Prints summary statistics on the number of assemblies processed and metadata retrieved.
 
-# troubleshooting:
-  issue: "Script exits with usage error."
-  solution: >
+# Troubleshooting:
+  Issue: "Script exits with usage error."
+  Solution: >
     Ensure you are providing the required arguments when running the script. The correct usage is:
     ```bash
     python3 script.py <input_file_with_assembly_ids> <output_file>
@@ -341,30 +338,30 @@ script_details:
     python3 script.py data/assembly_ids.tsv results/enriched_assemblies.tsv
     ```
 
-  issue: "Error retrieving lineage information."
-  solution: >
+  Issue: "Error retrieving lineage information."
+  Solution: >
     - Verify that the Tax ID is valid and exists in the NCBI taxonomy database.
     - Ensure that the ete3 taxonomy database is properly initialized and updated.
     - Check your internet connection, as the script requires access to NCBI servers.
 
-  issue: "Entrez fetch fails or returns no data."
-  solution: >
+  Issue: "Entrez fetch fails or returns no data."
+  Solution: >
     - Ensure that the assembly accession IDs are correct and exist in the NCBI Assembly database.
     - Verify that your email is correctly set in the script.
     - Respect NCBI's rate limits to avoid being temporarily blocked.
 
-  issue: "Latitude and Longitude not parsed correctly."
-  solution: >
+  Issue: "Latitude and Longitude not parsed correctly."
+  Solution: >
     - Check the format of the `lat_lon` attribute in the BioSample data.
     - Ensure that the script's `parse_latitude_longitude` function matches the format of the latitude and longitude data.
     - Modify the parsing logic if the data format differs.
 
-# support:
-  description: >
+# Support:
+  Description: >
     If you encounter any issues or have questions, feel free to reach out via the contact information provided above or open an issue in the repository. Contributions and feedback are highly appreciated!
 
-example_input:
-  description: >
+Example Input:
+  Description: >
     An example of the input TSV file (`assembly_ids.tsv`) structure:
     ```
     Assembly_ID	Other_Info
@@ -372,59 +369,59 @@ example_input:
     GCF_000002035.6	...
     ```
 
-# output:
-  description: >
+# Output:
+  Description: >
     The script generates two output files:
       - `<output_file>`: Contains enriched assembly data with taxonomic lineages and additional metadata.
       - `filtered_<output_file>`: Contains only assemblies with known biome distributions and geographic coordinates.
 
-  files_generated:
+  Files Generated:
     - `<output_file>`:
-        description: "Comprehensive TSV file with enriched assembly data, including taxonomic lineage, location, biome distribution, latitude, and longitude."
+        Description: "Comprehensive TSV file with enriched assembly data, including taxonomic lineage, location, biome distribution, latitude, and longitude."
     - `filtered_<output_file>`:
-        description: "Filtered TSV file containing assemblies with specific biome and geographic information for targeted analysis."
+        Description: "Filtered TSV file containing assemblies with specific biome and geographic information for targeted analysis."
 
-additional_resources:
-  - name: "NCBI Taxonomy Database"
-    url: "https://www.ncbi.nlm.nih.gov/taxonomy"
-    description: "Provides authoritative taxonomic information for all organisms recognized by the National Center for Biotechnology Information."
+Additional Resources:
+  - Name: "NCBI Taxonomy Database"
+    URL: "https://www.ncbi.nlm.nih.gov/taxonomy"
+    Description: "Provides authoritative taxonomic information for all organisms recognized by the National Center for Biotechnology Information."
   
-  - name: "NCBI BioSample Database"
-    url: "https://www.ncbi.nlm.nih.gov/biosample/"
-    description: "Stores descriptive metadata about biological samples used in various NCBI databases."
+  - Name: "NCBI BioSample Database"
+    URL: "https://www.ncbi.nlm.nih.gov/biosample/"
+    Description: "Stores descriptive metadata about biological samples used in various NCBI databases."
 
-  - name: "ETE Toolkit Documentation"
-    url: "http://etetoolkit.org/docs/latest/index.html"
-    description: "Comprehensive documentation for the ete3 library, including usage of NCBITaxa."
+  - Name: "ETE Toolkit Documentation"
+    URL: "http://etetoolkit.org/docs/latest/index.html"
+    Description: "Comprehensive documentation for the ete3 library, including usage of NCBITaxa."
 
-  - name: "Biopython Documentation"
-    url: "https://biopython.org/wiki/Documentation"
-    description: "Documentation for Biopython, a set of tools for biological computation in Python."
-    
-# Script 3: title: "FASTA Sequence Filter Tool" : fasta_sequence_filter.py
+  - Name: "Biopython Documentation"
+    URL: "https://biopython.org/wiki/Documentation"
+    Description: "Documentation for Biopython, a set of tools for biological computation in Python."
 
-# description: 
-  A Python script designed to filter sequences in FASTA files based on a list of sequence IDs.
-  Whether you need to keep or exclude specific sequences, this tool provides a straightforward
-  command-line interface to efficiently process large FASTA datasets for bioinformatics analyses.
+---
 
-# features:
+# Script 3: FASTA Sequence Filter Tool: fasta_sequence_filter.py
+
+# Description: 
+A Python script designed to filter sequences in FASTA files based on a list of sequence IDs. Whether you need to keep or exclude specific sequences, this tool provides a straightforward command-line interface to efficiently process large FASTA datasets for bioinformatics analyses.
+
+# Features:
   - Filters FASTA files to keep or exclude sequences based on a provided list of IDs.
   - Utilizes Biopython's SeqIO for efficient parsing and writing of FASTA files.
   - Supports mutually exclusive options to either keep or exclude specified sequences.
   - Provides informative output on the number of sequences processed and filtered.
   - Easy integration into bioinformatics pipelines for preprocessing sequence data.
 
-# dependencies:
+# Dependencies:
   - Anaconda 3.x
   - Python 3.8 or higher
   - Biopython
 
-# installation:
-  prerequisites:
+# Installation:
+  Prerequisites:
     - Download and install [Anaconda](https://www.anaconda.com/products/distribution) for your operating system.
   
-  steps:
+  Steps:
     - Clone the repository:
       ```bash
       git clone https://github.com/yourusername/yourrepository.git
@@ -450,39 +447,40 @@ additional_resources:
       ```bash
       pip install [package_name]
       ```
-# usage:
-  description: >
-    The script filters sequences in an input FASTA file based on a list of sequence IDs provided.
-    You can choose to either keep only the specified sequences or exclude them from the output.
 
-  command:
+# Usage:
+  Description: >
+    The script filters sequences in an input FASTA file based on a list of sequence IDs provided. You can choose to either keep only the specified sequences or exclude them from the output.
+
+  Command:
     ```bash
     python3 filter_fasta.py <input_fasta> <output_fasta> <ids_file> (--keep | --exclude)
     ```
 
-  arguments:
+  Arguments:
     - `<input_fasta>`:
-        description: "Path to the input FASTA file containing sequences to be filtered."
-        example: "data/input_sequences.fasta"
+        Description: "Path to the input FASTA file containing sequences to be filtered."
+        Example: "data/input_sequences.fasta"
     - `<output_fasta>`:
-        description: "Path to the output FASTA file where filtered sequences will be saved."
-        example: "results/filtered_sequences.fasta"
+        Description: "Path to the output FASTA file where filtered sequences will be saved."
+        Example: "results/filtered_sequences.fasta"
     - `<ids_file>`:
-        description: "Path to the file containing sequence IDs to keep or exclude. Each ID should be on a separate line."
-        example: "data/sequence_ids.txt"
+        Description: "Path to the file containing sequence IDs to keep or exclude. Each ID should be on a separate line."
+        Example: "data/sequence_ids.txt"
     - `--keep`:
-        description: "Keep only the sequences with IDs specified in the IDs file."
+        Description: "Keep only the sequences with IDs specified in the IDs file."
     - `--exclude`:
-        description: "Exclude the sequences with IDs specified in the IDs file."
+        Description: "Exclude the sequences with IDs specified in the IDs file."
 
-#  example:
+# Example:
     ```bash
     python3 filter_fasta.py data/input_sequences.fasta results/kept_sequences.fasta data/sequence_ids.txt --keep
     ```
     ```bash
     python3 filter_fasta.py data/input_sequences.fasta results/excluded_sequences.fasta data/sequence_ids.txt --exclude
     ```
-# arguments_details:
+
+# Arguments Details:
   input_fasta:
     - Ensure the input file is in proper FASTA format.
     - Supports large FASTA files efficiently using Biopython's SeqIO.
@@ -497,11 +495,11 @@ additional_resources:
   --exclude:
     - When this option is used, sequences with IDs present in the `ids_file` will be excluded from the `output_fasta`.
 
-# environment_setup:
-  description: >
+# Environment Setup:
+  Description: >
     Instructions to create and activate the Anaconda environment named `filter_sequences`, and install all necessary dependencies.
 
-  steps:
+  Steps:
     - Open your terminal or command prompt.
     - Create the Anaconda environment:
       ```bash
@@ -522,8 +520,9 @@ additional_resources:
       ```bash
       python -c "import Bio; print(Bio.__version__)"
       ```
-# script_details:
-  description: >
+
+# Script Details:
+  Description: >
     The script performs the following operations:
       1. Parses command-line arguments to determine input and output files, IDs file, and filter mode.
       2. Reads the list of sequence IDs from the provided `ids_file`.
@@ -533,44 +532,35 @@ additional_resources:
       4. Writes the filtered sequences to the `output_fasta` file.
       5. Outputs summary information on the number of sequences processed and filtered.
 
-# faq:
-  - question: "What is the purpose of this script?"
-    answer: >
-      The script is designed to filter sequences in FASTA files based on a list of sequence IDs.
-      It allows users to either keep only the specified sequences or exclude them from the output,
-      facilitating targeted analyses in bioinformatics workflows.
+# FAQ:
+  - Question: "What is the purpose of this script?"
+    Answer: >
+      The script is designed to filter sequences in FASTA files based on a list of sequence IDs. It allows users to either keep only the specified sequences or exclude them from the output, facilitating targeted analyses in bioinformatics workflows.
 
-  - question: "How do I prepare the IDs file?"
-    answer: >
-      The IDs file should be a plain text file with one sequence ID per line. Ensure there are no
-      headers or additional formatting. For example:
+  - Question: "How do I prepare the IDs file?"
+    Answer: >
+      The IDs file should be a plain text file with one sequence ID per line. Ensure there are no headers or additional formatting. For example:
       ```
       seq1
       seq2
       seq3
       ```
 
-  - question: "Can I use this script with large FASTA files?"
-    answer: >
-      Yes, the script utilizes Biopython's SeqIO for efficient parsing, allowing it to handle large
-      FASTA files effectively. However, ensure that your system has sufficient memory and storage
-      resources for processing large datasets.
+  - Question: "Can I use this script with large FASTA files?"
+    Answer: >
+      Yes, the script utilizes Biopython's SeqIO for efficient parsing, allowing it to handle large FASTA files effectively. However, ensure that your system has sufficient memory and storage resources for processing large datasets.
 
-  - question: "What happens if a sequence ID in the IDs file is not found in the FASTA file?"
-    answer: >
-      The script will process all sequences in the FASTA file and apply the filtering criteria.
-      Sequence IDs in the IDs file that do not match any sequences in the FASTA file will have no
-      effect on the output.
+  - Question: "What happens if a sequence ID in the IDs file is not found in the FASTA file?"
+    Answer: >
+      The script will process all sequences in the FASTA file and apply the filtering criteria. Sequence IDs in the IDs file that do not match any sequences in the FASTA file will have no effect on the output.
 
-  - question: "Can I use this script to filter sequences based on partial IDs or patterns?"
-    answer: >
-      Currently, the script filters sequences based on exact matches of sequence IDs. For partial
-      matches or pattern-based filtering, you would need to modify the script to incorporate regular
-      expressions or other matching criteria.
+  - Question: "Can I use this script to filter sequences based on partial IDs or patterns?"
+    Answer: >
+      Currently, the script filters sequences based on exact matches of sequence IDs. For partial matches or pattern-based filtering, you would need to modify the script to incorporate regular expressions or other matching criteria.
 
-# troubleshooting:
-  issue: "Script exits with usage error."
-  solution: >
+# Troubleshooting:
+  Issue: "Script exits with usage error."
+  Solution: >
     Ensure you are providing the required arguments when running the script. The correct usage is:
     ```bash
     python3 filter_fasta.py <input_fasta> <output_fasta> <ids_file> (--keep | --exclude)
@@ -580,14 +570,14 @@ additional_resources:
     python3 filter_fasta.py data/input_sequences.fasta results/filtered_sequences.fasta data/sequence_ids.txt --keep
     ```
 
-  issue: "No sequences are being written to the output file."
-  solution: >
+  Issue: "No sequences are being written to the output file."
+  Solution: >
     - Verify that the IDs in the `ids_file` match the sequence IDs in the `input_fasta`.
     - Ensure that you are using the correct mode (`--keep` or `--exclude`) based on your filtering needs.
     - Check for any leading/trailing whitespaces in the `ids_file` that might prevent matching.
 
-  issue: "Biopython is not installed or not found."
-  solution: >
+  Issue: "Biopython is not installed or not found."
+  Solution: >
     Ensure that you have activated the correct Anaconda environment (`filter_sequences`) and installed Biopython:
     ```bash
     conda activate filter_sequences
@@ -598,17 +588,17 @@ additional_resources:
     python -c "import Bio; print(Bio.__version__)"
     ```
 
-  issue: "Permission denied when creating or writing to the output file."
-  solution: >
+  Issue: "Permission denied when creating or writing to the output file."
+  Solution: >
     Ensure that you have the necessary write permissions for the directory where you are trying to save the `output_fasta`.
     You can change the directory permissions or choose a different directory with appropriate permissions.
 
-support:
-  description: >
+# Support:
+  Description: >
     If you encounter any issues or have questions, feel free to reach out via the contact information provided above or open an issue in the repository. Contributions and feedback are highly appreciated!
 
-example_input:
-  description: >
+Example Input:
+  Description: >
     An example of the input IDs file (`sequence_ids.txt`) structure:
     ```
     seq1
@@ -616,26 +606,56 @@ example_input:
     seq3
     ```
 
-output:
-  description: >
+# Output:
+  Description: >
     The script generates an output FASTA file containing the filtered sequences based on the provided IDs and selected mode (keep or exclude).
 
-  files_generated:
+  Files Generated:
     - `<output_fasta>`:
-        description: "FASTA file containing the filtered sequences. Depending on the selected mode, it either includes only the specified sequences or excludes them from the original set."
+        Description: "FASTA file containing the filtered sequences. Depending on the selected mode, it either includes only the specified sequences or excludes them from the original set."
 
-additional_resources:
-  - name: "Biopython Documentation"
-    url: "https://biopython.org/wiki/Documentation"
-    description: "Comprehensive documentation for Biopython, including the SeqIO module used for parsing and writing FASTA files."
+Additional Resources:
+  - Name: "Biopython Documentation"
+    URL: "https://biopython.org/wiki/Documentation"
+    Description: "Comprehensive documentation for Biopython, including the SeqIO module used for parsing and writing FASTA files."
   
-  - name: "FASTA Format Specification"
-    url: "https://en.wikipedia.org/wiki/FASTA_format"
-    description: "Detailed information about the FASTA file format used for representing nucleotide or peptide sequences."
+  - Name: "FASTA Format Specification"
+    URL: "https://en.wikipedia.org/wiki/FASTA_format"
+    Description: "Detailed information about the FASTA file format used for representing nucleotide or peptide sequences."
 
-  - name: "Anaconda Documentation"
-    url: "https://docs.anaconda.com/anaconda/"
-    description: "Official documentation for Anaconda, a distribution of Python and R for scientific computing."
+  - Name: "Anaconda Documentation"
+    URL: "https://docs.anaconda.com/anaconda/"
+    Description: "Official documentation for Anaconda, a distribution of Python and R for scientific computing."
+
+---
+
+# Script 4: Taxonomic FAAL Analyzer: bar_mean_faal_genome.py
+
+This repository contains a Python script that processes a TSV table of genomic and taxonomic data, extracts taxonomic lineages using the ETE3 library, and generates filtered statistics and visualizations of FAAL counts per genome across different taxonomic groups.
+
+## Features
+
+- **Taxonomic Extraction:** Uses the ETE3 library to fetch taxonomic lineage information from NCBI.
+- **Data Filtering:** Filters out unwanted rows (e.g., those with 'environmental samples' or missing assembly information) and applies specific criteria based on taxonomic levels.
+- **Aggregation:** Counts total FAAL occurrences and unique genome assemblies for each taxonomic group.
+- **Visualization:** Generates bar plots that show the mean FAAL count per genome for the top N taxonomic groups, with annotations for genome counts and total FAAL counts.
+- **Output Files:** Saves the merged data in a TSV file and exports plots in PNG, SVG, and JPEG formats.
+
+## Requirements
+
+- Python 3.x
+- [pandas](https://pandas.pydata.org/)
+- [matplotlib](https://matplotlib.org/)
+- [seaborn](https://seaborn.pydata.org/)
+- [numpy](https://numpy.org/)
+- [ete3](http://etetoolkit.org/)
+
+## Installation
+You can install the required packages using `pip`:
+
+```bash
+pip install pandas matplotlib seaborn numpy ete3
+
 
 # Script 4 : bar_mean_faal_genome.py
 
