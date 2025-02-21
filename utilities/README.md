@@ -1160,6 +1160,67 @@ You can install the Python dependencies using pip:
 
 ```bash
 pip install pandas numpy matplotlib
+```
+# Script 10: # BGC Bigscape Parser & Visualizer
+
+This project contains a Python script that processes TSV files with biosynthetic gene cluster (BGC) data, extracts taxonomic information, and generates pie charts to visualize the distribution of BiG-SCAPE classes. The script performs the following tasks:
+
+- **Data Loading:** Reads a TSV file containing structured data.
+- **Taxonomic Information Extraction:** Extracts species, genus, order, and phylum from the `Taxonomy` column using custom functions. It leverages the [ete3](http://etetoolkit.org/) library and the NCBITaxa API.
+- **Genome ID Creation:** Generates the `Genome_ID` column from the `BGC` data.
+- **Proportion Calculation:** Groups and calculates the proportions of BiG-SCAPE classes present in the dataset.
+- **Visualization:** Creates pie charts and automatically saves the figures in SVG, PNG, and JPEG formats at high resolution (300 dpi).
+
+## Requirements
+
+- Python 3.x
+- Libraries:
+  - [pandas](https://pandas.pydata.org/)
+  - [matplotlib](https://matplotlib.org/)
+  - [numpy](https://numpy.org/)
+  - [ete3](http://etetoolkit.org/)
+- Standard modules: `sys`, `math`, `re`
+
+> **Tip:** It is recommended to use a virtual environment to manage the dependencies.
+
+## Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/your_username/your_repository.git
+   cd your_repository
+```
+Create and activate a virtual environment:
+
+   ```bash
+python3 -m venv venv
+source venv/bin/activate      # Linux/Mac
+venv\Scripts\activate         # Windows
+```
+
+# Install the dependencies: If you have a requirements.txt file:
+
+```bash
+pip install -r requirements.txt
+```
+Or, install the libraries manually:
+
+```bash
+pip install pandas matplotlib numpy ete3
+```
+# Usage
+
+Run the script by passing the path to the TSV file as an argument:
+
+```bash
+python3 bgc_class_bigscape.py path_to_file.tsv
+```
+
+# During execution, the script will prompt you to:
+
+Select the taxonomic level (Phylum, Order, or Genus) interactively.
+Enter the taxon names (separated by commas) for filtering.
+After processing, the script will display the pie charts and automatically save the images in SVG, PNG, and JPEG formats at 300 dpi.
     
 # contact:
   name: "Leandro de Mattos Pereira"
