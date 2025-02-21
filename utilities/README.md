@@ -629,77 +629,79 @@ Additional Resources:
 
 ---
 
-# Script 4: Pie Chart Generator for Taxonomic Data
+# Script 4: pie_multidomain_architecture.py, Taxonomic Pie Chart Generator
 
-This repository contains a Python script that processes genomic and taxonomic data from two TSV files, combines signature descriptions, extracts taxonomic levels using the NCBI taxonomy, and generates customizable pie charts. The script is particularly tailored to handle special cases for taxons such as **"Candidatus Rokuibacteriota"** and **"Gemmatimonadota"** by applying regular expression filters.
-
----
+This repository contains a Python script that processes two TSV files containing genomic and protein annotation data, merges the data, extracts taxonomic lineages, and generates pie charts displaying the distribution of protein signature architectures. The script is designed to work with biosynthetic data and is particularly useful for visualizing the prevalence of different signature types (e.g., FAAL, NRPS, PKS) across taxonomic groups.
 
 ## Features
 
-- **Data Loading and Validation:**  
-  Loads two TSV files and verifies required columns such as `Assembly` and `Signature.description`.
-
 - **Signature Description Combination:**  
-  Combines multiple signature descriptions per protein, simplifying terms (e.g., mapping any occurrence of "NRPS" or "PKS" to standardized labels) and replacing "FAAL" with "FAAL stand-alone".
+  Combines multiple "Signature.description" entries per protein accession into a single field (`Combined.description`). Special handling is included to replace "FAAL" with "FAAL stand-alone".
 
-- **Merging DataFrames:**  
-  Merges the two input files on `Protein.accession` and generates a new column `Combined.description`.
+- **Data Loading and Validation:**  
+  Reads two TSV files, prints column information and shapes, and performs basic checks (e.g., verifying the presence of an `Assembly` column with valid IDs).
+
+- **Data Merging:**  
+  Merges the two datasets using the `Protein.accession` field (inner join) and creates the combined signature description.
 
 - **Taxonomic Extraction:**  
-  Uses the `ete3` package with NCBI taxonomy to extract taxonomic levels (superkingdom, phylum, class, order, family, genus, species) from lineage strings.
+  Extracts taxonomic levels (superkingdom, phylum, class, order, family, genus, species) from a `Lineage` column using the [ete3](http://etetoolkit.org/) NCBITaxa module. Includes functions to directly obtain the phylum.
 
-- **Lineage Update and Filtering:**  
-  Filters the dataset to keep only the entries from a specified domain (e.g., Bacteria, Archaea, Eukaryota) and ensures critical taxonomic levels (phylum, order, genus) are present.
+- **Lineage Update and Domain Filtering:**  
+  Updates the DataFrame with extracted taxonomic levels and filters the data to keep only the rows that match the chosen domain (e.g., Bacteria, Archaea, Eukaryota). It also removes rows with missing values for key taxonomic levels.
 
-- **Pie Chart Visualization:**  
-  Generates pie charts (with doughnut styling) for specified taxons. It supports:
-  - Applying regex filters for special taxon names ("Candidatus Rokuibacteriota" and "Gemmatimonadota").
-  - Plotting top N categories with an "Others" category for remaining data.
-  - Saving figures in PNG, SVG, and JPEG formats.
+- **Pie Chart Plotting:**  
+  Generates pie charts as subplots (2 columns per row) for specified taxonomic groups.  
+  - For taxa such as "Candidatus Rokuibacteriota" and "Gemmatimonadota", the script uses regular expressions to match the `Lineage` data.
+  - Displays the top N most frequent architectures and groups the remaining counts into an "Others" category.
+  - Creates a doughnut chart style with a central white circle.
+  - Automatically saves the plots in PNG, SVG, and JPEG formats with a specified DPI.
 
----
+## Requirements
 
-## Dependencies
-
-The script requires the following Python packages:
 - Python 3.x
-- [Pandas](https://pandas.pydata.org/)
-- [Matplotlib](https://matplotlib.org/)
-- [NumPy](https://numpy.org/)
-- [ete3](http://etetoolkit.org/)
+- Libraries:
+  - [pandas](https://pandas.pydata.org/)
+  - [matplotlib](https://matplotlib.org/)
+  - [numpy](https://numpy.org/)
+  - [ete3](http://etetoolkit.org/)
 
-Install the required packages via pip:
+## Installation
 
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/your_username/your_repository.git
+   cd your_repository
+    ```
+  ```bash
+python3 -m venv venv
+source venv/bin/activate      # Linux/Mac
+venv\Scripts\activate         # Windows
+ ```
+
+```bash
+pip install -r requirements.txt
+ ```
 ```bash
 pip install pandas matplotlib numpy ete3
-```
 
-# Usage
-Run the script from the command line with the following arguments:
-```bash
-python3 pie_chart.py <table1_path> <table2_path> <domain_name> <top_n> <taxonomic_level> <taxon_list> <dpi>
-```
+# Example 
+ ``
+python3 pie_multidomain_architecture.py <table1_path> <table2_path> <domain_name> <top_n> <taxonomic_level> <taxon_list> <dpi>
+ ```
 
-# Arguments
-<table1_path>: Path to the first TSV file (genomic and metadata information).
-<table2_path>: Path to the second TSV file (protein signature descriptions).
-<domain_name>: Domain to filter the data. Must be one of Bacteria, Archaea, or Eukaryota.
-<top_n>: Number of top categories to display in the pie charts.
-<taxonomic_level>: Taxonomic level for filtering the data. Valid options are Phylum, Order, or Genus.
-<taxon_list>: Comma-separated list of taxons to generate pie charts for.
-Special handling is applied when a taxon is named "Candidatus Rokuibacteriota" or "Gemmatimonadota".
-<dpi>: Dots per inch (DPI) resolution for the output figures.
+# Parameters:
 
-
-python3 pie_chart.py \
-  Genomes_Total_proteinas_taxonomy_FAAL_metadata_nodup.tsv \
-  results_all_lista_proteins.faals_cdd.tsv \
-  Bacteria 6 Phylum "Candidatus Rokuibacteriota,Gemmatimonadota,Myxococcota" 300
-
+<table1_path>: Path to the first TSV file containing genomic/protein taxonomy data.
+<table2_path>: Path to the second TSV file containing protein signature descriptions.
+<domain_name>: Domain to filter (e.g., Bacteria, Archaea, Eukaryota).
+<top_n>: Number of top signature architectures to display in the pie charts.
+<taxonomic_level>: Taxonomic level to use for filtering (Phylum, Order, or Genus).
+<taxon_list>: Comma-separated list of taxon names.
+Note: For "Candidatus Rokuibacteriota" and "Gemmatimonadota", the script applies specific regex matching.
+<dpi>: Resolution (dots per inch) for saving the figures.
 
 # Script 6: Taxonomic FAAL Analyzer: bar_mean_faal_genome.py
-
 
 # Taxonomic FAAL Analyzer
 
