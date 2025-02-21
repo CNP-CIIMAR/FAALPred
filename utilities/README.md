@@ -629,35 +629,76 @@ Additional Resources:
 
 ---
 
-# Script 4: Taxonomic FAAL Analyzer: bar_mean_faal_genome.py
+# Script 4: Pie Chart Generator for Taxonomic Data
 
-This repository contains a Python script that processes a TSV table of genomic and taxonomic data, extracts taxonomic lineages using the ETE3 library, and generates filtered statistics and visualizations of FAAL counts per genome across different taxonomic groups.
+This repository contains a Python script that processes genomic and taxonomic data from two TSV files, combines signature descriptions, extracts taxonomic levels using the NCBI taxonomy, and generates customizable pie charts. The script is particularly tailored to handle special cases for taxons such as **"Candidatus Rokuibacteriota"** and **"Gemmatimonadota"** by applying regular expression filters.
+
+---
 
 ## Features
 
-- **Taxonomic Extraction:** Uses the ETE3 library to fetch taxonomic lineage information from NCBI.
-- **Data Filtering:** Filters out unwanted rows (e.g., those with 'environmental samples' or missing assembly information) and applies specific criteria based on taxonomic levels.
-- **Aggregation:** Counts total FAAL occurrences and unique genome assemblies for each taxonomic group.
-- **Visualization:** Generates bar plots that show the mean FAAL count per genome for the top N taxonomic groups, with annotations for genome counts and total FAAL counts.
-- **Output Files:** Saves the merged data in a TSV file and exports plots in PNG, SVG, and JPEG formats.
+- **Data Loading and Validation:**  
+  Loads two TSV files and verifies required columns such as `Assembly` and `Signature.description`.
 
-## Requirements
+- **Signature Description Combination:**  
+  Combines multiple signature descriptions per protein, simplifying terms (e.g., mapping any occurrence of "NRPS" or "PKS" to standardized labels) and replacing "FAAL" with "FAAL stand-alone".
 
+- **Merging DataFrames:**  
+  Merges the two input files on `Protein.accession` and generates a new column `Combined.description`.
+
+- **Taxonomic Extraction:**  
+  Uses the `ete3` package with NCBI taxonomy to extract taxonomic levels (superkingdom, phylum, class, order, family, genus, species) from lineage strings.
+
+- **Lineage Update and Filtering:**  
+  Filters the dataset to keep only the entries from a specified domain (e.g., Bacteria, Archaea, Eukaryota) and ensures critical taxonomic levels (phylum, order, genus) are present.
+
+- **Pie Chart Visualization:**  
+  Generates pie charts (with doughnut styling) for specified taxons. It supports:
+  - Applying regex filters for special taxon names ("Candidatus Rokuibacteriota" and "Gemmatimonadota").
+  - Plotting top N categories with an "Others" category for remaining data.
+  - Saving figures in PNG, SVG, and JPEG formats.
+
+---
+
+## Dependencies
+
+The script requires the following Python packages:
 - Python 3.x
-- [pandas](https://pandas.pydata.org/)
-- [matplotlib](https://matplotlib.org/)
-- [seaborn](https://seaborn.pydata.org/)
-- [numpy](https://numpy.org/)
+- [Pandas](https://pandas.pydata.org/)
+- [Matplotlib](https://matplotlib.org/)
+- [NumPy](https://numpy.org/)
 - [ete3](http://etetoolkit.org/)
 
-## Installation
-You can install the required packages using `pip`:
+Install the required packages via pip:
 
 ```bash
-pip install pandas matplotlib seaborn numpy ete3
+pip install pandas matplotlib numpy ete3
+```
+
+# Usage
+Run the script from the command line with the following arguments:
+```bash
+python3 pie_chart.py <table1_path> <table2_path> <domain_name> <top_n> <taxonomic_level> <taxon_list> <dpi>
+```
+
+# Arguments
+<table1_path>: Path to the first TSV file (genomic and metadata information).
+<table2_path>: Path to the second TSV file (protein signature descriptions).
+<domain_name>: Domain to filter the data. Must be one of Bacteria, Archaea, or Eukaryota.
+<top_n>: Number of top categories to display in the pie charts.
+<taxonomic_level>: Taxonomic level for filtering the data. Valid options are Phylum, Order, or Genus.
+<taxon_list>: Comma-separated list of taxons to generate pie charts for.
+Special handling is applied when a taxon is named "Candidatus Rokuibacteriota" or "Gemmatimonadota".
+<dpi>: Dots per inch (DPI) resolution for the output figures.
 
 
-# Script 4 : bar_mean_faal_genome.py
+python3 pie_chart.py \
+  Genomes_Total_proteinas_taxonomy_FAAL_metadata_nodup.tsv \
+  results_all_lista_proteins.faals_cdd.tsv \
+  Bacteria 6 Phylum "Candidatus Rokuibacteriota,Gemmatimonadota,Myxococcota" 300
+
+
+# Script 6: Taxonomic FAAL Analyzer: bar_mean_faal_genome.py
 
 
 # Taxonomic FAAL Analyzer
@@ -732,7 +773,7 @@ The plot is saved in PNG, SVG, and JPEG formats.
 pip install pandas matplotlib seaborn numpy ete3
 ```
 
-# Script 5: FAALs Taxonomic Analysis: barplot_normalized_counts.py
+# Script 7: FAALs Taxonomic Analysis: barplot_normalized_counts.py
 
 This repository contains a Python script for analyzing Fatty Acyl AMP Ligases (FAALs) across different taxonomic groups. The script processes input data tables, filters and aggregates FAAL counts, normalizes the data, and generates informative visualizations to help understand the distribution and prevalence of FAALs in various taxonomic levels.
  Load and Update Taxonomic Data: Reads two input TSV files containing organism and assembly information, updates taxonomic lineages using the NCBI taxonomy database via the ete3 library.
@@ -848,7 +889,7 @@ Libraries:
 - numpy
 # Ensure all dependencies are installed before running the script.
 
-# Scriot 6: "Taxonomic Analysis and Visualization Tool" : scatterplot_mean_faal_genome.py 
+# Scriot 8: "Taxonomic Analysis and Visualization Tool" : scatterplot_mean_faal_genome.py 
 
   A Python script designed to process genomic assembly data, perform taxonomic classification,
   filter based on specified criteria, and generate insightful visualizations of FAAL counts
@@ -920,7 +961,7 @@ Libraries:
       7. Selects the top N taxonomic groups based on mean FAAL counts.
       8. Generates and saves scatter plots visualizing the data.
 
-# Script 7: name: CAL Domain and GenBank Analyzer
+# Script 9: name: CAL Domain and GenBank Analyzer
 # description: 
   A Python script to analyze subdirectories containing `.gbk` files for the presence of `CAL_domain` and optionally `AMP-binding` domains. The script calculates the total size of `.gbk` files, checks disk space availability, and copies identified files to a filtered directory with the genome ID as a prefix.
 usage: |
