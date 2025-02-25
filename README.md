@@ -51,6 +51,10 @@ port = 8501
 streamlit run faal_pred_version_multilabel.py --server.port 8503
   ```
 
+# Step3:
+```bash
+http://localhost:8501/
+  ```
 # usage:
   - description: 
   - Run the script by providing the path to your FASTA file. Optionally, specify the InterProScan installation directory.
