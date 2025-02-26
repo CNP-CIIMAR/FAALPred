@@ -1684,3 +1684,8 @@ ________________________________________
   - Parses command-line arguments.
 
 
+# License
+
+All codes in this project is licensed under the MIT License. Leandro de Mattos Pereira built all the codes in this repository.
+
+contact: mattoslmp@gmail.com
