@@ -1,7 +1,6 @@
 # FAALPred: Fatty Acyl-AMP Ligases (FAAL) Prediction Tool
 
-This document provides a comprehensive Markdown-friendly explanation and usage guide for the **FAALPred** code. You can copy and paste this document into your GitHub repository’s README or any publication. The document is structured to make it easy to understand what each function does, how to run the code, and how the workflow is organized.
-
+This document provides a comprehensive Markdown-friendly explanation and usage guide for the **FAALPred** code. The Supplementary_methodology is structured to make it easy to understand the main functions and workflow of FAALPred
 Supplementary_methodology.dox
 
 1. [Detailed Explanation of Each Function](#ExplanationofEachFunction)
@@ -38,8 +37,7 @@ Supplementary_methodology.dox
 ## Overview
 **FAALPred** is a comprehensive bioinformatics tool designed to predict fatty acid chain-length specificity (ranging from C4 to C18) of **Fatty Acyl-AMP Ligases (FAALs)**. It integrates:
 
-
-## Features
+## MainFeatures
 - **MAFFT alignment** (if sequences are unaligned)
 - **Word2Vec** to generate embeddings from protein sequences
 - **Random Forest** and calibration strategies
@@ -61,8 +59,6 @@ Install the following libraries using `pip`:
 ```bash
 pip install streamlit numpy pandas scikit-learn scipy gensim plotly \
 matplotlib joblib biopython imblearn umap-learn Pillow tabulate base64
-
-
 
 # Step 1: 
 
