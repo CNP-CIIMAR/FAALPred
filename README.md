@@ -33,7 +33,7 @@ Supplementary_methodology.dox
    - `plot_predictions_scatterplot_custom`
    - `adjust_predictions_global`
    - `main`
-4. [Additional Streamlit Setup and Theming]
+4. [Additional Streamlit Setup and Theming] (#AdditionalStreamlitSetupandTheming)
 
 ## Overview
 **FAALPred** is a comprehensive bioinformatics tool designed to predict fatty acid chain-length specificity (ranging from C4 to C18) of **Fatty Acyl-AMP Ligases (FAALs)**. It integrates:
