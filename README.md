@@ -76,7 +76,7 @@ port = 8501
 
 ### Step 2:
 
-# Run the Application (Streamlit Approach)
+### Run the Application (Streamlit Approach)
 
 ## Start the application:
 ```bash
