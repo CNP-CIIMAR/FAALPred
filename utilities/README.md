@@ -1133,14 +1133,6 @@ Future Updates: If antiSMASH introduces new analysis options in the future, you 
 
 File Extensions: If you have compressed files (like .fasta.gz), you will need to decompress them before processing, as the current script does not support compressed files.
 
-# contact:
-  name: "Leandro de Mattos Pereira"
-  email: "lmattos@ciimar.up.pt"
-  url: "[https://github.com/yourusername/repository](https://github.com/CNP-CIIMAR/FAALPred)"
-
-# License
-  name: "MIT License"
-  url: "https://opensource.org/licenses/MIT"
 
 # Acknowledgements
 - ETE Toolkit: For providing tools to work with phylogenetic trees and taxonomy.
@@ -1153,7 +1145,6 @@ For any questions or issues, please open an issue in the repository.
 This Python script processes GenBank (`.gbk`) files contained within subdirectories of a specified input directory. It searches for features containing specific domains—primarily the "CAL_domain" and optionally "AMP-binding"—calculates the total file sizes, and copies the files that contain the target domains to a filtered output directory. A summary CSV file is generated, and detailed processing logs are saved to a log file.
 
 ---
-
 ## Features
 
 - **Domain Analysis:**  
@@ -1185,6 +1176,7 @@ This Python script processes GenBank (`.gbk`) files contained within subdirector
 - **Disk Space Check:**  
   - Checks available disk space in the parent directory to ensure there is sufficient space to copy the filtered files.
 
+
 ---
 
 ## Requirements
@@ -1215,36 +1207,64 @@ Example:
 python CALDomainAnalyzer.py data/gbk_files log_processamento.log --search-amp-binding
 ```
 
-o	<input_directory>: Path to the directory containing subdirectories with .gbk files.
-o	<log_file>: Path to the log file where processing information will be saved (e.g., log_processamento.log).
-o	--search-amp-binding (optional): If specified, the script will also search for the "AMP-binding" domain.
-3.	Output Files:
-o	Log File: Contains detailed logs of the processing steps.
-o	Summary CSV: A file named summary.csv will be created in the input directory with the analysis summary.
-o	Filtered Files: A directory named filtrados_subdir_CAL will be created in the parent directory of the input. Inside, subdirectories with filtered GenBank files (prefixed by the Genome ID) will be available.
+- **`<input_directory>`**:  
+  Path to the directory containing subdirectories with .gbk files.
+
+- **`<log_file>`**:  
+  Path to the log file where processing information will be saved (e.g., log_processamento.log).
+
+- **`--search-amp-binding`** (optional):  
+  If specified, the script will also search for the "AMP-binding" domain.
+
+---
+
+## Output Files
+
+- **Log File:**  
+  Contains detailed logs of the processing steps.
+
+- **Summary CSV:**  
+  A file named `summary.csv` will be created in the input directory with the analysis summary.
+
+- **Filtered Files:**  
+  A directory named `filtrados_subdir_CAL` will be created in the parent directory of the input. Inside, subdirectories with filtered GenBank files (prefixed by the Genome ID) will be available.
+
+---
+
 ________________________________________
+
 # Code Structure
-•	Function contains_domain:
-Checks if a GenBank feature contains any of the specified domains by examining multiple qualifiers.
-•	Function extract_genome_id:
-Extracts the Genome ID from the subdirectory name based on defined patterns.
-•	Function format_size:
-Converts and formats file sizes from megabases to gigabases.
-•	Function setup_logging:
-Configures logging to output messages to both a file and the console.
-•	Function process_gbk_files:
-o	Iterates over each subdirectory in the input directory.
-o	Processes .gbk files to detect target domains.
-o	Calculates total sizes, logs processing details, and copies files containing the target domains.
-o	Checks available disk space and logs warnings if insufficient.
-o	Generates a summary CSV file.
-•	Main Function:
-Uses argparse to handle command-line arguments and triggers the processing workflow.
+
+- **Function `contains_domain`:**  
+  Checks if a GenBank feature contains any of the specified domains by examining multiple qualifiers.
+
+- **Function `extract_genome_id`:**  
+  Extracts the Genome ID from the subdirectory name based on defined patterns.
+
+- **Function `format_size`:**  
+  Converts and formats file sizes from megabases to gigabases.
+
+- **Function `setup_logging`:**  
+  Configures logging to output messages to both a file and the console.
+
+- **Function `process_gbk_files`:**  
+  - Iterates over each subdirectory in the input directory.
+  - Processes .gbk files to detect target domains.
+  - Calculates total sizes, logs processing details, and copies files containing the target domains.
+  - Checks available disk space and logs warnings if insufficient.
+  - Generates a summary CSV file.
+
+- **Main Function:**  
+  Uses argparse to handle command-line arguments and triggers the processing workflow.
+
 ________________________________________
-Error Handling
-•	The script checks for the existence and validity of the input directory.
-•	Exceptions during file reading, processing, or copying are logged with error messages.
-•	The log file is created (or overwritten) to capture all processing details.
+
+# Error Handling
+
+- The script checks for the existence and validity of the input directory.
+- Exceptions during file reading, processing, or copying are logged with error messages.
+- The log file is created (or overwritten) to capture all processing details.
+
 
 Script 9: Merge Bigscape Step 1. A Python script to merge two TSV tables based on the "BGC" column.
 merge_bigscape_step1.py
@@ -1371,7 +1391,7 @@ This Python script is used to:
    ```bash
    git clone https://github.com/CNP-CIIMAR/FAALPred/blob/main/utilities/pie_bgc_class_taxonomy.py
    cd your-repository
-   ```
+
 ## Install the required packages:
 
 ```bash
@@ -1392,80 +1412,99 @@ The script will prompt you to select the taxonomic level for filtering (Phylum, 
 After selecting the level, you will be asked to enter the taxon names separated by commas. The script uses these names to filter the dataset and generate pie charts.
 ________________________________________
 # Script Details
-# Data Loading
-•	Function: load_data(file_path)
-Purpose:
-Reads a TSV file using pandas.read_csv with UTF-8 encoding. If the file cannot be loaded, an error message is printed and the script terminates.
-# Taxonomy Extraction
-•	Function: extract_species_from_taxonomy(taxonomy)
-Purpose:
-Extracts the species from the taxonomy string by splitting on commas or semicolons and returning the last token.
-•	Function: extract_taxonomic_group_ete3(taxonomy, level)
-Purpose:
-Uses the Ete3 library to query the NCBI database for a given genus and extract the desired taxonomic level (e.g., genus).
-•	Function: extract_level_from_taxid(taxid, level)
-Purpose:
-Given an NCBI taxid, it returns the name of the specified taxonomic level from the lineage.
-•	Function: extract_order(taxonomy, genus)
-Purpose:
-Attempts to extract the "Order" from the taxonomy string. It first searches for tokens ending with "ales" and, if none are found, defaults to the penultimate token or uses an Ete3 lookup if a genus is provided.
-•	Function: extract_phylum(taxonomy)
-Purpose:
-Extracts the phylum by tokenizing the taxonomy string and skipping tokens that include the term "group".
-# Genome ID Extraction
-•	Function: extract_genome_id(df)
-Purpose:
-Creates a new column (Genome_ID) in the DataFrame by parsing the BGC column.
-Logic includes:
-o	If the value starts with "BGC": splits by a period and takes the first token.
-o	If the value starts with "GCA_" or "GCF_": splits by underscore and combines the first two tokens.
-o	Otherwise, returns the original value.
-# Taxonomic Level Adjustment
-•	Function: adjust_taxonomic_level(df, level)
-Purpose:
-Depending on the selected taxonomic level (Phylum, Order, or Genus), the function creates or adjusts the corresponding column using the appropriate extraction function. If an unrecognized level is passed, the script exits.
-•	Function: select_taxonomic_level()
-Purpose:
-Provides an interactive prompt allowing the user to select the taxonomic level and input names (comma-separated) for filtering.
-# Proportion Calculation
-•	Function: calculate_proportion_and_genomes(df, taxon_value, level)
-Purpose:
-Filters the DataFrame based on the provided taxon name and taxonomic level.
-o	For Phylum-level filtering, the function searches within the Taxonomy column.
-o	Computes the count of unique genome IDs and the proportion of each BiG-SCAPE class.
-o	Prints debug information including unique genome IDs and total genome counts.
-# Visualization
-•	Function: plot_pie_chart(prop_df, level, taxon_names, num_genomes, color_mapping, ax=None)
-Purpose:
-Generates a pie chart using matplotlib to visualize the proportion of BiG-SCAPE classes.
-Large Slices (≥5%):
-o	Displays the percentage inside the slice.
-o	Labels are positioned outside without bounding boxes.
-Small Slices (0.1%–5%):
-o	Annotations (description and percentage) are placed externally with connecting arrows.
-Annotation Adjustment:
-o	Uses the adjust_annotations function to ensure that external annotation labels do not overlap.
-o	Configures the title with the taxon name and total number of genomes.
-# Main Function
-•	Function: main()
-Purpose:
-o	Validates command-line arguments.
-o	Loads the data and checks for necessary columns.
-o	Calls extract_genome_id to generate unique genome identifiers.
-o	Invokes interactive selection for the taxonomic level and filtering criteria.
-o	Sets up a multi-panel layout for generating pie charts (three charts per row, adjusted for publication quality).
-o	Applies a color mapping for BiG-SCAPE classes using a colormap.
-o	Generates and saves the pie charts in PNG, JPEG, and SVG formats.
-o	Displays the resulting plots.
-________________________________________
-# Output
+
+## Data Loading
+- **Function:** `load_data(file_path)`  
+  **Purpose:**  
+  - Reads a TSV file using `pandas.read_csv` with UTF-8 encoding.
+  - If the file cannot be loaded, an error message is printed and the script terminates.
+
+## Taxonomy Extraction
+- **Function:** `extract_species_from_taxonomy(taxonomy)`  
+  **Purpose:**  
+  - Extracts the species from the taxonomy string by splitting on commas or semicolons and returning the last token.
+
+- **Function:** `extract_taxonomic_group_ete3(taxonomy, level)`  
+  **Purpose:**  
+  - Uses the Ete3 library to query the NCBI database for a given genus and extract the desired taxonomic level (e.g., genus).
+
+- **Function:** `extract_level_from_taxid(taxid, level)`  
+  **Purpose:**  
+  - Given an NCBI taxid, it returns the name of the specified taxonomic level from the lineage.
+
+- **Function:** `extract_order(taxonomy, genus)`  
+  **Purpose:**  
+  - Attempts to extract the "Order" from the taxonomy string.
+  - It first searches for tokens ending with "ales" and, if none are found, defaults to the penultimate token or uses an Ete3 lookup if a genus is provided.
+
+- **Function:** `extract_phylum(taxonomy)`  
+  **Purpose:**  
+  - Extracts the phylum by tokenizing the taxonomy string and skipping tokens that include the term "group".
+
+## Genome ID Extraction
+- **Function:** `extract_genome_id(df)`  
+  **Purpose:**  
+  - Creates a new column (`Genome_ID`) in the DataFrame by parsing the `BGC` column.
+  - **Logic includes:**
+    - If the value starts with "BGC": splits by a period and takes the first token.
+    - If the value starts with "GCA_" or "GCF_": splits by underscore and combines the first two tokens.
+    - Otherwise, returns the original value.
+
+## Taxonomic Level Adjustment
+- **Function:** `adjust_taxonomic_level(df, level)`  
+  **Purpose:**  
+  - Depending on the selected taxonomic level (Phylum, Order, or Genus), the function creates or adjusts the corresponding column using the appropriate extraction function.
+  - If an unrecognized level is passed, the script exits.
+
+- **Function:** `select_taxonomic_level()`  
+  **Purpose:**  
+  - Provides an interactive prompt allowing the user to select the taxonomic level and input names (comma-separated) for filtering.
+
+## Proportion Calculation
+- **Function:** `calculate_proportion_and_genomes(df, taxon_value, level)`  
+  **Purpose:**  
+  - Filters the DataFrame based on the provided taxon name and taxonomic level.
+    - For Phylum-level filtering, the function searches within the `Taxonomy` column.
+  - Computes the count of unique genome IDs and the proportion of each BiG-SCAPE class.
+  - Prints debug information including unique genome IDs and total genome counts.
+
+## Visualization
+- **Function:** `plot_pie_chart(prop_df, level, taxon_names, num_genomes, color_mapping, ax=None)`  
+  **Purpose:**  
+  - Generates a pie chart using `matplotlib` to visualize the proportion of BiG-SCAPE classes.
+  
+  **Large Slices (≥5%):**
+  - Displays the percentage inside the slice.
+  - Labels are positioned outside without bounding boxes.
+
+  **Small Slices (0.1%–5%):**
+  - Annotations (description and percentage) are placed externally with connecting arrows.
+
+  **Annotation Adjustment:**
+  - Uses the `adjust_annotations` function to ensure that external annotation labels do not overlap.
+  - Configures the title with the taxon name and total number of genomes.
+
+## Main Function
+- **Function:** `main()`  
+  **Purpose:**  
+  - Validates command-line arguments.
+  - Loads the data and checks for necessary columns.
+  - Calls `extract_genome_id` to generate unique genome identifiers.
+  - Invokes interactive selection for the taxonomic level and filtering criteria.
+  - Sets up a multi-panel layout for generating pie charts (three charts per row, adjusted for publication quality).
+  - Applies a color mapping for BiG-SCAPE classes using a colormap.
+  - Generates and saves the pie charts in PNG, JPEG, and SVG formats.
+  - Displays the resulting plots.
+
+## Output
 The script produces:
-•	Pie Charts:
-Visual representations of the distribution of BiG-SCAPE classes for each selected taxon.
-•	Saved Figures:
-The final figures are saved as pie_charts.png, pie_charts.jpeg, and pie_charts.svg with a resolution of 300 DPI.
-•	Console Output:
-Debug information including confirmation of file loading, creation of the Genome_ID column, and lists of unique genome IDs for each taxon.
+- **Pie Charts:**  
+  Visual representations of the distribution of BiG-SCAPE classes for each selected taxon.
+- **Saved Figures:**  
+  The final figures are saved as `pie_charts.png`, `pie_charts.jpeg`, and `pie_charts.svg` with a resolution of 300 DPI.
+- **Console Output:**  
+  Debug information including confirmation of file loading, creation of the `Genome_ID` column, and lists of unique genome IDs for each taxon.
+
 
 
 Script 12: A script to organize antiSMASH directories into BiG-SLiCE datasets, grouped by a user-selected taxonomic level (Phylum, Order, or Genus). organize_bigslice.py
@@ -1586,23 +1625,24 @@ pip install pandas matplotlib numpy ete3
 python3 pie_multidomain_architecture.py<table1_path> <table2_path> <domain_name> <top_n> <taxonomic_level> <taxon_list> <dpi>
 ```
 
-•	<table1_path>: Path to the first TSV file (genome/protein metadata).
-•	<table2_path>: Path to the second TSV file (protein signature data).
-•	<domain_name>: Must be one of Bacteria, Archaea, or Eukaryota.
-•	<top_n>: Number of top signature architectures to display in each chart.
-•	<taxonomic_level>: One of Phylum, Order, or Genus.
-•	<taxon_list>: A comma-separated list of taxa names to plot.
-o	Special cases:
-	"Candidatus Rokuibacteriota" applies a regex search pattern (?i).*candidatus\s+rokuibacteriota.*
-	"Gemmatimonadota" applies a regex search pattern (?i).*gemmatimonadota.*
-•	<dpi>: DPI (dots per inch) setting for the output figures.
-Example
+- **`<table1_path>`**: Path to the first TSV file (genome/protein metadata).
+- **`<table2_path>`**: Path to the second TSV file (protein signature data).
+- **`<domain_name>`**: Must be one of Bacteria, Archaea, or Eukaryota.
+- **`<top_n>`**: Number of top signature architectures to display in each chart.
+- **`<taxonomic_level>`**: One of Phylum, Order, or Genus.
+- **`<taxon_list>`**: A comma-separated list of taxa names to plot.
+  - **Special cases:**
+    - "Candidatus Rokuibacteriota" applies a regex search pattern `(?i).*candidatus\s+rokuibacteriota.*`
+    - "Gemmatimonadota" applies a regex search pattern `(?i).*gemmatimonadota.*`
+- **`<dpi>`**: DPI (dots per inch) setting for the output figures.
+
+**Example**
+
 ```bash
 python3 pie_multidomain_architecture.py \
   Genomes_Total_proteinas_taxonomy_FAAL_metadata_nodup.tsv \
   results_all_lista_proteins.faals_cdd.tsv \
   Bacteria 6 Phylum "Candidatus Rokuibacteriota,Gemmatimonadota,Myxococcota" 300
-```
 
 ________________________________________
 
