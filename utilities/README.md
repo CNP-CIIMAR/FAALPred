@@ -1681,6 +1681,6 @@ ________________________________________
   - Generates pie charts (doughnut style) for the specified taxa and saves the figures in multiple formats.
 
 - **main()**
-  - Parses command-line argu
+  - Parses command-line arguments.
 
 
