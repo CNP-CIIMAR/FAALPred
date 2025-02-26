@@ -1510,7 +1510,7 @@ This script is designed to help organize antiSMASH results into a directory stru
 # Example comand line: 
 
 ```bash
-python3 organize_biglsice.py --bigslice_dir bigslice_dir/ --antismash_dir ../filtrados_subdir_CAL_bigscape --taxonomy_table ../Supplementary_table2.tsv
+python3 organize_biglsice.py --bigslice_dir bigslice_dir/ --antismash_dir ../filtrados_subdir_CAL --taxonomy_table ../Supplementary_table2.tsv
    ```
 
 # Arguments
