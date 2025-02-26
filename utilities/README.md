@@ -192,24 +192,25 @@ A Python-based tool designed to execute HMMER's `hmmsearch` on multiple FASTA (.
 ---
 # Script 2: FASTA Sequence Filter Tool: fasta_sequence_filter.py
 
-# Description: 
+# Description:
 A Python script designed to filter sequences in FASTA files based on a list of sequence IDs. Whether you need to keep or exclude specific sequences, this tool provides a straightforward command-line interface to efficiently process large FASTA datasets for bioinformatics analyses.
 
 # Features:
-  - Filters FASTA files to keep or exclude sequences based on a provided list of IDs.
-  - Utilizes Biopython's SeqIO for efficient parsing and writing of FASTA files.
-  - Supports mutually exclusive options to either keep or exclude specified sequences.
-  - Provides informative output on the number of sequences processed and filtered.
-  - Easy integration into bioinformatics pipelines for preprocessing sequence data.
+- Filters FASTA files to keep or exclude sequences based on a provided list of IDs.
+- Utilizes Biopython's SeqIO for efficient parsing and writing of FASTA files.
+- Supports mutually exclusive options to either keep or exclude specified sequences.
+- Provides informative output on the number of sequences processed and filtered.
+- Easy integration into bioinformatics pipelines for preprocessing sequence data.
 
 # Dependencies:
-  - Anaconda 3.x
-  - Python 3.8 or higher
-  - Biopython
+- Anaconda 3.x
+- Python 3.8 or higher
+- Biopython
 
 # Installation:
-  Prerequisites:
-    - Download and install [Anaconda](https://www.anaconda.com/products/distribution) for your operating system.
+**Prerequisites:**
+- Download and install [Anaconda](https://www.anaconda.com/products/distribution) for your operating system.
+
   
   Steps:
     - Clone the repository:
@@ -271,19 +272,25 @@ A Python script designed to filter sequences in FASTA files based on a list of s
     ```
 
 # Arguments Details:
-  input_fasta:
-    - Ensure the input file is in proper FASTA format.
-    - Supports large FASTA files efficiently using Biopython's SeqIO.
-  output_fasta:
-    - The script will create this file if it does not exist.
-    - If the file exists, it will be overwritten with the filtered sequences.
-  ids_file:
-    - Should be a plain text file with one sequence ID per line.
-    - No headers or additional formatting required.
-  --keep:
-    - When this option is used, only sequences with IDs present in the `ids_file` will be written to the `output_fasta`.
-  --exclude:
-    - When this option is used, sequences with IDs present in the `ids_file` will be excluded from the `output_fasta`.
+
+- **`input_fasta`**:  
+  - Ensure the input file is in proper FASTA format.  
+  - Supports large FASTA files efficiently using Biopython's SeqIO.
+
+- **`output_fasta`**:  
+  - The script will create this file if it does not exist.  
+  - If the file exists, it will be overwritten with the filtered sequences.
+
+- **`ids_file`**:  
+  - Should be a plain text file with one sequence ID per line.  
+  - No headers or additional formatting required.
+
+- **`--keep`**:  
+  - When this option is used, only sequences with IDs present in the `ids_file` will be written to the `output_fasta`.
+
+- **`--exclude`**:  
+  - When this option is used, sequences with IDs present in the `ids_file` will be excluded from the `output_fasta`.
+
 
 # Environment Setup:
   Description: >
