@@ -1605,20 +1605,31 @@ python3 pie_multidomain_architecture.py \
 ```
 
 ________________________________________
+
 # Code Structure
-•	combine_signature_descriptions(df)
-Groups and simplifies signature descriptions for each protein accession, creating a Combined.description column.
-•	load_data(table1_path, table2_path)
-Loads the input TSV files into pandas DataFrames, prints column and shape information, and checks for required columns.
-•	merge_tables(df1, df2, on='Protein.accession')
-Merges the two DataFrames on Protein.accession and applies the signature description combination function.
-•	Taxonomic Extraction Functions:
-o	extract_taxonomic_levels(lineage): Parses a semicolon-separated lineage string and extracts various taxonomic levels.
-o	get_phylum(lineage): Returns the phylum directly if available.
-•	update_lineage(df, domain_name)
-Updates the DataFrame with taxonomic levels, filters entries based on the specified domain, and removes rows missing essential taxonomic data.
-•	plot_topN_multidomain_in_one_figure(df, taxonomic_level, taxon_list, top_n, dpi)
-Generates pie charts (doughnut style) for the specified taxa and saves the figures in multiple formats.
-•	main()
-Parses command-line arguments, orchestrates data loading, merging, lineage updating, and plotting.
+
+- **combine_signature_descriptions(df)**
+  - Groups and simplifies signature descriptions for each protein accession, creating a `Combined.description` column.
+
+- **load_data(table1_path, table2_path)**
+  - Loads the input TSV files into pandas DataFrames, prints column and shape information, and checks for required columns.
+
+- **merge_tables(df1, df2, on='Protein.accession')**
+  - Merges the two DataFrames on `Protein.accession` and applies the signature description combination function.
+
+- **Taxonomic Extraction Functions:**
+  - **extract_taxonomic_levels(lineage):**  
+    Parses a semicolon-separated lineage string and extracts various taxonomic levels.
+  - **get_phylum(lineage):**  
+    Returns the phylum directly if available.
+
+- **update_lineage(df, domain_name)**
+  - Updates the DataFrame with taxonomic levels, filters entries based on the specified domain, and removes rows missing essential taxonomic data.
+
+- **plot_topN_multidomain_in_one_figure(df, taxonomic_level, taxon_list, top_n, dpi)**
+  - Generates pie charts (doughnut style) for the specified taxa and saves the figures in multiple formats.
+
+- **main()**
+  - Parses command-line argu
+
 
