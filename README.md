@@ -2,12 +2,9 @@
 
 This document provides a comprehensive Markdown-friendly explanation and usage guide for the **FAALPred** code. You can copy and paste this document into your GitHub repository’s README or any publication. The document is structured to make it easy to understand what each function does, how to run the code, and how the workflow is organized.
 
-## Table of Contents
-1. [Overview](#overview)
-2. [Requirements and Installation](#requirements-and-installation)
-3. [Usage](#usage)
-4. [Full Source Code](#full-source-code)
-5. [Detailed Explanation of Each Function](#detailed-explanation-of-each-function)
+Supplementary_methodology.dox
+
+1. [Detailed Explanation of Each Function]
    - `are_sequences_aligned`
    - `create_unique_model_directory`
    - `realign_sequences_with_mafft`
@@ -18,7 +15,7 @@ This document provides a comprehensive Markdown-friendly explanation and usage g
    - `calculate_roc_values`
    - `visualize_latent_space_with_similarity`
    - `format_and_sum_probabilities`
-6. [Support (Class)](#support-class)
+2. [Support (Class)](#support-class)
    - `_oversample_single_sample_classes`
    - `fit`
    - `_perform_grid_search`
@@ -28,7 +25,7 @@ This document provides a comprehensive Markdown-friendly explanation and usage g
    - `test_best_RF`
    - `_calculate_score`
    - `plot_roc_curve` (inside Support)
-7. [ProteinEmbeddingGenerator (Class)](#proteinembeddinggenerator-class)
+3. [ProteinEmbeddingGenerator (Class)](#proteinembeddinggenerator-class)
    - `generate_embeddings`
    - `get_embeddings_and_labels`
    - `compute_perplexity`
@@ -36,7 +33,7 @@ This document provides a comprehensive Markdown-friendly explanation and usage g
    - `plot_predictions_scatterplot_custom`
    - `adjust_predictions_global`
    - `main`
-8. [Additional Streamlit Setup and Theming](#additional-streamlit-setup-and-theming)
+4. [Additional Streamlit Setup and Theming]
 
 ## Overview
 **FAALPred** is a comprehensive bioinformatics tool designed to predict fatty acid chain-length specificity (ranging from C4 to C18) of **Fatty Acyl-AMP Ligases (FAALs)**. It integrates:
