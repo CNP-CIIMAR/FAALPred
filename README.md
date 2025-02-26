@@ -1,7 +1,8 @@
 # FAALPred: Fatty Acyl-AMP Ligases (FAAL) Prediction Tool
 
-This document provides a comprehensive Markdown-friendly explanation and usage guide for the **FAALPred** code. The Supplementary_methodology is structured to make it easy to understand the main functions and workflow of FAALPred
-Supplementary_methodology.dox
+This document provides a comprehensive, Markdown-friendly explanation and usage guide for the FAALPred code. The Supplementary Methodology is structured to clearly outline the main functions and workflow of FAALPred, ensuring ease of understanding. The file Supplementary_methodology.dox serves as a detailed reference for users.
+
+
 
 1. [Detailed Explanation of Each Function](#ExplanationofEachFunction)
    - `are_sequences_aligned`
