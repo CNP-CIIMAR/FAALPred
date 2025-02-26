@@ -97,17 +97,25 @@ conda activate faalpred_env
 ```bash
 To deactivate it, simply run:
 ```
-### Configure toml file
+### Configure the TOML File
+
+To configure Streamlit, edit the `config.toml` file by running the following command:
 
 ```bash
-# sudo nano ~/.streamlit/config.toml
+sudo nano ~/.streamlit/config.toml
 ```
+### Streamlit Server Configuration
+
+Add the following content to your `config.toml` file:
+
+```toml
 [server]
 headless = true
 enableCORS = false
 enableXsrfProtection = false
 address = "0.0.0.0"
 port = 8501
+
 
 ### Run the Application (Streamlit Approach)
 
