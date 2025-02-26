@@ -466,7 +466,8 @@ This script retrieves taxonomic information for protein accessions by querying t
 1. **Clone the repository** (if applicable) or download the script file.
 
 2. **Install dependencies** using pip:
-   ```bash
+
+```bash
 pip install pandas biopython
 ```
 
