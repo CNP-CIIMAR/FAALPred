@@ -1,6 +1,6 @@
-# FAALpred/bioutilities
+# FAALpred/utilities
 
-The FAALpred/bioutilities repository provides a comprehensive suite of Python scripts for the identification and phylogenetic analysis of FAAL (Fatty Acyl-AMP Ligases) homologs across diverse genomes and metagenomes. The pipeline includes tools for FAAL homolog detection, taxonomic classification, sequence filtering, and phylogenetic tree construction using HMM-based searches, clustering, and alignment methods. Additionally, it features genome metadata retrieval, visualization of FAAL distributions across taxonomic groups, and secondary metabolite gene cluster analysis using antiSMASH and BiG-SCAPE. The repository integrates custom filtering scripts, statistical analysis tools, and visualization methods, making it a valuable resource for exploring the global diversity and functional role of FAAL proteins.
+The FAALpred/utilities repository provides a comprehensive suite of Python scripts for the identification and phylogenetic analysis of FAAL (Fatty Acyl-AMP Ligases) homologs across diverse genomes and metagenomes. The pipeline includes tools for FAAL homolog detection, taxonomic classification, sequence filtering, and phylogenetic tree construction using HMM-based searches, clustering, and alignment methods. Additionally, it features genome metadata retrieval, visualization of FAAL distributions across taxonomic groups, and secondary metabolite gene cluster analysis using antiSMASH and BiG-SCAPE. The repository integrates custom filtering scripts, statistical analysis tools, and visualization methods, making it a valuable resource for exploring the global diversity and functional role of FAAL proteins.
 
 
 # Script 1: ProteinHMMSearch Tool: protein_hmm_search.py
