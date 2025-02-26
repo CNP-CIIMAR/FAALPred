@@ -292,6 +292,7 @@ A Python script designed to filter sequences in FASTA files based on a list of s
   - When this option is used, sequences with IDs present in the `ids_file` will be excluded from the `output_fasta`.
 
 
+
 # Environment Setup:
   Description: >
     Instructions to create and activate the Anaconda environment named `filter_sequences`, and install all necessary dependencies.
