@@ -835,27 +835,8 @@ Libraries:
 # Script 6: Taxonomic Analysis and Graph Generation: scatterplot_mean_faal_genome_size.py
 This Python script processes a tab-separated values (TSV) file containing genomic and taxonomic data to perform taxonomic filtering, analysis, and visualization. It is designed to analyze the relationship between genome size and FAAL (fatty acyl-AMP ligase) counts across different taxonomic groups.
 
----
-
-## Table of Contents
-
-- [Overview](#overview)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Script Details](#script-details)
-  - [Taxonomic Lineage Extraction](#taxonomic-lineage-extraction)
-  - [Filtering Criteria](#filtering-criteria)
-  - [Lineage Correction using ete3](#lineage-correction-using-ete3)
-  - [Data Visualization](#data-visualization)
-- [Output Files](#output-files)
-- [License](#license)
-
----
-
-# Script 6: Mean FAAL Counts: scatterplot_counts_faal.py
-
 ## Description:
+
 `scatterplot_counts_faal.py` is a comprehensive tool for:
 
 - Extracting specific taxonomic groups from a lineage string.
