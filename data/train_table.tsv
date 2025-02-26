@@ -1,0 +1,43 @@
+Protein.accession	Target variable	Associated variable	Compound	Specie	
+BGC0000970 PksD Chondromyces crocatus	Short fatty acids	C4:0	chondrochloren A	Chondromyces crocatus	
+BGC0001963 FAAL Catenulispora sp.	Short fatty acids	C5:0	catenulisporolides	Catenulispora sp.	
+BGC0001000 HctA Lyngbya majuscula	Medium fatty acids	C6:0	hectochlorin	Lyngbya majuscula	
+BGC0002484 WA1_15520 Scytonema hofmannii PCC 7110	Medium fatty acids	C6:0	scytocyclamide A, B, B3, C, A2, B2	Scytonema hofmannii PCC 7110	
+BGC0002296 VatA Moorena producens ASI16Jul14-2	Medium fatty acids	C6:0	vatiamides A, B, C, D, E, F 	Moorena producens ASI16Jul14-2	
+BGC0002625 MCF2144951.1 fatty acyl-AMP ligase Desmonostoc muscorum LEGE 12446	Medium fatty acids	C6:0	desmamides	Desmonostoc muscorum LEGE 12446	
+BGC0001406 Tlo18 Streptomyces canus	Medium fatty acids	C8:0	telomycin	Streptomyces canus	
+BGC0001467 FAAL Fischerella sp. PCC 9431	Medium fatty acids	C8:0	hapalosin	Fischerella sp. PCC 9431	
+BGC0001999 FAAL Paraburkholderia graminis C4D1M	Medium fatty acids	C8:0	gramibactin	Paraburkholderia graminis C4D1M	
+BGC0002329 FNF07_04285 Trinickia caryophylli	Medium fatty acids	C8:0	trinickiabactin	Trinickia caryophylli	
+BGC0002422 SAMN04490204_1454 Pseudomonas thivervalensis	Medium fatty acids	C8:0	histicorrugatin	Pseudomonas thivervalensis	
+BGC0002563 CUJ87_10425 Paraburkholderia caledonica	Medium fatty acids	C8:0	gramibactin B	Paraburkholderia caledonica	
+BGC0000439 Saccharomonospora sp. CNQ490	Medium fatty acids	C8:0	taromycin A	Saccharomonospora sp. CNQ490	
+BGC0001064 CylA Cylindrospermum licheniforme UTEX B 2014	Medium fatty acids	C10:0	cylindrocyclophane D, E, F	Cylindrospermum licheniforme UTEX B 2014	
+BGC0001357 FAAL Nostoc sp. CAVN2	Medium fatty acids	C10:0	carbamidocyclophanes	Nostoc sp. CAVN2	
+BGC0001663 merI Nostoc sp. UIC 10110	Medium fatty acids	C10:0	merocyclophane C, D 	Nostoc sp. UIC 10110	
+BGC0002367 FAAL Streptomyces scabiei 87.22	Medium fatty acids	C10:0	rotihibin A	Streptomyces scabiei 87.22	
+BGC0001189 RALTA_RS21520 Cupriavidus taiwanensis LMG 19424	Medium fatty acids	C12:0	taiwachelin	Cupriavidus taiwanensis LMG 19424	
+BGC0002107 Atu3673 Agrobacterium fabrum str. C58	Medium fatty acids	C10:0	fabrubactin A, B 	Agrobacterium fabrum str. C58	
+BGC0002417 VAPA_1c38710 Variovorax paradoxus B4	Medium fatty acids	C12:0	variochelin A, B	Variovorax paradoxus B4	
+BGC0002480 ClyA Sphaerospermopsis sp. LEGE 00249	Medium fatty acids	C12:0	chlorosphaerolactylate D, A, B, C	Sphaerospermopsis sp. LEGE 00249	
+BGC0002565 BGL_2c16910 Burkholderia plantarii	Medium fatty acids	C12:0	plantaribactin	Burkholderia plantarii	
+BGC0002597_1 NocL Nodularia sp. LEGE 06071	Medium fatty acids	C12:0	nocuolactylates and nocuolin A	Nodularia sp. LEGE 06071	
+WP_151220773.1 FAAL30 Mycobacterium tuberculosis	Medium fatty acids	C12:0	sulfolipid	Mycobacterium tuberculosis	
+WP_151081190.1 FAAL26 Mycobacterium tuberculosis	Medium fatty acids	C12:0	phthiocerol dimycocerosates	Mycobacterium tuberculosis	
+WP_003899553.1 FAAL29  Mycobacterium tuberculosis	Medium fatty acids	C12:0	phthiocerol dimycocerosates	Mycobacterium tuberculosis	
+Q5ZTD3 Saframycin Mx1 synthetase B Legionella pneumophila subsp. pneumophila Philadelphia 1	Medium fatty acids	C12:0	Not available	Legionella pneumophila subsp. pneumophila Philadelphia 1	
+A0A0H2VDD9 Putative saframycin Mx1 synthetase B OS=Escherichia coli O6:H1	Medium fatty acids	C12:0, C14:0	Not available	Escherichia coli CFT073	
+BGC0000394 NapN Streptomyces lusitanus	Long fatty acids	C14:0	naphthyridinomycin	Streptomyces lusitanus	
+BGC0000014 WP_104984984.1 fatty acyl-AMP ligase AmbG Sorangium cellulosum	Long fatty acids	C14:0, C16:0	ambruticins and jerangolids	Sorangium cellulosum	
+BGC0001363 RSp0641 Ralstonia solanacearum GMI1000	Long fatty acids	C16:0	ralsolamycin	Ralstonia solanacearum GMI1000	
+WP_052656010.1 FAAL23 Mycobacterium tuberculosis	Long fatty acids	C16:0	sulfolipids	Mycobacterium tuberculosis	
+BGC0000140 RkA Streptomyces sp. 88-682	Long fatty acids	C16:0	4-hexadecanoyl-3-hydroxy-2-(hydroxymethyl)-2H-furan-5-one	Streptomyces sp. 88-682	
+BGC0002624 FAAL Fischerella sp. PCC 9431	Long fatty acids	C16:0	fischerazole A, B, C 	Fischerella sp. PCC 9431	
+BGC0001831 FAAL Myxococcus xanthus DK 1622	Long fatty acids	C18:0	alkylpyrone-407 alkylpyrone-393	Myxococcus xanthus DK 1622	
+WP_187038416.1 fatty acyl-AMP ligase ClyA  Sphaerospermopsis sp. LEGE 00249	Medium fatty acids	C12:0	Chlorinated lactylates	Sphaerospermopsis sp. LEGE 00249	
+BGC0000424 serobactin C biosynthetic gene cluster from Herbaspirillum seropedicae SmR1	Medium fatty acids	C10:0, C12:0, C14:0	Serobactin 	Sphaerospermopsis sp. LEGE 00249	
+WP_018385948.1 type I polyketide synthase Wenjunlia vitaminophila 	Medium fatty acids	C6:0	rakicidin D	Wenjunlia vitaminophila	
+BGC0001103 mycosubtilin biosynthetic gene cluster from Bacillus subtilis subsp. spizizenii ATCC 6633	Long fatty acids	C16:0	Mycosubtilin	Bacillus spizizenii ATCC 6633 = JCM 2499	
+BGC0002687 massiliachelin biosynthetic gene cluster from Massilia sp. NR 4-1	Medium fatty acids	C6:0	massiliachelin	Massilia sp. NR 4-1	
+BGC0001703_1 NocL Nostoc sp. CCAP 1453/38	Medium fatty acids	C12:0	nocuolin A	Nostoc sp. CCAP 1453/38	Cyanobacteriota
+WP_044297187.1 fatty-acid--AMP ligase FAAL28/FadD28 Mycobacterium tuberculosis	Long fatty acids	C33:0	Sulfolipids	Mycobacterium tuberculosis
