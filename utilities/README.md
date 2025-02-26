@@ -27,7 +27,7 @@ A Python-based tool designed to execute HMMER's `hmmsearch` on multiple FASTA (.
   Steps:
     - Clone the repository:
       ```bash
-      git clone https://github.com/yourusername/proteinHMM.git
+      git clone https://github.com/CNP-CIIMAR/FAALPred/blob/main/utilities/protein_hmm.py
       cd proteinHMM
       ```
 
