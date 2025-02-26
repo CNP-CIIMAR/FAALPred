@@ -1087,7 +1087,6 @@ Positional Arguments:
 
 - `--log-file`: Log file to save messages (default: `log.txt` in the output directory).
 
-
 ---
 
 ## Monitoring and Management
@@ -1327,7 +1326,8 @@ The merged DataFrame is saved to the specified output file in TSV format.
 # Error Handling:
 If an error occurs while reading the input files, an error message is printed and the script exits.
 
-Script 10.1: Merge BiG-SCAPE Step 2
+# Script 10: Merge BiG-SCAPE Step 2 : Add taxonomy collum Lineage from Supplementary table S2.
+
 •	Código: merge_bigscape_step2.py
 
 # Script 11: BGC Class Bigscape Analysis Script: pie_bgc_class_taxonomy.py
