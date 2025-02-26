@@ -62,7 +62,7 @@ Install the following libraries using `pip`:
 pip install streamlit numpy pandas scikit-learn scipy gensim plotly \
 matplotlib joblib biopython imblearn umap-learn Pillow tabulate base64
 
-## Step 1:
+### Step 1:
 
 ```bash
 # sudo nano ~/.streamlit/config.toml
@@ -74,7 +74,7 @@ enableXsrfProtection = false
 address = "0.0.0.0"
 port = 8501
 
-## Step 2:
+### Step 2:
 
 # Run the Application (Streamlit Approach)
 
@@ -83,7 +83,7 @@ port = 8501
 streamlit run faalpred.py
 ```
 
-## Step 3:
+### Step 3:
 ```bash
 http://localhost:8501/
   ```
