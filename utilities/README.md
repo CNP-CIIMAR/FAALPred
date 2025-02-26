@@ -847,10 +847,14 @@ This Python script processes a tab-separated values (TSV) file containing genomi
 
 ---
 
-# Script 6 is a comprehensive tool for:
+# Script 6: Mean FAAL Counts: scatterplot_counts_faal.py
+
+## Description:
+`scatterplot_counts_faal.py` is a comprehensive tool for:
+
 - Extracting specific taxonomic groups from a lineage string.
 - Filtering taxonomic data based on custom criteria (e.g., ending patterns such as `ales` for orders, `eae` for families).
-- Optionally correcting taxonomic lineages using the `ete3` package when analyzing Eukaryota.
+- Optionally correcting taxonomic lineages using the `ete3` package when analyzing *Eukaryota*.
 - Calculating average FAAL counts per genome and average genome sizes.
 - Visualizing the results in a scatterplot with customizable aesthetics.
 
@@ -884,75 +888,90 @@ pip install pandas matplotlib seaborn numpy ete3
 
 ________________________________________
 # Usage
+
 Run the script from the command line by providing the following arguments:
+
 ```bash
-
 python3 scatterplot_counts_faal.py <table1.tsv> <Domain> <Taxonomic Level> <Top N> <DPI>
-   ```
+```
+- `<table1.tsv>`: Path to the input TSV file.
+- `<Domain>`: The taxonomic domain to filter (e.g., `"Eukaryota"` or `"Bacteria"`).
+- `<Taxonomic Level>`: The taxonomic level to analyze (e.g., `"Order"`, `"Family"`, `"Genus"`).
+- `<Top N>`: Number of top taxonomic groups (by mean FAAL count per genome) to visualize.
+- `<DPI>`: Dots per inch (DPI) setting for the output image resolution.
 
-•	<table1.tsv>: Path to the input TSV file.
-•	<Domain>: The taxonomic domain to filter (e.g., "Eukaryota" or "Bacteria").
-•	<Taxonomic Level>: The taxonomic level to analyze (e.g., "Order", "Family", "Genus").
-•	<Top N>: Number of top taxonomic groups (by mean FAAL count per genome) to visualize.
-•	<DPI>: Dots per inch (DPI) setting for the output image resolution.
-Example:
-bash
-Copiar
+### Example:
+
+```bash
 python3 scatterplot_counts_faal.py data/table1.tsv Eukaryota Order 10 300
+```
 ________________________________________
 # Script Details
-Taxonomic Lineage Extraction
-•	Function: extract_taxonomic_group(lineage, level)
-•	Purpose: Parses a semicolon-separated lineage string and extracts the taxonomic group at the specified level (e.g., Domain, Phylum, Class, Order, Family, Genus, Species).
-•	Error Handling: Returns 'Unknown' if the desired level is not present in the lineage.
-Filtering Criteria
-•	Function: filter_by_criteria(name, level, domain_name)
-•	Purpose: Implements custom filtering:
-o	For Order: Accepts names ending with ales.
-o	For Family: Accepts names ending with eae.
-o	For Genus: Excludes names ending with ales or eae.
-o	Always accepts names for Domain and Phylum.
-•	This allows for refined selection of taxonomic groups based on naming conventions.
-Lineage Correction using ete3
-•	Function: get_corrected_lineage(species, use_ete3) and update_lineage(df, use_ete3)
-•	Purpose: Optionally corrects and updates the lineage information for a species using the ete3 package.
-•	Usage: Activated when the specified domain is Eukaryota. If an error occurs during lineage retrieval, the function safely returns 'Unknown'.
-Data Visualization
-•	Function: generate_filtered_table_and_graphs(table1_path, domain_name, taxonomic_level, top_n, dpi)
-•	Process:
-1.	Data Import and Cleaning: Reads the TSV file, updates lineage data (if applicable), and filters out environmental samples and missing assembly entries.
-2.	Filtering: Filters the dataset based on the specified domain and taxonomic criteria.
-3.	Aggregation: Computes FAAL counts and unique genome counts for each taxonomic group.
-4.	Calculation: Determines the mean FAAL count per genome and average genome size.
-5.	Visualization: Generates a scatterplot:
-	Customizes plot size based on the domain.
-	Applies jitter to avoid overlapping points.
-	Uses a tailored color palette with excluded colors for clarity.
-	Adjusts axis labels, scales, and legend based on the domain and taxonomic level.
-6.	Output: Saves the plot in PNG, SVG, and JPEG formats.
+
+## Taxonomic Lineage Extraction
+- **Function:** `extract_taxonomic_group(lineage, level)`
+- **Purpose:** Parses a semicolon-separated lineage string and extracts the taxonomic group at the specified level (e.g., Domain, Phylum, Class, Order, Family, Genus, Species).
+- **Error Handling:** Returns `'Unknown'` if the desired level is not present in the lineage.
+
+## Filtering Criteria
+- **Function:** `filter_by_criteria(name, level, domain_name)`
+- **Purpose:** Implements custom filtering:
+  - **Order:** Accepts names ending with `ales`.
+  - **Family:** Accepts names ending with `eae`.
+  - **Genus:** Excludes names ending with `ales` or `eae`.
+  - **Domain and Phylum:** Always accepted.
+- **Benefit:** Allows for refined selection of taxonomic groups based on naming conventions.
+
+## Lineage Correction using `ete3`
+- **Function:** `get_corrected_lineage(species, use_ete3)` and `update_lineage(df, use_ete3)`
+- **Purpose:** Optionally corrects and updates the lineage information for a species using the `ete3` package.
+- **Usage:** Activated when the specified domain is *Eukaryota*. If an error occurs during lineage retrieval, the function safely returns `'Unknown'`.
+
+## Data Visualization
+- **Function:** `generate_filtered_table_and_graphs(table1_path, domain_name, taxonomic_level, top_n, dpi)`
+- **Process:**
+  1. **Data Import and Cleaning:** Reads the TSV file, updates lineage data (if applicable), and filters out environmental samples and missing assembly entries.
+  2. **Filtering:** Filters the dataset based on the specified domain and taxonomic criteria.
+  3. **Aggregation:** Computes FAAL counts and unique genome counts for each taxonomic group.
+  4. **Calculation:** Determines the mean FAAL count per genome and average genome size.
+  5. **Visualization:** Generates a scatterplot:
+     - Customizes plot size based on the domain.
+     - Applies jitter to avoid overlapping points.
+     - Uses a tailored color palette with excluded colors for clarity.
+     - Adjusts axis labels, scales, and legend based on the domain and taxonomic level.
+  6. **Output:** Saves the plot in PNG, SVG, and JPEG formats.
+
 ________________________________________
-Output Files
+# Output Files
+
 After successful execution, the following files are generated:
-•	taxonomic_analysis_plot.png
-•	taxonomic_analysis_plot.svg
-•	taxonomic_analysis_plot.jpeg
+
+- `taxonomic_analysis_plot.png`
+- `taxonomic_analysis_plot.svg`
+- `taxonomic_analysis_plot.jpeg`
+
 These files contain the scatterplot visualization of average genome size versus average FAAL count per genome for the top taxonomic groups.
+
 
 # Script 7: GeneClusterMineX v 2.0 :rocket:
 _____________________________________________________________________________________________________________________________________________________
 
  - **v 2.0.0: automation of processing of several Genomes fasta/fna files by antismash**
 
-GeneClusterMineXv2.0.0.py
+# GeneClusterMineX v2.0.0
 
 ## Automated Secondary Metabolite Analysis with antiSMASH
-**run_antismash.py is a Python script designed to streamline the execution of antiSMASH on multiple sequence files (.fna or .fasta) within a directory. The script automates the creation of output directories for each input file, manages detailed logs, and offers flexibility to customize analyses according to user needs.**
 
-- Batch Processing: Executes antiSMASH on multiple sequence files simultaneously.
-## Organized Results: Creates specific output directories for each input file, named as Result_input_filename.
-Comprehensive Logging: Records detailed logs for each processing step, including timestamps and error messages.
-## Flexible Analyses: Allows activating all available antiSMASH analysis tools or selecting specific analyses.
-## GlimmerHMM Support: Integrates the GlimmerHMM gene prediction tool, automatically adjusting taxonomy to fungi.
+**`run_antismash.py` is a Python script designed to streamline the execution of antiSMASH on multiple sequence files (`.fna` or `.fasta`) within a directory. The script automates the creation of output directories for each input file, manages detailed logs, and offers flexibility to customize analyses according to user needs.**
+
+### Features:
+
+- **Batch Processing:** Executes antiSMASH on multiple sequence files simultaneously.
+- **Organized Results:** Creates specific output directories for each input file, named as `Result_input_filename`.
+- **Comprehensive Logging:** Records detailed logs for each processing step, including timestamps and error messages.
+- **Flexible Analyses:** Allows activating all available antiSMASH analysis tools or selecting specific analyses.
+- **GlimmerHMM Support:** Integrates the `GlimmerHMM` gene prediction tool, automatically adjusting taxonomy to fungi.
+
 
 
 ## Requirements
@@ -1340,27 +1359,6 @@ Script 11:
 
 This repository contains a Python script for processing a tab-separated values (TSV) file with genomic and biosynthetic gene cluster (BGC) data. The script is designed to perform taxonomic extraction, filtering, and visualization of BiG-SCAPE classes in a user-defined taxonomic context. It generates pie charts representing the distribution of BiG-SCAPE classes and prints out unique genome identifiers and debug information. The script is set up for interactive taxonomic level selection and is optimized for publication-quality figures (e.g., for an A4 page).
 
----
-
-## Table of Contents
-
-- [Overview](#overview)
-- [Features](#features)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Script Details](#script-details)
-  - [Data Loading](#data-loading)
-  - [Taxonomy Extraction](#taxonomy-extraction)
-  - [Taxonomic Level Adjustment](#taxonomic-level-adjustment)
-  - [Genome ID Extraction](#genome-id-extraction)
-  - [Proportion Calculation](#proportion-calculation)
-  - [Visualization](#visualization)
-- [Output](#output)
-- [License](#license)
-
----
-
 ## Overview
 
 This Python script is used to:
@@ -1656,7 +1654,7 @@ python3 pie_multidomain_architecture.py \
   Genomes_Total_proteinas_taxonomy_FAAL_metadata_nodup.tsv \
   results_all_lista_proteins.faals_cdd.tsv \
   Bacteria 6 Phylum "Candidatus Rokuibacteriota,Gemmatimonadota,Myxococcota" 300
-
+```
 ________________________________________
 
 # Code Structure
