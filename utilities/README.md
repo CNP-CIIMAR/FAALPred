@@ -475,8 +475,8 @@ Follow instructions from the [NCBI Entrez Direct documentation](https://www.ncbi
 Run the script from the command line with the following arguments:
 
 ```bash
-python script.py <input_filename> <genome_output_filename> <taxonomic_output_filename>
-
+python faal_genotax.py <input_filename> <genome_output_filename> <taxonomic_output_filename>
+```
 ________________________________________
 # Script Overview
 
@@ -499,18 +499,19 @@ ________________________________________
   Upon completion, the script prints the locations of the output files.
 
 
-Script 4: NCBI Assembly Metadata Enrichment Tool: get_genome_metadata.py
+# Script 4: NCBI Assembly Metadata Enrichment Tool - `get_genome_metadata.py`
 
-# Description: 
+## Description:
 A Python script designed to process NCBI assembly IDs, retrieve comprehensive taxonomic lineages, and fetch additional metadata from the NCBI BioSample database. The tool enriches assembly data with geographic and biome distribution information, outputting both comprehensive and filtered datasets for further analysis.
 
-# Features:
+## Features:
 - Retrieves taxonomic lineage information using `NCBITaxa` from the `ete3` library.
 - Fetches additional metadata from the NCBI BioSample database using Biopython's `Entrez` module.
 - Parses XML responses to extract geographic locations, biome distributions, and latitude/longitude coordinates.
 - Categorizes biome descriptions based on GOLD standards.
 - Generates both comprehensive and filtered TSV output files containing enriched assembly data.
 - Provides summary statistics on the number of assemblies with specific metadata fields populated.
+
 
 # Dependencies:
 - Anaconda 3.x
