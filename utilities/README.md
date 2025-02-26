@@ -1693,4 +1693,6 @@ ________________________________________
 
 All codes in this project is licensed under the MIT License. 
 
-contact: mattoslmp@gmail.com
+Contacts about the codes described above : - mattoslmp@gmail.com
+                                           - aliong@ciimar.up.pt
+                                           - pleao@ciimar.up.pt
