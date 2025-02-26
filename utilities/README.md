@@ -465,36 +465,39 @@ This script retrieves taxonomic information for protein accessions by querying t
 pip install pandas biopython
 ```
 
-# Ensure efetch is installed:
-Follow instructions from the NCBI Entrez Direct documentation to install and configure efetch.
-________________________________________
+# Ensure efetch is Installed:
+Follow instructions from the [NCBI Entrez Direct documentation](https://www.ncbi.nlm.nih.gov/books/NBK179288/) to install and configure **efetch**.
+
+---
+
 # Usage
+
 Run the script from the command line with the following arguments:
-bash
-Copiar
+
+```bash
 python script.py <input_filename> <genome_output_filename> <taxonomic_output_filename>
-•	<input_filename>:
-Path to a file containing protein accessions (one per line).
-•	<genome_output_filename>:
-File where the mapping between protein accession and genome accession will be saved (tab-separated).
-•	<taxonomic_output_filename>:
-File where the taxonomic information (species and lineage) will be saved in TSV format.
-Example
-python geno_tax.py proteins.txt genome_mapping.txt taxonomic_info.tsv
+
 ________________________________________
-Script Overview
-•	Argument Check:
-The script verifies that at least three arguments are provided (input filename, genome output filename, taxonomic output filename). If not, it prints usage instructions and exits.
-•	Entrez Email Setup:
-You must set your email address in the script (replace 'your_email@example.com' with your actual email).
-•	Function get_taxonomic_rank:
-This function takes a protein accession, queries the NCBI Protein database via Entrez, and extracts the species and lineage information.
-•	Genome Mapping Generation:
-For each protein accession in the input file, the script calls efetch (via subprocess) to retrieve IPG information. It extracts the genome accession from lines containing "RefSeq" or "INSDC" and writes the mapping to the genome output file.
-•	Taxonomic Table Creation:
-The genome mapping file is then read, and for each protein accession, the taxonomic data (species and lineage) is retrieved using the get_taxonomic_rank function. A pandas DataFrame is created with the results and saved as a TSV file.
-•	Output Messages:
-Upon completion, the script prints the locations of the output files.
+# Script Overview
+
+- **Argument Check**:  
+  The script verifies that at least three arguments are provided (input filename, genome output filename, taxonomic output filename). If not, it prints usage instructions and exits.
+
+- **Entrez Email Setup**:  
+  You must set your email address in the script (replace `'your_email@example.com'` with your actual email).
+
+- **Function `get_taxonomic_rank`**:  
+  This function takes a protein accession, queries the NCBI Protein database via Entrez, and extracts the species and lineage information.
+
+- **Genome Mapping Generation**:  
+  For each protein accession in the input file, the script calls `efetch` (via `subprocess`) to retrieve IPG information. It extracts the genome accession from lines containing `"RefSeq"` or `"INSDC"` and writes the mapping to the genome output file.
+
+- **Taxonomic Table Creation**:  
+  The genome mapping file is then read, and for each protein accession, the taxonomic data (species and lineage) is retrieved using the `get_taxonomic_rank` function. A `pandas` DataFrame is created with the results and saved as a TSV file.
+
+- **Output Messages**:  
+  Upon completion, the script prints the locations of the output files.
+
 
 Script 4: NCBI Assembly Metadata Enrichment Tool: get_genome_metadata.py
 
@@ -502,24 +505,25 @@ Script 4: NCBI Assembly Metadata Enrichment Tool: get_genome_metadata.py
 A Python script designed to process NCBI assembly IDs, retrieve comprehensive taxonomic lineages, and fetch additional metadata from the NCBI BioSample database. The tool enriches assembly data with geographic and biome distribution information, outputting both comprehensive and filtered datasets for further analysis.
 
 # Features:
-  - Retrieves taxonomic lineage information using NCBITaxa from the ete3 library.
-  - Fetches additional metadata from the NCBI BioSample database using Biopython's Entrez module.
-  - Parses XML responses to extract geographic locations, biome distributions, and latitude/longitude coordinates.
-  - Categorizes biome descriptions based on GOLD standards.
-  - Generates both comprehensive and filtered TSV output files containing enriched assembly data.
-  - Provides summary statistics on the number of assemblies with specific metadata fields populated.
+- Retrieves taxonomic lineage information using `NCBITaxa` from the `ete3` library.
+- Fetches additional metadata from the NCBI BioSample database using Biopython's `Entrez` module.
+- Parses XML responses to extract geographic locations, biome distributions, and latitude/longitude coordinates.
+- Categorizes biome descriptions based on GOLD standards.
+- Generates both comprehensive and filtered TSV output files containing enriched assembly data.
+- Provides summary statistics on the number of assemblies with specific metadata fields populated.
 
 # Dependencies:
-  - Anaconda 3.x
-  - Python 3.8 or higher
-  - pandas
-  - ete3
-  - biopython
+- Anaconda 3.x
+- Python 3.8 or higher
+- `pandas`
+- `ete3`
+- `biopython`
 
 # Installation:
-  Prerequisites:
-    - Download and install [Anaconda](https://www.anaconda.com/products/distribution) for your operating system.
-    - Ensure you have access to the internet for downloading NCBI databases and fetching metadata.
+## Prerequisites:
+- Download and install [Anaconda](https://www.anaconda.com/products/distribution) for your operating system.
+- Ensure you have access to the internet for downloading NCBI databases and fetching metadata.
+
 
   Steps:
     - Clone the repository:
