@@ -431,7 +431,7 @@ Additional Resources:
     Description: "Official documentation for Anaconda, a distribution of Python and R for scientific computing."
 
 ---
-# Script 3: Protein to Taxonomic Data Pipeline: faal_genotax.py, 
+# Script 3: Protein to Taxonomic Data Pipeline: faal_genotax.py
 
 This script retrieves taxonomic information for protein accessions by querying the NCBI databases and processing the results. It first fetches genome accession IDs via a subprocess call to `efetch` and then retrieves the corresponding species and lineage information using Biopython's Entrez module. Finally, the script outputs two files: one containing the mapping between protein and genome accessions, and another with taxonomic details.
 
@@ -504,8 +504,7 @@ ________________________________________
 - **Output Messages**:  
   Upon completion, the script prints the locations of the output files.
 
-
-# Script 4: NCBI Assembly Metadata Enrichment Tool - `get_genome_metadata.py`
+# Script 4: NCBI Assembly Metadata Enrichment Tool: get_genome_metadata.py
 
 ## Description:
 A Python script designed to process NCBI assembly IDs, retrieve comprehensive taxonomic lineages, and fetch additional metadata from the NCBI BioSample database. The tool enriches assembly data with geographic and biome distribution information, outputting both comprehensive and filtered datasets for further analysis.
@@ -938,7 +937,7 @@ After successful execution, the following files are generated:
 These files contain the scatterplot visualization of average genome size versus average FAAL count per genome for the top taxonomic groups.
 
 
-# Script 7: Automated Secondary Metabolite Analysis with antiSMASH, GeneClusterMineXv2.0.0.py
+# Script 7: Automated Secondary Metabolite Analysis with antiSMASH: GeneClusterMineXv2.0.0.py
 _____________________________________________________________________________________________________________________________________________________
 
 # GeneClusterMineX v2.0.0
@@ -964,7 +963,7 @@ ________________________________________________________________________________
 
 1. Clone the repository:
 
- ```git clone https://github.com/mattoslmp/CNP-Ciimar.git ```
+ ```git clone https://github.com/CNP-CIIMAR/FAALPred/blob/main/utilities/GeneClusterMineXv2.0.0.py```
 
 2. Navigate to the cloned directory.
 
@@ -1277,8 +1276,7 @@ ________________________________________
 - The log file is created (or overwritten) to capture all processing details.
 
 
-Script 9: Merge Bigscape Step 1. A Python script to merge two TSV tables based on the "BGC" column.
-merge_bigscape_step1.py
+# Script 9: Merge Bigscape Step 1. A Python script to merge two TSV tables based on the "BGC" column: merge_bigscape_step1.py
 
 ## Description
 
@@ -1332,7 +1330,7 @@ If an error occurs while reading the input files, an error message is printed an
 Script 10.1: Merge BiG-SCAPE Step 2
 •	Código: merge_bigscape_step2.py
 
-# Script 11: BGC Class Bigscape Analysis Script, pie_bgc_class_taxonomy.py
+# Script 11: BGC Class Bigscape Analysis Script: pie_bgc_class_taxonomy.py
 
 
 This repository contains a Python script for processing a tab-separated values (TSV) file with genomic and biosynthetic gene cluster (BGC) data. The script is designed to perform taxonomic extraction, filtering, and visualization of BiG-SCAPE classes in a user-defined taxonomic context. It generates pie charts representing the distribution of BiG-SCAPE classes and prints out unique genome identifiers and debug information. The script is set up for interactive taxonomic level selection and is optimized for publication-quality figures (e.g., for an A4 page).
@@ -1391,7 +1389,7 @@ Usage
 Run the script from the command line by passing the path to your TSV file as an argument. For example:
 
 ```bash
-python3 bgc_class_bigscape.py bigscape_update.tsv
+python3 pie_bgc_class_taxonomy.py bigscape_update.tsv
 
 ```
 # Interactive Steps
@@ -1496,7 +1494,7 @@ The script produces:
 
 
 
-Script 12: A script to organize antiSMASH directories into BiG-SLiCE datasets, grouped by a user-selected taxonomic level (Phylum, Order, or Genus), organize_bigslice.py
+# Script 12: A script to organize antiSMASH directories into BiG-SLiCE datasets, grouped by a user-selected taxonomic level (Phylum, Order, or Genus): organize_bigslice.py
 
 # Organize Big Slice
 
@@ -1554,10 +1552,10 @@ Verbose Mode: Use the --verbose flag to enable more detailed debug output.
 
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/your_username/organize_big_slice.git](https://github.com/CNP-CIIMAR/FAALPred/blob/main/utilities/organize_bigslice.py)
+   git clone https://github.com/CNP-CIIMAR/FAALPred/blob/main/utilities/organize_bigslice.py)   ```
    
 
-# Script 13:  Pie Chart for Multidomain Architectures, pie_multidomain_architecture.py
+# Script 13:  Pie Chart for Multidomain Architectures: pie_multidomain_architecture.py
 
 This Python script processes two TSV input tables containing genome and protein signature data to create pie (or doughnut) charts that summarize the distribution of combined signature descriptions across taxonomic groups. It also extracts taxonomic lineage information using the ete3 NCBITaxa module and applies specific regex searches for certain taxon names.
 
