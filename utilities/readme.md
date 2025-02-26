@@ -733,14 +733,12 @@ This repository contains a Python script for analyzing Fatty Acyl AMP Ligases (F
 - Visualization: Produces clear and informative bar plots showing both raw and normalized FAAL counts.
 - Flexibility: Easily adjustable parameters for different domains, taxonomic levels, and top N groups.
 - Installation
+
 Clone the Repository
 
 ```bash
-    git clone https://github.com/yourusername/faals-taxonomic-analysis.git
+    git clone https://github.com/CNP-CIIMAR/FAALPred/blob/main/utilities/barplot_normalized_counts.py
 ```
-
-
-cd faals-taxonomic-analysis
 
 # Create a Virtual Environment (Optional but Recommended)
 
@@ -940,10 +938,8 @@ After successful execution, the following files are generated:
 These files contain the scatterplot visualization of average genome size versus average FAAL count per genome for the top taxonomic groups.
 
 
-# Script 7: GeneClusterMineX v 2.0 :rocket:
+# Script 7: Automated Secondary Metabolite Analysis with antiSMASH, GeneClusterMineXv2.0.0.py
 _____________________________________________________________________________________________________________________________________________________
-
- - **v 2.0.0: automation of processing of several Genomes fasta/fna files by antismash**
 
 # GeneClusterMineX v2.0.0
 
@@ -958,8 +954,6 @@ ________________________________________________________________________________
 - **Comprehensive Logging:** Records detailed logs for each processing step, including timestamps and error messages.
 - **Flexible Analyses:** Allows activating all available antiSMASH analysis tools or selecting specific analyses.
 - **GlimmerHMM Support:** Integrates the `GlimmerHMM` gene prediction tool, automatically adjusting taxonomy to fungi.
-
-
 
 ## Requirements
 
@@ -1195,9 +1189,7 @@ This Python script processes GenBank (`.gbk`) files contained within subdirector
 - **Disk Space Check:**  
   - Checks available disk space in the parent directory to ensure there is sufficient space to copy the filtered files.
 
-
 ---
-
 ## Requirements
 
 - **Python 3.x**
@@ -1340,9 +1332,8 @@ If an error occurs while reading the input files, an error message is printed an
 Script 10.1: Merge BiG-SCAPE Step 2
 •	Código: merge_bigscape_step2.py
 
-Script 11: 
+# Script 11: BGC Class Bigscape Analysis Script, pie_bgc_class_taxonomy.py
 
-# BGC Class Bigscape Analysis Script
 
 This repository contains a Python script for processing a tab-separated values (TSV) file with genomic and biosynthetic gene cluster (BGC) data. The script is designed to perform taxonomic extraction, filtering, and visualization of BiG-SCAPE classes in a user-defined taxonomic context. It generates pie charts representing the distribution of BiG-SCAPE classes and prints out unique genome identifiers and debug information. The script is set up for interactive taxonomic level selection and is optimized for publication-quality figures (e.g., for an A4 page).
 
@@ -1505,8 +1496,10 @@ The script produces:
 
 
 
-Script 12: A script to organize antiSMASH directories into BiG-SLiCE datasets, grouped by a user-selected taxonomic level (Phylum, Order, or Genus). organize_bigslice.py
+Script 12: A script to organize antiSMASH directories into BiG-SLiCE datasets, grouped by a user-selected taxonomic level (Phylum, Order, or Genus), organize_bigslice.py
+
 # Organize Big Slice
+
 ## Description
 
 This script is designed to help organize antiSMASH results into a directory structure compatible with BiG-SLiCE. It performs the following tasks:
@@ -1521,7 +1514,6 @@ This script is designed to help organize antiSMASH results into a directory stru
 ```bash
 python3 organize_biglsice.py --bigslice_dir bigslice_dir/ --antismash_dir ../filtrados_subdir_CAL_bigscape --taxonomy_table ../Supplementary_table2.tsv
    ```
-
 
 # Arguments
 --bigslice_dir: Path to the directory where BiG-SLiCE datasets will be created.
@@ -1562,12 +1554,10 @@ Verbose Mode: Use the --verbose flag to enable more detailed debug output.
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your_username/organize_big_slice.git
-   cd organize_big_slice
+   git clone [https://github.com/your_username/organize_big_slice.git](https://github.com/CNP-CIIMAR/FAALPred/blob/main/utilities/organize_bigslice.py)
+   
 
-
-# Script 13:  Pie Chart for Multidomain Architectures.
-pie_multidomain_architecture.py
+# Script 13:  Pie Chart for Multidomain Architectures, pie_multidomain_architecture.py
 
 This Python script processes two TSV input tables containing genome and protein signature data to create pie (or doughnut) charts that summarize the distribution of combined signature descriptions across taxonomic groups. It also extracts taxonomic lineage information using the ete3 NCBITaxa module and applies specific regex searches for certain taxon names.
 
