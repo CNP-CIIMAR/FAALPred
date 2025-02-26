@@ -4,7 +4,7 @@ This document provides a comprehensive Markdown-friendly explanation and usage g
 
 Supplementary_methodology.dox
 
-1. [Detailed Explanation of Each Function]
+1. [Detailed Explanation of Each Function](#ExplanationofEachFunction)
    - `are_sequences_aligned`
    - `create_unique_model_directory`
    - `realign_sequences_with_mafft`
