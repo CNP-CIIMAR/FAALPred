@@ -1064,7 +1064,81 @@ Verbose Mode: Use the --verbose flag to enable more detailed debug output.
    git clone https://github.com/your_username/organize_big_slice.git
    cd organize_big_slice
 
-# Overview# Script 9: Merge Bigscape Step 1
+
+# Script 10: Combine Tables Script
+
+This Python script is designed to combine two TSV tables based on the "Protein Accession" column. It processes and groups information from the second table by aggregating signature accessions and descriptions, then merges the results with the first table.
+
+---
+
+## Features
+
+- **File Reading and Validation:**  
+  Reads two TSV files and ensures that the second table contains the required columns: `Signature.accession` and `Signature.description`.
+
+- **Processing the Second Table:**  
+  - Groups data by `Protein.accession`.  
+  - Aggregates the signature accessions and descriptions into unique strings separated by hyphens.  
+  - Creates a new column (`Total Signature Description`) that counts the number of aggregated descriptions.  
+  - Adds a new column, `color three`, which is assigned as follows:
+    - `#FFFFFF` if the description contains "FAAL" and has only one signature.
+    - `#000000` for all other cases.
+
+- **Merging Tables:**  
+  Combines the first table with the processed data from the second table using the `Protein Accession` key.
+
+- **Output Generation:**  
+  Saves the combined table as a TSV file for further analysis and visualization.
+
+---
+
+## Requirements
+
+- **Python 3.x**
+- **Pandas**
+- **Argparse**
+
+Install the primary dependency using:
+
+```bash
+pip install pandas
+```
+# How to Use
+# Prepare your files:
+Ensure that your input files are in TSV format and that the second table includes the Signature.accession and Signature.description columns.
+
+# Run the script:
+Open your terminal and run the following command, replacing the paths as needed:
+
+```
+python combine_tables_script.py <path_to_table1.tsv> <path_to_table2.tsv> <output_path.tsv>
+```
+bash
+python combine_tables_script.py data/table1.tsv data/table2.tsv output/combined_table.tsv
+
+# Output:
+The script will generate the combined table at the specified output path and print a confirmation message.
+
+# Code Structure
+Function combine_tables:
+
+Converts the input tables into pandas DataFrames.
+Validates the presence of required columns in the second table.
+Groups and aggregates data from the second table.
+Adds the color three column based on defined conditions.
+Merges the first DataFrame with the processed DataFrame from the second table.
+Function main:
+
+Reads the TSV files.
+Calls the combine_tables function to process the data.
+Saves the merged DataFrame as a new TSV file.
+Main Block:
+
+Uses argparse to capture command-line arguments and trigger the script execution.
+Error Handling
+The script includes basic error handling for reading the TSV files. If an error occurs while reading the files, an error message will be displayed and the execution will be halted.
+
+# Overview# Script 10: Merge Bigscape Step 1
 
 A Python script to merge two TSV tables based on the "BGC" column.
 
@@ -1163,7 +1237,7 @@ You can install the Python dependencies using pip:
 ```bash
 pip install pandas numpy matplotlib
 ```
-# Script 10: # BGC Bigscape Parser & Visualizer
+# Script 12: # BGC Bigscape Parser & Visualizer
 
 This project contains a Python script that processes TSV files with biosynthetic gene cluster (BGC) data, extracts taxonomic information, and generates pie charts to visualize the distribution of BiG-SCAPE classes. The script performs the following tasks:
 
