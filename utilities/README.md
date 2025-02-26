@@ -1,4 +1,3 @@
-
 # Script 1: ProteinHMMSearch Tool: protein_hmm_search.py
 
 # Description: 
@@ -191,216 +190,7 @@ A Python-based tool designed to execute HMMER's `hmmsearch` on multiple FASTA (.
     - Adjust the E-value threshold if necessary.
 
 ---
-
-# Script 2: NCBI Assembly Metadata Enrichment Tool: get_genome_metadata.py
-
-# Description: 
-A Python script designed to process NCBI assembly IDs, retrieve comprehensive taxonomic lineages, and fetch additional metadata from the NCBI BioSample database. The tool enriches assembly data with geographic and biome distribution information, outputting both comprehensive and filtered datasets for further analysis.
-
-# Features:
-  - Retrieves taxonomic lineage information using NCBITaxa from the ete3 library.
-  - Fetches additional metadata from the NCBI BioSample database using Biopython's Entrez module.
-  - Parses XML responses to extract geographic locations, biome distributions, and latitude/longitude coordinates.
-  - Categorizes biome descriptions based on GOLD standards.
-  - Generates both comprehensive and filtered TSV output files containing enriched assembly data.
-  - Provides summary statistics on the number of assemblies with specific metadata fields populated.
-
-# Dependencies:
-  - Anaconda 3.x
-  - Python 3.8 or higher
-  - pandas
-  - ete3
-  - biopython
-
-# Installation:
-  Prerequisites:
-    - Download and install [Anaconda](https://www.anaconda.com/products/distribution) for your operating system.
-    - Ensure you have access to the internet for downloading NCBI databases and fetching metadata.
-
-  Steps:
-    - Clone the repository:
-      ```bash
-      git clone https://github.com/yourusername/yourrepository.git
-      cd yourrepository
-      ```
-    
-    - Create the Anaconda environment named `ncbi_metadata`:
-      ```bash
-      conda create -n ncbi_metadata python=3.8
-      ```
-    
-    - Activate the environment:
-      ```bash
-      conda activate ncbi_metadata
-      ```
-    
-    - Install the required Python packages:
-      ```bash
-      pip install pandas ete3 biopython
-      ```
-    
-    - Initialize the NCBI taxonomy database for ete3:
-      ```bash
-      python -m ete3 ncbiupdate
-      ```
-
-# Usage:
-  Description: >
-    The script processes a tab-separated input file containing NCBI assembly IDs, retrieves taxonomic lineages, fetches additional metadata from the BioSample database, and outputs enriched data files. An additional filtered output file includes only assemblies with specific biome distributions and geographic coordinates.
-
-  Command:
-    ```bash
-    python3 script.py <input_file_with_assembly_ids> <output_file>
-    ```
-
-  Arguments:
-    - `<input_file_with_assembly_ids>`:
-        Description: "Path to the input TSV file containing assembly IDs. The file should have a header and assembly IDs in the first column."
-        Example: "data/assembly_ids.tsv"
-    - `<output_file>`:
-        Description: "Path to the output TSV file where enriched assembly data will be saved."
-        Example: "results/enriched_assemblies.tsv"
-
-  Example:
-    ```bash
-    python3 script.py data/assembly_ids.tsv results/enriched_assemblies.tsv
-    ```
-
-  Arguments Details:
-    input_file_with_assembly_ids:
-      - Ensure the input file is a TSV with a header row.
-      - Assembly IDs should be listed in the first column.
-      - Example:
-        ```
-        Assembly_ID	Other_Column
-        GCF_000001405.39	...
-        GCF_000002035.6	...
-        ```
-    output_file:
-      - The script will generate two output files:
-        - `<output_file>`: Comprehensive enriched data.
-        - `filtered_<output_file>`: Filtered data with specific biome and geographic information.
-      - If the specified output directory does not exist, it will be created automatically.
-
-# Environment Setup:
-  Description: >
-    Instructions to create and activate the Anaconda environment named `ncbi_metadata`, and install all necessary dependencies.
-
-  Steps:
-    - Open your terminal or command prompt.
-    - Create the Anaconda environment:
-      ```bash
-      conda create -n ncbi_metadata python=3.8
-      ```
-    - Activate the environment:
-      ```bash
-      conda activate ncbi_metadata
-      ```
-    - Install required Python packages:
-      ```bash
-      pip install pandas ete3 biopython
-      ```
-    - Initialize ete3's NCBI taxonomy database:
-      ```bash
-      python -m ete3 ncbiupdate
-      ```
-    - Verify installations:
-      ```bash
-      python --version
-      ```
-      ```bash
-      hmmsearch -h  # If HMMER is also used
-      ```
-
-# Script Details:
-  Description: >
-    The script performs the following operations:
-      1. Reads assembly IDs from the input TSV file.
-      2. For each assembly ID:
-          - Executes external commands to retrieve assembly summary information.
-          - Parses the output to extract relevant fields.
-          - Retrieves the taxonomic lineage using NCBITaxa.
-          - Fetches additional metadata from the BioSample database, including geographic location and biome distribution.
-      3. Enriches the assembly data with the retrieved metadata.
-      4. Writes the enriched data to the specified output file.
-      5. Generates a filtered output file containing only assemblies with known biome distributions and geographic coordinates.
-      6. Prints summary statistics on the number of assemblies processed and metadata retrieved.
-
-# Troubleshooting:
-  Issue: "Script exits with usage error."
-  Solution: >
-    Ensure you are providing the required arguments when running the script. The correct usage is:
-    ```bash
-    python3 script.py <input_file_with_assembly_ids> <output_file>
-    ```
-    Example:
-    ```bash
-    python3 script.py data/assembly_ids.tsv results/enriched_assemblies.tsv
-    ```
-
-  Issue: "Error retrieving lineage information."
-  Solution: >
-    - Verify that the Tax ID is valid and exists in the NCBI taxonomy database.
-    - Ensure that the ete3 taxonomy database is properly initialized and updated.
-    - Check your internet connection, as the script requires access to NCBI servers.
-
-  Issue: "Entrez fetch fails or returns no data."
-  Solution: >
-    - Ensure that the assembly accession IDs are correct and exist in the NCBI Assembly database.
-    - Verify that your email is correctly set in the script.
-    - Respect NCBI's rate limits to avoid being temporarily blocked.
-
-  Issue: "Latitude and Longitude not parsed correctly."
-  Solution: >
-    - Check the format of the `lat_lon` attribute in the BioSample data.
-    - Ensure that the script's `parse_latitude_longitude` function matches the format of the latitude and longitude data.
-    - Modify the parsing logic if the data format differs.
-
-# Support:
-  Description: >
-    If you encounter any issues or have questions, feel free to reach out via the contact information provided above or open an issue in the repository. Contributions and feedback are highly appreciated!
-
-Example Input:
-  Description: >
-    An example of the input TSV file (`assembly_ids.tsv`) structure:
-    ```
-    Assembly_ID	Other_Info
-    GCF_000001405.39	...
-    GCF_000002035.6	...
-    ```
-
-# Output:
-  Description: >
-    The script generates two output files:
-      - `<output_file>`: Contains enriched assembly data with taxonomic lineages and additional metadata.
-      - `filtered_<output_file>`: Contains only assemblies with known biome distributions and geographic coordinates.
-
-  Files Generated:
-    - `<output_file>`:
-        Description: "Comprehensive TSV file with enriched assembly data, including taxonomic lineage, location, biome distribution, latitude, and longitude."
-    - `filtered_<output_file>`:
-        Description: "Filtered TSV file containing assemblies with specific biome and geographic information for targeted analysis."
-
-Additional Resources:
-  - Name: "NCBI Taxonomy Database"
-    URL: "https://www.ncbi.nlm.nih.gov/taxonomy"
-    Description: "Provides authoritative taxonomic information for all organisms recognized by the National Center for Biotechnology Information."
-  
-  - Name: "NCBI BioSample Database"
-    URL: "https://www.ncbi.nlm.nih.gov/biosample/"
-    Description: "Stores descriptive metadata about biological samples used in various NCBI databases."
-
-  - Name: "ETE Toolkit Documentation"
-    URL: "http://etetoolkit.org/docs/latest/index.html"
-    Description: "Comprehensive documentation for the ete3 library, including usage of NCBITaxa."
-
-  - Name: "Biopython Documentation"
-    URL: "https://biopython.org/wiki/Documentation"
-    Description: "Documentation for Biopython, a set of tools for biological computation in Python."
-
----
-
-# Script 3: FASTA Sequence Filter Tool: fasta_sequence_filter.py
+# Script 2: FASTA Sequence Filter Tool: fasta_sequence_filter.py
 
 # Description: 
 A Python script designed to filter sequences in FASTA files based on a list of sequence IDs. Whether you need to keep or exclude specific sequences, this tool provides a straightforward command-line interface to efficiently process large FASTA datasets for bioinformatics analyses.
@@ -628,154 +418,286 @@ Additional Resources:
     Description: "Official documentation for Anaconda, a distribution of Python and R for scientific computing."
 
 ---
+# Script 3: Protein to Taxonomic Data Pipeline: faal_genotax.py, 
 
-# Script 4: pie_multidomain_architecture.py, Taxonomic Pie Chart Generator
+This script retrieves taxonomic information for protein accessions by querying the NCBI databases and processing the results. It first fetches genome accession IDs via a subprocess call to `efetch` and then retrieves the corresponding species and lineage information using Biopython's Entrez module. Finally, the script outputs two files: one containing the mapping between protein and genome accessions, and another with taxonomic details.
 
-This repository contains a Python script that processes two TSV files containing genomic and protein annotation data, merges the data, extracts taxonomic lineages, and generates pie charts displaying the distribution of protein signature architectures. The script is designed to work with biosynthetic data and is particularly useful for visualizing the prevalence of different signature types (e.g., FAAL, NRPS, PKS) across taxonomic groups.
-
-## Features
-
-- **Signature Description Combination:**  
-  Combines multiple "Signature.description" entries per protein accession into a single field (`Combined.description`). Special handling is included to replace "FAAL" with "FAAL stand-alone".
-
-- **Data Loading and Validation:**  
-  Reads two TSV files, prints column information and shapes, and performs basic checks (e.g., verifying the presence of an `Assembly` column with valid IDs).
-
-- **Data Merging:**  
-  Merges the two datasets using the `Protein.accession` field (inner join) and creates the combined signature description.
-
-- **Taxonomic Extraction:**  
-  Extracts taxonomic levels (superkingdom, phylum, class, order, family, genus, species) from a `Lineage` column using the [ete3](http://etetoolkit.org/) NCBITaxa module. Includes functions to directly obtain the phylum.
-
-- **Lineage Update and Domain Filtering:**  
-  Updates the DataFrame with extracted taxonomic levels and filters the data to keep only the rows that match the chosen domain (e.g., Bacteria, Archaea, Eukaryota). It also removes rows with missing values for key taxonomic levels.
-
-- **Pie Chart Plotting:**  
-  Generates pie charts as subplots (2 columns per row) for specified taxonomic groups.  
-  - For taxa such as "Candidatus Rokuibacteriota" and "Gemmatimonadota", the script uses regular expressions to match the `Lineage` data.
-  - Displays the top N most frequent architectures and groups the remaining counts into an "Others" category.
-  - Creates a doughnut chart style with a central white circle.
-  - Automatically saves the plots in PNG, SVG, and JPEG formats with a specified DPI.
-
-## Requirements
-
-- Python 3.x
-- Libraries:
-  - [pandas](https://pandas.pydata.org/)
-  - [matplotlib](https://matplotlib.org/)
-  - [numpy](https://numpy.org/)
-  - [ete3](http://etetoolkit.org/)
-
-## Installation
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/your_username/your_repository.git
-   cd your_repository
-    ```
-  ```bash
-python3 -m venv venv
-source venv/bin/activate      # Linux/Mac
-venv\Scripts\activate         # Windows
- ```
-
-```bash
-pip install -r requirements.txt
- ```
-```bash
-pip install pandas matplotlib numpy ete3
-
-# Example 
- ``
-python3 pie_multidomain_architecture.py <table1_path> <table2_path> <domain_name> <top_n> <taxonomic_level> <taxon_list> <dpi>
- ```
-
-# Parameters:
-
-<table1_path>: Path to the first TSV file containing genomic/protein taxonomy data.
-<table2_path>: Path to the second TSV file containing protein signature descriptions.
-<domain_name>: Domain to filter (e.g., Bacteria, Archaea, Eukaryota).
-<top_n>: Number of top signature architectures to display in the pie charts.
-<taxonomic_level>: Taxonomic level to use for filtering (Phylum, Order, or Genus).
-<taxon_list>: Comma-separated list of taxon names.
-Note: For "Candidatus Rokuibacteriota" and "Gemmatimonadota", the script applies specific regex matching.
-<dpi>: Resolution (dots per inch) for saving the figures.
-
-# Script 6: Taxonomic FAAL Analyzer: bar_mean_faal_genome.py
-
-# Taxonomic FAAL Analyzer
-
-This repository contains a Python script that processes a TSV table of genomic and taxonomic data, extracts taxonomic lineages using the ETE3 library, and generates filtered statistics and visualizations of FAAL counts per genome across different taxonomic groups.
+---
 
 ## Features
 
-- **Taxonomic Extraction:** Uses the ETE3 library to fetch taxonomic lineage information from NCBI.
-- **Data Filtering:** Filters out unwanted rows (e.g., those with 'environmental samples' or missing assembly information) and applies specific criteria based on taxonomic levels.
-- **Aggregation:** Counts total FAAL occurrences and unique genome assemblies for each taxonomic group.
-- **Visualization:** Generates bar plots that show the mean FAAL count per genome for the top N taxonomic groups, with annotations for genome counts and total FAAL counts.
-- **Output Files:** Saves the merged data in a TSV file and exports plots in PNG, SVG, and JPEG formats.
+- **Genome Accession Retrieval:**  
+  Uses a subprocess call to `efetch` to retrieve IPG information and extract either the RefSeq or INSDC genome accession.
 
-## Requirements
+- **Taxonomic Data Retrieval:**  
+  Queries the NCBI Protein database using Biopython's Entrez module to obtain species and taxonomic lineage for each protein accession.
+
+- **Output Files:**  
+  - A genome mapping file containing protein accessions and their corresponding genome accessions.
+  - A taxonomic information file (in TSV format) with columns for Protein Accession, Genome Accession, Species, and Lineage.
+
+---
+
+## Prerequisites
 
 - Python 3.x
 - [pandas](https://pandas.pydata.org/)
-- [matplotlib](https://matplotlib.org/)
-- [seaborn](https://seaborn.pydata.org/)
-- [numpy](https://numpy.org/)
-- [ete3](http://etetoolkit.org/)
+- [Biopython](https://biopython.org/)
+- NCBI Entrez access (set your email in the script)
+- Command-line tool `efetch` installed and available in your system's PATH
+
+---
 
 ## Installation
-You can install the required packages using `pip`:
 
+1. **Clone the repository** (if applicable) or download the script file.
+
+2. **Install dependencies** using pip:
+   ```bash
+pip install pandas biopython
+```
+
+# Ensure efetch is installed:
+Follow instructions from the NCBI Entrez Direct documentation to install and configure efetch.
+________________________________________
 # Usage
 Run the script from the command line with the following arguments:
+bash
+Copiar
+python script.py <input_filename> <genome_output_filename> <taxonomic_output_filename>
+•	<input_filename>:
+Path to a file containing protein accessions (one per line).
+•	<genome_output_filename>:
+File where the mapping between protein accession and genome accession will be saved (tab-separated).
+•	<taxonomic_output_filename>:
+File where the taxonomic information (species and lineage) will be saved in TSV format.
+Example
+python geno_tax.py proteins.txt genome_mapping.txt taxonomic_info.tsv
+________________________________________
+Script Overview
+•	Argument Check:
+The script verifies that at least three arguments are provided (input filename, genome output filename, taxonomic output filename). If not, it prints usage instructions and exits.
+•	Entrez Email Setup:
+You must set your email address in the script (replace 'your_email@example.com' with your actual email).
+•	Function get_taxonomic_rank:
+This function takes a protein accession, queries the NCBI Protein database via Entrez, and extracts the species and lineage information.
+•	Genome Mapping Generation:
+For each protein accession in the input file, the script calls efetch (via subprocess) to retrieve IPG information. It extracts the genome accession from lines containing "RefSeq" or "INSDC" and writes the mapping to the genome output file.
+•	Taxonomic Table Creation:
+The genome mapping file is then read, and for each protein accession, the taxonomic data (species and lineage) is retrieved using the get_taxonomic_rank function. A pandas DataFrame is created with the results and saved as a TSV file.
+•	Output Messages:
+Upon completion, the script prints the locations of the output files.
 
-```bash
-python script_name.py <table1.tsv> <Domain> <Taxonomic Level> <Top N> <DPI>
-```
+Script 4: NCBI Assembly Metadata Enrichment Tool: get_genome_metadata.py
 
-<table1.tsv>: Path to the input TSV file containing genomic and taxonomic data. The file should include columns such as Species, Assembly, and Lineage.
-<Domain>: The domain to filter the data (e.g., Eukaryota or Bacteria).
-<Taxonomic Level>: The taxonomic level for analysis (e.g., Phylum, Order, Family, or Genus).
-<Top N>: The number of top taxonomic groups to visualize, ranked by the mean FAAL count per genome.
-<DPI>: The dots-per-inch resolution for the output images.
+# Description: 
+A Python script designed to process NCBI assembly IDs, retrieve comprehensive taxonomic lineages, and fetch additional metadata from the NCBI BioSample database. The tool enriches assembly data with geographic and biome distribution information, outputting both comprehensive and filtered datasets for further analysis.
 
+# Features:
+  - Retrieves taxonomic lineage information using NCBITaxa from the ete3 library.
+  - Fetches additional metadata from the NCBI BioSample database using Biopython's Entrez module.
+  - Parses XML responses to extract geographic locations, biome distributions, and latitude/longitude coordinates.
+  - Categorizes biome descriptions based on GOLD standards.
+  - Generates both comprehensive and filtered TSV output files containing enriched assembly data.
+  - Provides summary statistics on the number of assemblies with specific metadata fields populated.
 
-# Example
+# Dependencies:
+  - Anaconda 3.x
+  - Python 3.8 or higher
+  - pandas
+  - ete3
+  - biopython
 
-```bash
-python3 barplot_mean_FAAL_genomev1.py Genomes_Total_proteinas_taxonomy_FAAL_metadata_nodup.tsv Eukaryota Genus 30 300
-```
-# How It Works
-# Data Loading & Preprocessing:
+# Installation:
+  Prerequisites:
+    - Download and install [Anaconda](https://www.anaconda.com/products/distribution) for your operating system.
+    - Ensure you have access to the internet for downloading NCBI databases and fetching metadata.
 
-The script loads the TSV file using pandas.
-It updates the Lineage column by retrieving taxonomic information via the ETE3 toolkit.
-Rows with environmental samples in their lineage or missing Assembly information are removed.
-Taxonomic Group Extraction & Filtering:
+  Steps:
+    - Clone the repository:
+      ```bash
+      git clone https://github.com/yourusername/yourrepository.git
+      cd yourrepository
+      ```
+    
+    - Create the Anaconda environment named `ncbi_metadata`:
+      ```bash
+      conda create -n ncbi_metadata python=3.8
+      ```
+    
+    - Activate the environment:
+      ```bash
+      conda activate ncbi_metadata
+      ```
+    
+    - Install the required Python packages:
+      ```bash
+      pip install pandas ete3 biopython
+      ```
+    
+    - Initialize the NCBI taxonomy database for ete3:
+      ```bash
+      python -m ete3 ncbiupdate
+      ```
 
-For Eukaryota, the lineage is updated and filtered; for other domains, alternative logic is applied.
-Taxonomic groups are extracted from species names based on the specified taxonomic level.
-Specific criteria (e.g., names ending with "ales" for orders or "eae" for families) are applied to filter the results.
-Data Aggregation:
+# Usage:
+  Description: >
+    The script processes a tab-separated input file containing NCBI assembly IDs, retrieves taxonomic lineages, fetches additional metadata from the BioSample database, and outputs enriched data files. An additional filtered output file includes only assemblies with specific biome distributions and geographic coordinates.
 
-The script calculates the total FAAL count per taxonomic group and the number of unique genomes (assemblies) per group.
-It computes the mean FAAL count per genome and filters out groups with fewer than a minimum number of genomes.
-Visualization:
+  Command:
+    ```bash
+    python3 script.py <input_file_with_assembly_ids> <output_file>
+    ```
 
-A bar plot is generated using seaborn, with bars ordered by the mean FAAL count per genome.
-Genome counts and total FAAL counts are annotated on the bars.
-The plot is saved in PNG, SVG, and JPEG formats.
+  Arguments:
+    - `<input_file_with_assembly_ids>`:
+        Description: "Path to the input TSV file containing assembly IDs. The file should have a header and assembly IDs in the first column."
+        Example: "data/assembly_ids.tsv"
+    - `<output_file>`:
+        Description: "Path to the output TSV file where enriched assembly data will be saved."
+        Example: "results/enriched_assemblies.tsv"
+
+  Example:
+    ```bash
+    python3 script.py data/assembly_ids.tsv results/enriched_assemblies.tsv
+    ```
+
+  Arguments Details:
+    input_file_with_assembly_ids:
+      - Ensure the input file is a TSV with a header row.
+      - Assembly IDs should be listed in the first column.
+      - Example:
+        ```
+        Assembly_ID	Other_Column
+        GCF_000001405.39	...
+        GCF_000002035.6	...
+        ```
+    output_file:
+      - The script will generate two output files:
+        - `<output_file>`: Comprehensive enriched data.
+        - `filtered_<output_file>`: Filtered data with specific biome and geographic information.
+      - If the specified output directory does not exist, it will be created automatically.
+
+# Environment Setup:
+  Description: >
+    Instructions to create and activate the Anaconda environment named `ncbi_metadata`, and install all necessary dependencies.
+
+  Steps:
+    - Open your terminal or command prompt.
+    - Create the Anaconda environment:
+      ```bash
+      conda create -n ncbi_metadata python=3.8
+      ```
+    - Activate the environment:
+      ```bash
+      conda activate ncbi_metadata
+      ```
+    - Install required Python packages:
+      ```bash
+      pip install pandas ete3 biopython
+      ```
+    - Initialize ete3's NCBI taxonomy database:
+      ```bash
+      python -m ete3 ncbiupdate
+      ```
+    - Verify installations:
+      ```bash
+      python --version
+      ```
+      ```bash
+      hmmsearch -h  # If HMMER is also used
+      ```
+
+# Script Details:
+  Description: >
+    The script performs the following operations:
+      1. Reads assembly IDs from the input TSV file.
+      2. For each assembly ID:
+          - Executes external commands to retrieve assembly summary information.
+          - Parses the output to extract relevant fields.
+          - Retrieves the taxonomic lineage using NCBITaxa.
+          - Fetches additional metadata from the BioSample database, including geographic location and biome distribution.
+      3. Enriches the assembly data with the retrieved metadata.
+      4. Writes the enriched data to the specified output file.
+      5. Generates a filtered output file containing only assemblies with known biome distributions and geographic coordinates.
+      6. Prints summary statistics on the number of assemblies processed and metadata retrieved.
+
+# Troubleshooting:
+  Issue: "Script exits with usage error."
+  Solution: >
+    Ensure you are providing the required arguments when running the script. The correct usage is:
+    ```bash
+    python3 script.py <input_file_with_assembly_ids> <output_file>
+    ```
+    Example:
+    ```bash
+    python3 script.py data/assembly_ids.tsv results/enriched_assemblies.tsv
+    ```
+
+  Issue: "Error retrieving lineage information."
+  Solution: >
+    - Verify that the Tax ID is valid and exists in the NCBI taxonomy database.
+    - Ensure that the ete3 taxonomy database is properly initialized and updated.
+    - Check your internet connection, as the script requires access to NCBI servers.
+
+  Issue: "Entrez fetch fails or returns no data."
+  Solution: >
+    - Ensure that the assembly accession IDs are correct and exist in the NCBI Assembly database.
+    - Verify that your email is correctly set in the script.
+    - Respect NCBI's rate limits to avoid being temporarily blocked.
+
+  Issue: "Latitude and Longitude not parsed correctly."
+  Solution: >
+    - Check the format of the `lat_lon` attribute in the BioSample data.
+    - Ensure that the script's `parse_latitude_longitude` function matches the format of the latitude and longitude data.
+    - Modify the parsing logic if the data format differs.
+
+# Support:
+  Description: >
+    If you encounter any issues or have questions, feel free to reach out via the contact information provided above or open an issue in the repository. Contributions and feedback are highly appreciated!
+
+Example Input:
+  Description: >
+    An example of the input TSV file (`assembly_ids.tsv`) structure:
+    ```
+    Assembly_ID	Other_Info
+    GCF_000001405.39	...
+    GCF_000002035.6	...
+    ```
 
 # Output:
-- The merged data is saved as merged_data.tsv.
-- Visualizations are saved as mean_faal_per_genome.png, mean_faal_per_genome.svg, and mean_faal_per_genome.jpeg.
+  Description: >
+    The script generates two output files:
+      - `<output_file>`: Contains enriched assembly data with taxonomic lineages and additional metadata.
+      - `filtered_<output_file>`: Contains only assemblies with known biome distributions and geographic coordinates.
 
-```bash
-pip install pandas matplotlib seaborn numpy ete3
-```
+  Files Generated:
+    - `<output_file>`:
+        Description: "Comprehensive TSV file with enriched assembly data, including taxonomic lineage, location, biome distribution, latitude, and longitude."
+    - `filtered_<output_file>`:
+        Description: "Filtered TSV file containing assemblies with specific biome and geographic information for targeted analysis."
 
-# Script 7: FAALs Taxonomic Analysis: barplot_normalized_counts.py
+Additional Resources:
+  - Name: "NCBI Taxonomy Database"
+    URL: "https://www.ncbi.nlm.nih.gov/taxonomy"
+    Description: "Provides authoritative taxonomic information for all organisms recognized by the National Center for Biotechnology Information."
+  
+  - Name: "NCBI BioSample Database"
+    URL: "https://www.ncbi.nlm.nih.gov/biosample/"
+    Description: "Stores descriptive metadata about biological samples used in various NCBI databases."
+
+  - Name: "ETE Toolkit Documentation"
+    URL: "http://etetoolkit.org/docs/latest/index.html"
+    Description: "Comprehensive documentation for the ete3 library, including usage of NCBITaxa."
+
+  - Name: "Biopython Documentation"
+    URL: "https://biopython.org/wiki/Documentation"
+    Description: "Documentation for Biopython, a set of tools for biological computation in Python."
+
+---
+
+
+# Script 5: FAALs Taxonomic Analysis: barplot_normalized_counts.py
 
 This repository contains a Python script for analyzing Fatty Acyl AMP Ligases (FAALs) across different taxonomic groups. The script processes input data tables, filters and aggregates FAAL counts, normalizes the data, and generates informative visualizations to help understand the distribution and prevalence of FAALs in various taxonomic levels.
  Load and Update Taxonomic Data: Reads two input TSV files containing organism and assembly information, updates taxonomic lineages using the NCBI taxonomy database via the ete3 library.
@@ -891,414 +813,119 @@ Libraries:
 - numpy
 # Ensure all dependencies are installed before running the script.
 
-# Scriot 8: "Taxonomic Analysis and Visualization Tool" : scatterplot_mean_faal_genome.py 
-
-  A Python script designed to process genomic assembly data, perform taxonomic classification,
-  filter based on specified criteria, and generate insightful visualizations of FAAL counts
-  relative to genome sizes across different taxonomic groups.
-
-# features:
-  - Extracts and updates taxonomic lineage information using the NCBI taxonomy database.
-  - Filters data based on domain, taxonomic levels, and specific naming conventions.
-  - Calculates FAAL counts and genome statistics for selected taxonomic groups.
-  - Generates scatter plots visualizing the relationship between genome size and FAAL counts.
-  - Supports customization of top N taxonomic groups and output resolution.
-
-# dependencies:
-  - pandas
-  - matplotlib
-  - seaborn
-  - numpy
-  - ete3
-
-# installation:
-  steps:
-    - Ensure Python 3.6 or higher is installed.
-    - Install required Python packages using pip:
-      ```bash
-      pip install pandas matplotlib seaborn numpy ete3
-      ```
-    - Download and set up the NCBI taxonomy database for ete3:
-      ```bash
-      python -m ete3 ncbiupdate
-      ```
-
-# usage:
-  description: 
-    The script processes a TSV file containing genomic assembly data, filters the data based on
-    specified domain and taxonomic level, and generates scatter plots showing the average
-    FAAL counts per genome against genome sizes for the top N taxonomic groups.
-
-  command:
-    ```bash
-    python3 scatterplot_counts_faal.py <table1.tsv> <Domain> <Taxonomic Level> <Top N> <DPI>
-    ```
-
-  parameters:
-    - `<table1.tsv>`: Path to the input TSV file containing genomic assembly data.
-    - `<Domain>`: Taxonomic domain to filter (e.g., Eukaryota, Bacteria).
-    - `<Taxonomic Level>`: Taxonomic rank for grouping (e.g., Phylum, Class, Order, Family, Genus, Species).
-    - `<Top N>`: Number of top taxonomic groups to visualize based on mean FAAL counts.
-    - `<DPI>`: Resolution of the output plot images.
-
-  example:
-    ```bash
-    python3 scatterplot_counts_faal.py data/assemblies.tsv Eukaryota Genus 10 300
-    ```
-
-# output:
-  - `taxonomic_analysis_plot.png`: PNG image of the generated scatter plot.
-  - `taxonomic_analysis_plot.svg`: SVG vector image of the generated scatter plot.
-  - `taxonomic_analysis_plot.jpeg`: JPEG image of the generated scatter plot.
-
-# script_details:
-  description: 
-    The script performs the following steps:
-      1. Reads the input TSV file containing genomic assembly data.
-      2. Updates the taxonomic lineage information using ete3 if the domain is Eukaryota.
-      3. Filters out entries related to environmental samples and ensures assembly IDs start with 'GCF' or 'GCA'.
-      4. Extracts the specified taxonomic group from the lineage and applies filtering criteria.
-      5. Aggregates FAAL counts and genome counts per taxonomic group.
-      6. Calculates the mean FAAL count per genome and average genome size.
-      7. Selects the top N taxonomic groups based on mean FAAL counts.
-      8. Generates and saves scatter plots visualizing the data.
-
-# Script 9: name: CAL Domain and GenBank Analyzer
-# description: 
-  A Python script to analyze subdirectories containing `.gbk` files for the presence of `CAL_domain` and optionally `AMP-binding` domains. The script calculates the total size of `.gbk` files, checks disk space availability, and copies identified files to a filtered directory with the genome ID as a prefix.
-usage: |
-  python filter_count_CAA_AMP.py <input_dir> <log_file> [--search-amp-binding]
-  
-  - `input_dir`: Path to the input directory containing subdirectories with `.gbk` files.
-  - `log_file`: Path to the log file where processing information will be stored.
-  - `--search-amp-binding`: Optional flag to search for `AMP-binding` domains in addition to `CAL_domain`.
-# features:
-  - Analyzes `.gbk` files in subdirectories for specified domains.
-  - Extracts genome IDs from subdirectory names.
-  - Calculates the total size of `.gbk` files in megabases and gigabases.
-  - Checks for available disk space before copying files.
-  - Copies `.gbk` files containing `CAL_domain` to a filtered directory with a genome ID prefix.
-  - Generates a summary CSV file with detailed results.
-  - Provides a detailed log file for troubleshooting and analysis.
-dependencies:
-  - Python >= 3.7
-  - Biopython
-arguments:
-  input_dir:
-    description: Path to the input directory containing subdirectories with `.gbk` files.
-    required: true
-  log_file:
-    description: Path to the log file where processing information will be stored.
-    required: true
-  search_amp_binding:
-    description: Optional flag to include `AMP-binding` domain in the search.
-    required: false
-output:
-  - Summary CSV file: A report summarizing the analysis for each subdirectory.
-  - Log file: A detailed log of the processing steps and outcomes.
-  - Filtered files: `.gbk` files containing `CAL_domain`, copied to a filtered directory.
-example_usage: |
-  # Analyze `.gbk` files for `CAL_domain` only:
-  python script.py /path/to/input_dir /path/to/log_file.log
-  
-  # Analyze `.gbk` files for both `CAL_domain` and `AMP-binding`:
-  python filter_count_CAL_AMP.py /path/to/input_dir /path/to/log_file.log --search-amp-binding
-
-# Overview# Script 8: organize_bigslice.py
-# Organize Big Slice
-
-A script to organize antiSMASH directories into BiG-SLiCE datasets, grouped by a user-selected taxonomic level (Phylum, Order, or Genus).
-
-## Description
-
-This script is designed to help organize antiSMASH results into a directory structure compatible with BiG-SLiCE. It performs the following tasks:
-
-- **Taxonomic Grouping:** Uses a TSV taxonomy table to map each genome (identified by its Assembly Accession) to a specific taxonomic level (Phylum, Order, or Genus).
-- **File Copying:** Searches for `.gbk` files in antiSMASH result directories and copies them into a structured dataset directory.
-- **Taxonomy Files Generation:** Creates TSV taxonomy files for each dataset and updates a master `datasets.tsv` file containing information on all datasets.
-- **Detailed Logging:** Provides detailed logs (with a verbose mode option) and supports log file rotation.
-- 
-# Example comand line: 
-
-python3 organize_bigslice.py --bigslice_dir bigslice_dir --antismash_dir filtrados_subdir_CAL/ --taxonomy_table Fungi_supplementar2.tsv
-
-# Arguments
---bigslice_dir: Path to the directory where BiG-SLiCE datasets will be created.
---antismash_dir: Path to the directory containing antiSMASH results.
---taxonomy_table: Path to the taxonomy table (TSV format).
---assembly_column: Column name in the taxonomy table that contains the Assembly Accession (default: "Assembly Accession").
---lineage_column: Column name in the taxonomy table that contains the Lineage (default: "Lineage").
---log_file: Path to the log file (default: organize_big_slice.log).
---taxonomic_level: Taxonomic level to group results by. Options: Phylum, Order, or Genus (default: Genus).
---verbose: Enables detailed logging output.
-
-# This command will:
-
-Process antiSMASH result directories located at /data/antismash_results.
-Use the taxonomy information in /data/taxonomy.tsv.
-Group the results based on the "Order" taxonomic level.
-Enable verbose logging to display detailed processing information.
-
-bigslice_dir/
-├── dataset_<taxon_name>/            # A directory for each generated dataset
-│   └── genome_<Assembly>/           # Subdirectories containing the .gbk files for each genome
-├── taxonomy/                        # TSV taxonomy files for each dataset
-│   └── taxonomy_dataset_<taxon_name>.tsv
-└── datasets.tsv                     # A master file with dataset information
-
-# Logging
-Log File: By default, the script creates a log file named organize_big_slice.log to record progress, warnings, and errors.
-Verbose Mode: Use the --verbose flag to enable more detailed debug output.
-
-## Prerequisites
-
-- **Python 3.6+**
-- **Python Libraries:**
-  - `pandas` (for table manipulation)
-  - Other libraries used in the script are part of the Python standard library.
-
-## Installation
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/your_username/organize_big_slice.git
-   cd organize_big_slice
-
-
-# Script 10: Combine Tables Script
-
-This Python script is designed to combine two TSV tables based on the "Protein Accession" column. It processes and groups information from the second table by aggregating signature accessions and descriptions, then merges the results with the first table.
+# Script 6: Taxonomic Analysis and Graph Generation: scatterplot_mean_faal_genome_size.py
+This Python script processes a tab-separated values (TSV) file containing genomic and taxonomic data to perform taxonomic filtering, analysis, and visualization. It is designed to analyze the relationship between genome size and FAAL (fatty acyl-AMP ligase) counts across different taxonomic groups.
 
 ---
 
-## Features
+## Table of Contents
 
-- **File Reading and Validation:**  
-  Reads two TSV files and ensures that the second table contains the required columns: `Signature.accession` and `Signature.description`.
+- [Overview](#overview)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Script Details](#script-details)
+  - [Taxonomic Lineage Extraction](#taxonomic-lineage-extraction)
+  - [Filtering Criteria](#filtering-criteria)
+  - [Lineage Correction using ete3](#lineage-correction-using-ete3)
+  - [Data Visualization](#data-visualization)
+- [Output Files](#output-files)
+- [License](#license)
 
-- **Processing the Second Table:**  
-  - Groups data by `Protein.accession`.  
-  - Aggregates the signature accessions and descriptions into unique strings separated by hyphens.  
-  - Creates a new column (`Total Signature Description`) that counts the number of aggregated descriptions.  
-  - Adds a new column, `color three`, which is assigned as follows:
-    - `#FFFFFF` if the description contains "FAAL" and has only one signature.
-    - `#000000` for all other cases.
+---
 
-- **Merging Tables:**  
-  Combines the first table with the processed data from the second table using the `Protein Accession` key.
+# Script 6 is a comprehensive tool for:
+- Extracting specific taxonomic groups from a lineage string.
+- Filtering taxonomic data based on custom criteria (e.g., ending patterns such as `ales` for orders, `eae` for families).
+- Optionally correcting taxonomic lineages using the `ete3` package when analyzing Eukaryota.
+- Calculating average FAAL counts per genome and average genome sizes.
+- Visualizing the results in a scatterplot with customizable aesthetics.
 
-- **Output Generation:**  
-  Saves the combined table as a TSV file for further analysis and visualization.
+The script is modular and configurable to handle different domains (e.g., *Eukaryota*, *Bacteria*) and taxonomic levels (e.g., Order, Family, Genus).
 
 ---
 
 ## Requirements
 
 - **Python 3.x**
-- **Pandas**
-- **Argparse**
+- **pandas** – for data manipulation  
+- **matplotlib** – for plotting  
+- **seaborn** – for enhanced visualization  
+- **numpy** – for numerical operations  
+- **ete3** – for taxonomic data processing (optional, used when analyzing *Eukaryota*)
 
-Install the primary dependency using:
-
-```bash
-pip install pandas
-```
-# How to Use
-# Prepare your files:
-Ensure that your input files are in TSV format and that the second table includes the Signature.accession and Signature.description columns.
-
-# Run the script:
-Open your terminal and run the following command, replacing the paths as needed:
-
-```
-python combine_tables_script.py <path_to_table1.tsv> <path_to_table2.tsv> <output_path.tsv>
-```
-bash
-python combine_tables_script.py data/table1.tsv data/table2.tsv output/combined_table.tsv
-
-# Output:
-The script will generate the combined table at the specified output path and print a confirmation message.
-
-# Code Structure
-Function combine_tables:
-
-Converts the input tables into pandas DataFrames.
-Validates the presence of required columns in the second table.
-Groups and aggregates data from the second table.
-Adds the color three column based on defined conditions.
-Merges the first DataFrame with the processed DataFrame from the second table.
-Function main:
-
-Reads the TSV files.
-Calls the combine_tables function to process the data.
-Saves the merged DataFrame as a new TSV file.
-Main Block:
-
-Uses argparse to capture command-line arguments and trigger the script execution.
-Error Handling
-The script includes basic error handling for reading the TSV files. If an error occurs while reading the files, an error message will be displayed and the execution will be halted.
-
-# Overview# Script 10: Merge Bigscape Step 1
-
-A Python script to merge two TSV tables based on the "BGC" column.
-
-## Description
-
-This script reads two TSV (tab-separated values) files and performs a left merge on the "BGC" column using pandas. The resulting merged table is then saved as a new TSV file.
-
-> **Note:**  
-> Ensure that in the second table the column originally named "BGC name" is renamed to "BGC" before running the script.
-
-## Prerequisites
-
-- **Python 3.6+**
-- **Python Packages:**
-  - `pandas` (Install via pip: `pip install pandas`)
-
-## Usage
-
-Run the script from the command line by providing three arguments:
-
-1. Path to the first table (TSV format).
-2. Path to the second table (TSV format).
-3. Path for the output merged table (TSV format).
-
-### Command Line Example
-
-```bash
-python3 merge_bigscape_step1.py Network_Annotations_Full.tsv ./mix/mix_clans_0.30_0.70.tsv merged_Network_Annotations_Full_modificada__clans_0.30_0.70_update.tsv
-```
-OBS: Before run the script merge_bigscape_step1.py rename collum 1 of the table mix_clans_0.30_0.70.tsv for BGC
-
-# Arguments
-table1: Path to the first TSV file.
-table2: Path to the second TSV file (make sure the column "BGC name" is changed to "BGC").
-
-output: Path where the merged TSV file will be saved.
-
-# How It Works
-
-# Reading the Tables:
-
-The script reads the two input TSV files using pandas.read_csv() with a tab separator (\t). The parameter on_bad_lines='skip' is used to ignore any problematic lines.
-
-# Merging the Tables:
-The two tables are merged using a left join on the "BGC" column.
-
-# Saving the Output:
-The merged DataFrame is saved to the specified output file in TSV format.
-
-# Error Handling:
-If an error occurs while reading the input files, an error message is printed and the script exits.
-
-# Overview# Script 9: pie_bgc_classe_domain_S16.py
-
-# BGC Statistics Bar Chart
-
-This repository contains a Python script that processes a TSV table of biosynthetic gene cluster (BGC) annotations, calculates several statistics, and generates a high-resolution bar chart suitable for publication (e.g., for NAR).
-
-#  Figure S16 with results obtained from BiG-SCAPE for 12,214 bacterial genomes 
-
-The script reads an input file named `Network_Annotations_Full_annotation_mibig_ref_taxo` and performs the following tasks:
-
-- **Data Processing:**
-  - Reads the input TSV file using Pandas.
-  - Processes columns (notably, `BGC` and `Family Number`).
-  - Separates entries into:
-    - **MIBIG BGCs:** Rows where the `BGC` column starts with "BGC".
-    - **Identified BGCs:** Rows that do not start with "BGC" and have a defined `Family Number`.
-
-- **Statistics Computation:**
-  - **New BGCs in MIBIG Families:** Count of identified BGCs whose `Family Number` is among those in the MIBIG set.
-  - **New BGCs outside MIBIG Families:** Count of identified BGCs whose `Family Number` is not in the MIBIG set.
-  - **Total BGCs Families:** The number of unique `Family Number` values among identified BGCs.
-  - **Singleton BGCs Families:** Count of families that appear only once among the identified BGCs.
-  - **Identified BGCs:** Total count of identified BGCs.
-  
-- **Fixed Data:**
-  - Two additional fixed bars are added:
-    - **MIBIG BGCs:** 333
-    - **MIBIG BGCs with FAAL:** 122
-
-- **Chart Generation:**
-  - Generates a bar chart that combines the two fixed data bars with the computed statistics (sorted in ascending order).
-  - Configures the chart with larger font sizes and appropriate spacing (labels are wrapped in two lines if needed) to meet NAR publication standards.
-  - Saves the chart in both PNG and SVG formats with 900 dpi resolution.
-
-## Dependencies
-
-- Python 3.x
-- [Pandas](https://pandas.pydata.org/)
-- [NumPy](https://numpy.org/)
-- [Matplotlib](https://matplotlib.org/)
-
-You can install the Python dependencies using pip:
-
-```bash
-pip install pandas numpy matplotlib
-```
-# Script 12: # BGC Bigscape Parser & Visualizer
-
-This project contains a Python script that processes TSV files with biosynthetic gene cluster (BGC) data, extracts taxonomic information, and generates pie charts to visualize the distribution of BiG-SCAPE classes. The script performs the following tasks:
-
-- **Data Loading:** Reads a TSV file containing structured data.
-- **Taxonomic Information Extraction:** Extracts species, genus, order, and phylum from the `Taxonomy` column using custom functions. It leverages the [ete3](http://etetoolkit.org/) library and the NCBITaxa API.
-- **Genome ID Creation:** Generates the `Genome_ID` column from the `BGC` data.
-- **Proportion Calculation:** Groups and calculates the proportions of BiG-SCAPE classes present in the dataset.
-- **Visualization:** Creates pie charts and automatically saves the figures in SVG, PNG, and JPEG formats at high resolution (300 dpi).
-
-## Requirements
-
-- Python 3.x
-- Libraries:
-  - [pandas](https://pandas.pydata.org/)
-  - [matplotlib](https://matplotlib.org/)
-  - [numpy](https://numpy.org/)
-  - [ete3](http://etetoolkit.org/)
-- Standard modules: `sys`, `math`, `re`
-
-> **Tip:** It is recommended to use a virtual environment to manage the dependencies.
+---
 
 ## Installation
 
 1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/your_username/your_repository.git
-   cd your_repository
-```
-Create and activate a virtual environment:
 
    ```bash
-python3 -m venv venv
-source venv/bin/activate      # Linux/Mac
-venv\Scripts\activate         # Windows
-```
+   git clone https://github.com/CNP-CIIMAR/FAALPred/blob/main/utilities/scatterplot_mean_faal_genome_size.py
+cd your-repository
+   ```
+# Install the required Python packages:
+ ```bash
+pip install pandas matplotlib seaborn numpy ete3
+   ```
 
-# Install the dependencies: If you have a requirements.txt file:
-
-```bash
-pip install -r requirements.txt
-```
-Or, install the libraries manually:
-
-```bash
-pip install pandas matplotlib numpy ete3
-```
+________________________________________
 # Usage
-
-Run the script by passing the path to the TSV file as an argument:
-
+Run the script from the command line by providing the following arguments:
 ```bash
-python3 bgc_class_bigscape.py path_to_file.tsv
-```
 
-# During execution, the script will prompt you to:
+python3 scatterplot_counts_faal.py <table1.tsv> <Domain> <Taxonomic Level> <Top N> <DPI>
+   ```
 
-Select the taxonomic level (Phylum, Order, or Genus) interactively.
-Enter the taxon names (separated by commas) for filtering.
-After processing, the script will display the pie charts and automatically save the images in SVG, PNG, and JPEG formats at 300 dpi.
+•	<table1.tsv>: Path to the input TSV file.
+•	<Domain>: The taxonomic domain to filter (e.g., "Eukaryota" or "Bacteria").
+•	<Taxonomic Level>: The taxonomic level to analyze (e.g., "Order", "Family", "Genus").
+•	<Top N>: Number of top taxonomic groups (by mean FAAL count per genome) to visualize.
+•	<DPI>: Dots per inch (DPI) setting for the output image resolution.
+Example:
+bash
+Copiar
+python3 scatterplot_counts_faal.py data/table1.tsv Eukaryota Order 10 300
+________________________________________
+# Script Details
+Taxonomic Lineage Extraction
+•	Function: extract_taxonomic_group(lineage, level)
+•	Purpose: Parses a semicolon-separated lineage string and extracts the taxonomic group at the specified level (e.g., Domain, Phylum, Class, Order, Family, Genus, Species).
+•	Error Handling: Returns 'Unknown' if the desired level is not present in the lineage.
+Filtering Criteria
+•	Function: filter_by_criteria(name, level, domain_name)
+•	Purpose: Implements custom filtering:
+o	For Order: Accepts names ending with ales.
+o	For Family: Accepts names ending with eae.
+o	For Genus: Excludes names ending with ales or eae.
+o	Always accepts names for Domain and Phylum.
+•	This allows for refined selection of taxonomic groups based on naming conventions.
+Lineage Correction using ete3
+•	Function: get_corrected_lineage(species, use_ete3) and update_lineage(df, use_ete3)
+•	Purpose: Optionally corrects and updates the lineage information for a species using the ete3 package.
+•	Usage: Activated when the specified domain is Eukaryota. If an error occurs during lineage retrieval, the function safely returns 'Unknown'.
+Data Visualization
+•	Function: generate_filtered_table_and_graphs(table1_path, domain_name, taxonomic_level, top_n, dpi)
+•	Process:
+1.	Data Import and Cleaning: Reads the TSV file, updates lineage data (if applicable), and filters out environmental samples and missing assembly entries.
+2.	Filtering: Filters the dataset based on the specified domain and taxonomic criteria.
+3.	Aggregation: Computes FAAL counts and unique genome counts for each taxonomic group.
+4.	Calculation: Determines the mean FAAL count per genome and average genome size.
+5.	Visualization: Generates a scatterplot:
+	Customizes plot size based on the domain.
+	Applies jitter to avoid overlapping points.
+	Uses a tailored color palette with excluded colors for clarity.
+	Adjusts axis labels, scales, and legend based on the domain and taxonomic level.
+6.	Output: Saves the plot in PNG, SVG, and JPEG formats.
+________________________________________
+Output Files
+After successful execution, the following files are generated:
+•	taxonomic_analysis_plot.png
+•	taxonomic_analysis_plot.svg
+•	taxonomic_analysis_plot.jpeg
+These files contain the scatterplot visualization of average genome size versus average FAAL count per genome for the top taxonomic groups.
 
-# GeneClusterMineX v 2.0 :rocket:
+# Script 7: GeneClusterMineX v 2.0 :rocket:
 _____________________________________________________________________________________________________________________________________________________
 
  - **v 2.0.0: automation of processing of several Genomes fasta/fna files by antismash**
@@ -1519,3 +1146,479 @@ File Extensions: If you have compressed files (like .fasta.gz), you will need to
 - ETE Toolkit: For providing tools to work with phylogenetic trees and taxonomy.
 - Pandas, Matplotlib, Seaborn: For data manipulation and visualization capabilities.
 For any questions or issues, please open an issue in the repository.
+
+
+# Script 8: GBK Files Domain Analysis and Filtering Script: CALDomainAnalyzer.py.
+
+This Python script processes GenBank (`.gbk`) files contained within subdirectories of a specified input directory. It searches for features containing specific domains—primarily the "CAL_domain" and optionally "AMP-binding"—calculates the total file sizes, and copies the files that contain the target domains to a filtered output directory. A summary CSV file is generated, and detailed processing logs are saved to a log file.
+
+---
+
+## Features
+
+- **Domain Analysis:**  
+  - Scans each GenBank file for features containing "CAL_domain" (and "AMP-binding" if requested) by checking various qualifiers.
+  - Counts the number of occurrences of these domains per file.
+
+- **Genome ID Extraction:**  
+  - Extracts the Genome ID from the subdirectory name using two possible naming patterns.
+
+- **Size Calculation:**  
+  - Calculates the total size (in megabases and gigabases) of all `.gbk` files that contain the target domain(s) in each subdirectory.
+  - Formats size values for readability.
+
+- **File Filtering and Copying:**  
+  - Creates a new output directory (`filtrados_subdir_CAL`) in the parent directory of the input.
+  - Copies files containing the "CAL_domain" (and optionally "AMP-binding") to subdirectories named with the corresponding Genome ID prefix.
+
+- **Logging:**  
+  - Uses the Python `logging` module to log detailed processing information, warnings, and errors.
+  - Logs are written both to a specified log file and the console.
+
+- **Summary CSV:**  
+  - Generates a summary CSV file (`summary.csv`) in the input directory containing:
+    - Genome Assembly ID
+    - Count of "CAL_domain" occurrences
+    - Count of "AMP-binding" occurrences (if enabled)
+    - Total file size in Mb and Gb for the subdirectory
+
+- **Disk Space Check:**  
+  - Checks available disk space in the parent directory to ensure there is sufficient space to copy the filtered files.
+
+---
+
+## Requirements
+
+- **Python 3.x**
+- **Biopython** (for parsing GenBank files)  
+- **Argparse**, **Pathlib**, **CSV**, **Shutil**, **Logging**, **Datetime** (standard Python libraries)
+
+Install Biopython using pip if not already installed:
+
+```bash
+pip install biopython
+```
+# How to Use
+1.	Prepare your input directory:
+Organize your GenBank files (.gbk) in subdirectories. Each subdirectory should be named using one of the following patterns to allow extraction of a Genome ID:
+o	Pattern 1: Starts with Result_ followed by GCA_ or GCF_ and additional information.
+o	Pattern 2: Ends with .fna (for alphanumeric codes).
+2.	Run the script:
+Open your terminal and execute the script with the required arguments. For example:
+``bash
+
+python CALDomainAnalyzer.py <input_directory> <log_file> [--search-amp-binding]
+
+```
+Example:
+```bash
+python CALDomainAnalyzer.py data/gbk_files log_processamento.log --search-amp-binding
+```
+
+o	<input_directory>: Path to the directory containing subdirectories with .gbk files.
+o	<log_file>: Path to the log file where processing information will be saved (e.g., log_processamento.log).
+o	--search-amp-binding (optional): If specified, the script will also search for the "AMP-binding" domain.
+3.	Output Files:
+o	Log File: Contains detailed logs of the processing steps.
+o	Summary CSV: A file named summary.csv will be created in the input directory with the analysis summary.
+o	Filtered Files: A directory named filtrados_subdir_CAL will be created in the parent directory of the input. Inside, subdirectories with filtered GenBank files (prefixed by the Genome ID) will be available.
+________________________________________
+# Code Structure
+•	Function contains_domain:
+Checks if a GenBank feature contains any of the specified domains by examining multiple qualifiers.
+•	Function extract_genome_id:
+Extracts the Genome ID from the subdirectory name based on defined patterns.
+•	Function format_size:
+Converts and formats file sizes from megabases to gigabases.
+•	Function setup_logging:
+Configures logging to output messages to both a file and the console.
+•	Function process_gbk_files:
+o	Iterates over each subdirectory in the input directory.
+o	Processes .gbk files to detect target domains.
+o	Calculates total sizes, logs processing details, and copies files containing the target domains.
+o	Checks available disk space and logs warnings if insufficient.
+o	Generates a summary CSV file.
+•	Main Function:
+Uses argparse to handle command-line arguments and triggers the processing workflow.
+________________________________________
+Error Handling
+•	The script checks for the existence and validity of the input directory.
+•	Exceptions during file reading, processing, or copying are logged with error messages.
+•	The log file is created (or overwritten) to capture all processing details.
+
+Script 9: Merge Bigscape Step 1. A Python script to merge two TSV tables based on the "BGC" column.
+merge_bigscape_step1.py
+
+## Description
+
+This script reads two TSV (tab-separated values) files and performs a left merge on the "BGC" column using pandas. The resulting merged table is then saved as a new TSV file.
+
+> **Note:**  
+> Ensure that in the second table the column originally named "BGC name" is renamed to "BGC" before running the script.
+
+## Prerequisites
+
+- **Python 3.6+**
+- **Python Packages:**
+  - `pandas` (Install via pip: `pip install pandas`)
+
+## Usage
+
+Run the script from the command line by providing three arguments:
+
+1. Path to the first table (TSV format).
+2. Path to the second table (TSV format).
+3. Path for the output merged table (TSV format).
+
+### Command Line Example
+
+```bash
+python3 merge_bigscape_step1.py Network_Annotations_Full.tsv ./mix/mix_clans_0.30_0.70.tsv merged_Network_Annotations_Full_modificada__clans_0.30_0.70_update.tsv
+```
+OBS: Before run the script merge_bigscape_step1.py rename collum 1 of the table mix_clans_0.30_0.70.tsv for BGC
+
+# Arguments
+table1: Path to the first TSV file.
+table2: Path to the second TSV file (make sure the column "BGC name" is changed to "BGC").
+
+output: Path where the merged TSV file will be saved.
+
+# How It Works
+
+# Reading the Tables:
+
+The script reads the two input TSV files using pandas.read_csv() with a tab separator (\t). The parameter on_bad_lines='skip' is used to ignore any problematic lines.
+
+# Merging the Tables:
+The two tables are merged using a left join on the "BGC" column.
+
+# Saving the Output:
+The merged DataFrame is saved to the specified output file in TSV format.
+
+# Error Handling:
+If an error occurs while reading the input files, an error message is printed and the script exits.
+
+Script 10.1: Merge BiG-SCAPE Step 2
+•	Código: merge_bigscape_step2.py
+
+Script 11: 
+
+# BGC Class Bigscape Analysis Script
+
+This repository contains a Python script for processing a tab-separated values (TSV) file with genomic and biosynthetic gene cluster (BGC) data. The script is designed to perform taxonomic extraction, filtering, and visualization of BiG-SCAPE classes in a user-defined taxonomic context. It generates pie charts representing the distribution of BiG-SCAPE classes and prints out unique genome identifiers and debug information. The script is set up for interactive taxonomic level selection and is optimized for publication-quality figures (e.g., for an A4 page).
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Script Details](#script-details)
+  - [Data Loading](#data-loading)
+  - [Taxonomy Extraction](#taxonomy-extraction)
+  - [Taxonomic Level Adjustment](#taxonomic-level-adjustment)
+  - [Genome ID Extraction](#genome-id-extraction)
+  - [Proportion Calculation](#proportion-calculation)
+  - [Visualization](#visualization)
+- [Output](#output)
+- [License](#license)
+
+---
+
+## Overview
+
+This Python script is used to:
+- **Load and process data:** It reads a TSV file with genomic and BGC data.
+- **Extract taxonomy:** The script extracts taxonomic information (Phylum, Order, or Genus) from a taxonomy string using simple string manipulation as well as the [Ete3](http://etetoolkit.org/) library for NCBI taxonomy queries.
+- **Identify genome IDs:** It creates a new column (`Genome_ID`) based on patterns in the `BGC` field.
+- **Calculate proportions:** For a selected taxonomic level, the script calculates the proportion of each BiG-SCAPE class and counts unique genomes.
+- **Generate pie charts:** It creates pie charts with external annotations for classes representing low proportions and internal labels for larger slices.
+- **Interactive filtering:** The user is prompted to select the taxonomic level (Phylum, Order, or Genus) and input names (comma-separated) for filtering.
+
+---
+
+## Features
+
+- **Data Import:** Reads a TSV file with UTF-8 encoding.
+- **Flexible Taxonomy Extraction:** Uses regular expressions and string manipulation to extract species, phylum, and order. For Genus extraction, the script uses Ete3 to query the NCBI database.
+- **Custom Genome ID Creation:** Creates a unique identifier for genomes based on the content of the `BGC` field.
+- **Interactive Taxonomic Selection:** Allows the user to choose the taxonomic level and filtering criteria at runtime.
+- **Proportional Analysis:** Computes proportions for BiG-SCAPE classes and counts unique genome IDs.
+- **Publication-Quality Visualization:** Generates pie charts with manual adjustment of annotation positions to avoid overlap.
+- **Multiple Output Formats:** Saves the resulting figure in PNG, JPEG, and SVG formats.
+
+---
+
+## Requirements
+
+- **Python 3.x**
+- **pandas** – for data manipulation
+- **matplotlib** – for plotting (configured to use the TkAgg backend)
+- **numpy** – for numerical operations
+- **math** – for mathematical calculations
+- **re** – for regular expressions
+- **ete3** – for accessing NCBI taxonomy information
+
+---
+
+## Installation
+
+1. **Clone the repository:**
+
+   ```bash
+   git clone https://github.com/CNP-CIIMAR/FAALPred/blob/main/utilities/pie_bgc_class_taxonomy.py
+   cd your-repository
+   ```
+## Install the required packages:
+
+```bash
+pip install pandas matplotlib numpy ete3
+   ```
+
+Usage
+Run the script from the command line by passing the path to your TSV file as an argument. For example:
+
+```bash
+python3 bgc_class_bigscape.py bigscape_update.tsv
+
+```
+# Interactive Steps
+•	Taxonomic Level Selection:
+The script will prompt you to select the taxonomic level for filtering (Phylum, Order, or Genus) by entering the corresponding number.
+•	Input Taxon Names:
+After selecting the level, you will be asked to enter the taxon names separated by commas. The script uses these names to filter the dataset and generate pie charts.
+________________________________________
+# Script Details
+# Data Loading
+•	Function: load_data(file_path)
+Purpose:
+Reads a TSV file using pandas.read_csv with UTF-8 encoding. If the file cannot be loaded, an error message is printed and the script terminates.
+# Taxonomy Extraction
+•	Function: extract_species_from_taxonomy(taxonomy)
+Purpose:
+Extracts the species from the taxonomy string by splitting on commas or semicolons and returning the last token.
+•	Function: extract_taxonomic_group_ete3(taxonomy, level)
+Purpose:
+Uses the Ete3 library to query the NCBI database for a given genus and extract the desired taxonomic level (e.g., genus).
+•	Function: extract_level_from_taxid(taxid, level)
+Purpose:
+Given an NCBI taxid, it returns the name of the specified taxonomic level from the lineage.
+•	Function: extract_order(taxonomy, genus)
+Purpose:
+Attempts to extract the "Order" from the taxonomy string. It first searches for tokens ending with "ales" and, if none are found, defaults to the penultimate token or uses an Ete3 lookup if a genus is provided.
+•	Function: extract_phylum(taxonomy)
+Purpose:
+Extracts the phylum by tokenizing the taxonomy string and skipping tokens that include the term "group".
+# Genome ID Extraction
+•	Function: extract_genome_id(df)
+Purpose:
+Creates a new column (Genome_ID) in the DataFrame by parsing the BGC column.
+Logic includes:
+o	If the value starts with "BGC": splits by a period and takes the first token.
+o	If the value starts with "GCA_" or "GCF_": splits by underscore and combines the first two tokens.
+o	Otherwise, returns the original value.
+# Taxonomic Level Adjustment
+•	Function: adjust_taxonomic_level(df, level)
+Purpose:
+Depending on the selected taxonomic level (Phylum, Order, or Genus), the function creates or adjusts the corresponding column using the appropriate extraction function. If an unrecognized level is passed, the script exits.
+•	Function: select_taxonomic_level()
+Purpose:
+Provides an interactive prompt allowing the user to select the taxonomic level and input names (comma-separated) for filtering.
+# Proportion Calculation
+•	Function: calculate_proportion_and_genomes(df, taxon_value, level)
+Purpose:
+Filters the DataFrame based on the provided taxon name and taxonomic level.
+o	For Phylum-level filtering, the function searches within the Taxonomy column.
+o	Computes the count of unique genome IDs and the proportion of each BiG-SCAPE class.
+o	Prints debug information including unique genome IDs and total genome counts.
+# Visualization
+•	Function: plot_pie_chart(prop_df, level, taxon_names, num_genomes, color_mapping, ax=None)
+Purpose:
+Generates a pie chart using matplotlib to visualize the proportion of BiG-SCAPE classes.
+Large Slices (≥5%):
+o	Displays the percentage inside the slice.
+o	Labels are positioned outside without bounding boxes.
+Small Slices (0.1%–5%):
+o	Annotations (description and percentage) are placed externally with connecting arrows.
+Annotation Adjustment:
+o	Uses the adjust_annotations function to ensure that external annotation labels do not overlap.
+o	Configures the title with the taxon name and total number of genomes.
+# Main Function
+•	Function: main()
+Purpose:
+o	Validates command-line arguments.
+o	Loads the data and checks for necessary columns.
+o	Calls extract_genome_id to generate unique genome identifiers.
+o	Invokes interactive selection for the taxonomic level and filtering criteria.
+o	Sets up a multi-panel layout for generating pie charts (three charts per row, adjusted for publication quality).
+o	Applies a color mapping for BiG-SCAPE classes using a colormap.
+o	Generates and saves the pie charts in PNG, JPEG, and SVG formats.
+o	Displays the resulting plots.
+________________________________________
+# Output
+The script produces:
+•	Pie Charts:
+Visual representations of the distribution of BiG-SCAPE classes for each selected taxon.
+•	Saved Figures:
+The final figures are saved as pie_charts.png, pie_charts.jpeg, and pie_charts.svg with a resolution of 300 DPI.
+•	Console Output:
+Debug information including confirmation of file loading, creation of the Genome_ID column, and lists of unique genome IDs for each taxon.
+
+
+Script 12: A script to organize antiSMASH directories into BiG-SLiCE datasets, grouped by a user-selected taxonomic level (Phylum, Order, or Genus). organize_bigslice.py
+# Organize Big Slice
+## Description
+
+This script is designed to help organize antiSMASH results into a directory structure compatible with BiG-SLiCE. It performs the following tasks:
+
+- **Taxonomic Grouping:** Uses a TSV taxonomy table to map each genome (identified by its Assembly Accession) to a specific taxonomic level (Phylum, Order, or Genus).
+- **File Copying:** Searches for `.gbk` files in antiSMASH result directories and copies them into a structured dataset directory.
+- **Taxonomy Files Generation:** Creates TSV taxonomy files for each dataset and updates a master `datasets.tsv` file containing information on all datasets.
+- **Detailed Logging:** Provides detailed logs (with a verbose mode option) and supports log file rotation.
+- 
+# Example comand line: 
+
+python3 organize_bigslice.py --bigslice_dir bigslice_dir --antismash_dir filtrados_subdir_CAL/ --taxonomy_table Fungi_supplementar2.tsv
+
+# Arguments
+--bigslice_dir: Path to the directory where BiG-SLiCE datasets will be created.
+--antismash_dir: Path to the directory containing antiSMASH results.
+--taxonomy_table: Path to the taxonomy table (TSV format).
+--assembly_column: Column name in the taxonomy table that contains the Assembly Accession (default: "Assembly Accession").
+--lineage_column: Column name in the taxonomy table that contains the Lineage (default: "Lineage").
+--log_file: Path to the log file (default: organize_big_slice.log).
+--taxonomic_level: Taxonomic level to group results by. Options: Phylum, Order, or Genus (default: Genus).
+--verbose: Enables detailed logging output.
+
+# This command will:
+
+Process antiSMASH result directories located at /data/antismash_results.
+Use the taxonomy information in /data/taxonomy.tsv.
+Group the results based on the "Order" taxonomic level.
+Enable verbose logging to display detailed processing information.
+
+bigslice_dir/
+├── dataset_<taxon_name>/            # A directory for each generated dataset
+│   └── genome_<Assembly>/           # Subdirectories containing the .gbk files for each genome
+├── taxonomy/                        # TSV taxonomy files for each dataset
+│   └── taxonomy_dataset_<taxon_name>.tsv
+└── datasets.tsv                     # A master file with dataset information
+
+# Logging
+Log File: By default, the script creates a log file named organize_big_slice.log to record progress, warnings, and errors.
+Verbose Mode: Use the --verbose flag to enable more detailed debug output.
+
+## Prerequisites
+
+- **Python 3.6+**
+- **Python Libraries:**
+  - `pandas` (for table manipulation)
+  - Other libraries used in the script are part of the Python standard library.
+
+## Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/your_username/organize_big_slice.git
+   cd organize_big_slice
+
+
+# Script 13:  Pie Chart for Multidomain Architectures.
+pie_multidomain_architecture.py
+
+This Python script processes two TSV input tables containing genome and protein signature data to create pie (or doughnut) charts that summarize the distribution of combined signature descriptions across taxonomic groups. It also extracts taxonomic lineage information using the ete3 NCBITaxa module and applies specific regex searches for certain taxon names.
+
+---
+
+## Features
+
+1. **Combine Signature Descriptions:**  
+   - Groups signature descriptions for each protein accession.
+   - Simplifies descriptions by converting values such as "NRPS" or "PKS" to their abbreviated forms.
+   - Replaces "FAAL" with "FAAL stand-alone" when appropriate.
+   
+2. **Data Loading and Validation:**  
+   - Loads two TSV files and prints basic information (column names and shapes).
+   - Validates that required columns (e.g., `Assembly` in the first table and `Protein.accession` in both) are present.
+   
+3. **Merging Tables:**  
+   - Merges the two tables on the `Protein.accession` column using an inner join.
+   - Generates a new column `Combined.description` in the merged dataframe.
+   
+4. **Taxonomic Lineage Extraction:**  
+   - Uses the ete3 NCBITaxa module to extract taxonomic levels (superkingdom, phylum, class, order, family, genus, species) from a semicolon-separated lineage string.
+   - Provides functions to extract the phylum directly.
+   
+5. **Lineage Update and Filtering:**  
+   - Adds taxonomic level columns to the merged dataframe.
+   - Filters data by the specified domain (Bacteria, Archaea, or Eukaryota) and removes entries missing key taxonomic levels (phylum, order, genus).
+   
+6. **Plotting Multidomain Architectures:**  
+   - Creates pie charts (formatted as doughnut charts) for each taxon in a given list.
+   - Supports special regex-based searches for "Candidatus Rokuibacteriota" and "Gemmatimonadota" within the full lineage.
+   - Displays the top N architectures plus an "Others" category for remaining counts.
+   - Saves the resulting figures in PNG, SVG, and JPEG formats.
+   
+7. **Command-Line Interface:**  
+   - The script is executed from the command line and requires several parameters (paths to input tables, domain name, top N, taxonomic level, comma-separated taxon list, and DPI for plots).
+
+---
+
+## Requirements
+
+- **Python 3.x**
+- **Pandas**
+- **Matplotlib**
+- **NumPy**
+- **ete3** (for NCBITaxa; requires a local NCBI taxonomy database)
+  
+Install required packages using pip:
+
+```bash
+pip install pandas matplotlib numpy ete3
+```
+
+```bash
+
+python3 pie_multidomain_architecture.py<table1_path> <table2_path> <domain_name> <top_n> <taxonomic_level> <taxon_list> <dpi>
+```
+
+•	<table1_path>: Path to the first TSV file (genome/protein metadata).
+•	<table2_path>: Path to the second TSV file (protein signature data).
+•	<domain_name>: Must be one of Bacteria, Archaea, or Eukaryota.
+•	<top_n>: Number of top signature architectures to display in each chart.
+•	<taxonomic_level>: One of Phylum, Order, or Genus.
+•	<taxon_list>: A comma-separated list of taxa names to plot.
+o	Special cases:
+	"Candidatus Rokuibacteriota" applies a regex search pattern (?i).*candidatus\s+rokuibacteriota.*
+	"Gemmatimonadota" applies a regex search pattern (?i).*gemmatimonadota.*
+•	<dpi>: DPI (dots per inch) setting for the output figures.
+Example
+```bash
+python3 pie_multidomain_architecture.py \
+  Genomes_Total_proteinas_taxonomy_FAAL_metadata_nodup.tsv \
+  results_all_lista_proteins.faals_cdd.tsv \
+  Bacteria 6 Phylum "Candidatus Rokuibacteriota,Gemmatimonadota,Myxococcota" 300
+```
+
+________________________________________
+# Code Structure
+•	combine_signature_descriptions(df)
+Groups and simplifies signature descriptions for each protein accession, creating a Combined.description column.
+•	load_data(table1_path, table2_path)
+Loads the input TSV files into pandas DataFrames, prints column and shape information, and checks for required columns.
+•	merge_tables(df1, df2, on='Protein.accession')
+Merges the two DataFrames on Protein.accession and applies the signature description combination function.
+•	Taxonomic Extraction Functions:
+o	extract_taxonomic_levels(lineage): Parses a semicolon-separated lineage string and extracts various taxonomic levels.
+o	get_phylum(lineage): Returns the phylum directly if available.
+•	update_lineage(df, domain_name)
+Updates the DataFrame with taxonomic levels, filters entries based on the specified domain, and removes rows missing essential taxonomic data.
+•	plot_topN_multidomain_in_one_figure(df, taxonomic_level, taxon_list, top_n, dpi)
+Generates pie charts (doughnut style) for the specified taxa and saves the figures in multiple formats.
+•	main()
+Parses command-line arguments, orchestrates data loading, merging, lineage updating, and plotting.
+
