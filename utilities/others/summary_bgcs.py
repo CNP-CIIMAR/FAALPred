@@ -103,7 +103,6 @@ def process_and_plot(input_file, output_file, graph_prefix):
         colors = plt.cm.viridis([i / num_bars for i in range(num_bars)])
         plt.figure(figsize=(14, 8))  # Aumentado o tamanho da figura
         bars = plt.bar(counts.keys(), counts.values(), color=colors, edgecolor='black')
-
         # Adicionar rótulo ao eixo Y
         plt.ylabel('Counts', fontsize=16)
 
