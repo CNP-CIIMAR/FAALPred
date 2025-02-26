@@ -1691,6 +1691,6 @@ ________________________________________
 
 # License
 
-All codes in this project is licensed under the MIT License. Leandro de Mattos Pereira built all the codes in this repository.
+All codes in this project is licensed under the MIT License. 
 
 contact: mattoslmp@gmail.com
