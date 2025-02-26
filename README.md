@@ -81,7 +81,7 @@ port = 8501
 streamlit run faalpred.py
 ```
 
-## Step3:
+## Step 3:
 ```bash
 http://localhost:8501/
   ```
