@@ -55,14 +55,49 @@ The file Supplementary_methodology.dox serves as a detailed reference for users.
 ### Python Version:
 - `>= 3.8`
 
-### Required Libraries:
-Install the following libraries using `pip`:
+
+## 1. Install Anaconda (if not already installed)
+If Anaconda is not installed, download and install it from [here](https://www.anaconda.com/download).
+
+Alternatively, you can install **Miniconda** (a lightweight version of Anaconda) from [here](https://docs.conda.io/en/latest/miniconda.html).
+
+## 2. Create a New Conda Environment
+
+### Run the following command to create a Conda environment named **faalpred_env**:
 
 ```bash
-pip install streamlit numpy pandas scikit-learn scipy gensim plotly \
-matplotlib joblib biopython imblearn umap-learn Pillow tabulate base64
+conda create -n faalpred_env python=3.9 -y
+```
+```
+conda activate faalpred_env
+```
+conda install -y numpy pandas scikit-learn matplotlib seaborn joblib biopython umap-learn imbalanced-learn pillow tabulate plotly -c conda-forge
+```
 
-### Step 1:
+### Install Additional Libraries via pip
+
+Some packages are not available in Conda by default and must be installed using pip:
+
+```bash
+pip install streamlit gensim argparse base64
+```
+
+### Verify Installation
+
+- After installing the required packages, you can verify the installation by running:
+
+```bash
+python -c "import numpy, pandas, sklearn, matplotlib, seaborn, joblib, Bio, umap, imblearn, PIL, tabulate, plotly, streamlit, gensim; print('All packages installed successfully!')"
+```
+
+### Each time you need to work with FAALPred, activate the environment with:
+```bash
+conda activate faalpred_env
+```
+```bash
+To deactivate it, simply run:
+```
+### Configure toml file
 
 ```bash
 # sudo nano ~/.streamlit/config.toml
@@ -74,16 +109,14 @@ enableXsrfProtection = false
 address = "0.0.0.0"
 port = 8501
 
-### Step 2:
-
 ### Run the Application (Streamlit Approach)
 
-## Start the application:
+## Start the application in the conda environment:
 ```bash
 streamlit run faalpred.py
 ```
+### Access in your web browser:
 
-### Step 3:
 ```bash
 http://localhost:8501/
   ```
