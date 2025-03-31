@@ -237,3 +237,5 @@ if __name__ == "__main__":
     
     generate_barplot(table1_path, domain_arg, taxonomic_level, top_n, dpi)
 
+
+
