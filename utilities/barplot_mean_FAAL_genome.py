@@ -1,241 +1,260 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import sys
-import re
+import numpy as np
 from ete3 import NCBITaxa
-#matplotlib.use('Agg')
-import matplotlib
-matplotlib.use('Agg')  # Definir backend antes de importar pyplot
-import matplotlib.pyplot as plt
 
-
-# Inicializa o NCBITaxa para correção da linhagem taxonômica
+# Inicializa NCBITaxa
 ncbi = NCBITaxa()
 
-def standardize_lineage_format(lineage):
+def extract_taxonomic_group_ete3(taxid, level):
     """
-    Normaliza a string da linhagem para garantir que cada ';' seja seguido por um espaço único,
-    removendo espaços extras e garantindo que a string termine com ';'.
+    A partir de um taxid e nível taxonômico (em minúsculas, ex: 'phylum', 'order'),
+    percorre a linhagem e retorna o nome do grupo no nível desejado.
     """
-    lineage = re.sub(r'\s*;\s*', '; ', lineage)
-    lineage = lineage.strip()
-    if not lineage.endswith(';'):
-        lineage += ';'
-    return lineage
+    lineage = ncbi.get_lineage(taxid)
+    lineage_ranks = ncbi.get_rank(lineage)
+    rank_names = ncbi.get_taxid_translator(lineage)
+    
+    level = level.lower()
+    for tid in lineage:
+        if lineage_ranks[tid].lower() == level:
+            return rank_names[tid]
+    return None
+
+def filter_by_criteria_ete3(name, level):
+    """
+    Filtra os nomes dos grupos taxonômicos com base em critérios específicos
+    para cada nível (Order, Family, Genus e para Phylum não há critério específico).
+    O parâmetro 'level' é esperado com a primeira letra maiúscula.
+    """
+    if name is None:
+        return False
+    if level == 'Order' and name.endswith('ales'):
+        return True
+    if level == 'Family' and name.endswith('eae'):
+        return True
+    if level == 'Genus' and not (name.endswith('ales') or name.endswith('eae')):
+        return True
+    if level == 'Phylum':
+        return True
+    return False
+
+def get_lineage_from_ncbi(species_name):
+    """
+    Obtém a linhagem completa para uma espécie (baseada no gênero) a partir do NCBI.
+    """
+    try:
+        genus = species_name.split()[0]  # Extrai o gênero
+        taxid_dict = ncbi.get_name_translator([genus])
+        if genus in taxid_dict:
+            taxid = taxid_dict[genus][0]
+            lineage = ncbi.get_lineage(taxid)
+            lineage_names = ncbi.get_taxid_translator(lineage)
+            lineage_str = "; ".join([lineage_names[tid] for tid in lineage])
+            return lineage_str
+    except Exception as e:
+        return None
+
+def update_lineage(df):
+    """
+    Atualiza a coluna 'Lineage' do DataFrame com as informações obtidas via NCBI.
+    """
+    df['Lineage'] = df['Species'].apply(get_lineage_from_ncbi)
+    return df
+
+def extract_phylum_ete3(species_name):
+    try:
+        genus = species_name.split()[0]
+        taxid_dict = ncbi.get_name_translator([genus])
+        if genus in taxid_dict:
+            taxid = taxid_dict[genus][0]
+            return extract_taxonomic_group_ete3(taxid, 'phylum')
+    except Exception as e:
+        return None
+
+def extract_order_ete3(species_name):
+    try:
+        genus = species_name.split()[0]
+        taxid_dict = ncbi.get_name_translator([genus])
+        if genus in taxid_dict:
+            taxid = taxid_dict[genus][0]
+            return extract_taxonomic_group_ete3(taxid, 'order')
+    except Exception as e:
+        return None
+
+def extract_family_ete3(species_name):
+    try:
+        genus = species_name.split()[0]
+        taxid_dict = ncbi.get_name_translator([genus])
+        if genus in taxid_dict:
+            taxid = taxid_dict[genus][0]
+            return extract_taxonomic_group_ete3(taxid, 'family')
+    except Exception as e:
+        return None
+
+def extract_genus_ete3(species_name):
+    try:
+        genus = species_name.split()[0]
+        taxid_dict = ncbi.get_name_translator([genus])
+        if genus in taxid_dict:
+            taxid = taxid_dict[genus][0]
+            return extract_taxonomic_group_ete3(taxid, 'genus')
+    except Exception as e:
+        return None
 
 def extract_taxonomic_group(lineage, level):
     """
-    Extrai o grupo taxonômico correspondente ao nível desejado a partir da string de linhagem.
-    
-    Critérios:
-      - Para Order: retorna o primeiro token que termina com "ales" (ignorando maiúsculas).
-      - Para Family: retorna o primeiro token que termina com "eae" (ignorando maiúsculas).
-      - Para Genus:
-          * Se a classificação estiver completa (>= 6 tokens), utiliza o token na posição 6 (índice 5)
-            desde que este não termine com "ales", nem com "eae", e não comece com "Candidatus".
-          * Caso contrário, tenta usar o penúltimo token se disponível.
-      - Para Phylum: retorna o segundo token, se disponível.
-      - Para outros níveis: utiliza a posição fixa baseada na ordem 
-        ['Domain', 'Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species'].
+    Extrai o grupo taxonômico de um nível específico a partir de uma string de linhagem.
+    Níveis esperados: Domain, Phylum, Class, Order, Family, Genus, Species.
     """
-    tokens = [token.strip() for token in lineage.split(';') if token.strip()]
-    if level == 'Order':
-        for token in tokens:
-            if token.lower().endswith('ales'):
-                return token
-    elif level == 'Family':
-        for token in tokens:
-            if token.lower().endswith('eae'):
-                return token
-    elif level == 'Genus':
-        if len(tokens) >= 6:
-            candidate = tokens[5]
-            if not (candidate.lower().endswith('ales') or candidate.lower().endswith('eae') or candidate.startswith("Candidatus")):
-                return candidate
-        if len(tokens) >= 2:
-            candidate = tokens[-2]
-            if not (candidate.lower().endswith('ales') or candidate.lower().endswith('eae') or candidate.startswith("Candidatus")):
-                return candidate
-        return None
-    elif level == 'Phylum':
-        if len(tokens) > 1:
-            return tokens[1]
-    else:
-        levels_order = ['Domain', 'Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species']
+    levels = ['Domain', 'Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species']
+    lineage_split = lineage.split(';')
+    if level in levels:
         try:
-            index = levels_order.index(level)
-            return tokens[index]
-        except (ValueError, IndexError):
+            index = levels.index(level)
+            return lineage_split[index].strip()
+        except IndexError:
             return None
+    return None
 
-def get_corrected_lineage_from_species(species_name):
+def filter_by_criteria(name, level, domain_name):
     """
-    A partir do nome da espécie (coluna Species), utiliza ete3 para:
-      1. Traduzir o nome para taxid.
-      2. Obter a linhagem completa (lista de taxids) e os seus nomes oficiais.
-      3. Retornar a linhagem formatada e padronizada.
-    Caso ocorra erro, retorna None.
+    Aplica critérios de filtragem para grupos taxonômicos, dependendo do nível e do domínio.
     """
-    try:
-        name2taxid = ncbi.get_name_translator([species_name])
-        if species_name not in name2taxid:
-            return None
-        taxid = name2taxid[species_name][0]
-        lineage_ids = ncbi.get_lineage(taxid)
-        names = ncbi.get_taxid_translator(lineage_ids)
-        desired_ranks = ['superkingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
-        ranks = ncbi.get_rank(lineage_ids)
-        lineage_names = [names[t].strip() for t in lineage_ids if ranks[t] in desired_ranks]
-        raw_lineage = '; '.join(lineage_names) + ';'
-        return standardize_lineage_format(raw_lineage)
-    except Exception as e:
-        print(f"Erro ao obter a linhagem para a espécie '{species_name}': {e}")
-        return None
+    if name is None:
+        return False
+    if level == 'Order' and name.endswith('ales'):
+        return True
+    if level == 'Family' and name.endswith('eae'):
+        return True
+    if level == 'Genus' and not (name.endswith('ales') or name.endswith('eae')):
+        return True
+    if level in ['Phylum', 'Domain']:
+        return True
+    return False
 
-def update_lineage_eukaryotes(df):
-    """
-    Atualiza a coluna 'Lineage' apenas para as linhas de Eukaryota.
-    Em vez de usar o taxid, utiliza o nome da espécie (coluna 'Species')
-    para obter a linhagem corrigida via ete3.
-    """
-    if 'Species' not in df.columns:
-        raise KeyError("Coluna 'Species' não encontrada no DataFrame.")
-    
-    mask = df['Lineage'].astype(str).str.startswith("Eukaryota")
-    df.loc[mask, 'Lineage'] = df.loc[mask, 'Species'].apply(get_corrected_lineage_from_species)
-    return df
-
-def generate_barplot(table1_path, domain_arg, taxonomic_level, top_n, dpi):
+def generate_filtered_table_and_graphs(table1_path, domain_name, taxonomic_level, top_n, dpi):
     # Carrega a tabela
-    df = pd.read_csv(table1_path, sep='\t', low_memory=False)
-    print("Tabela 1 carregada:", len(df))
-    print(df.head())
+    df1 = pd.read_csv(table1_path, sep='\t', low_memory=False)
     
-    # Exibe a coluna 'Lineage' conforme está na tabela original
-    taxid_col = 'Organism Taxonomic ID' if 'Organism Taxonomic ID' in df.columns else 'Organism Tax ID'
-    print("Tabela 1 com 'Lineage' original:")
-    print(df[[taxid_col, 'Lineage']].head())
+    # Para Eukaryota, utiliza a atualização da linhagem via ETE3
+    if domain_name == 'Eukaryota':
+        df1 = update_lineage(df1)
+        df1 = df1[~df1['Lineage'].str.contains('environmental samples', na=False)]
+        df1 = df1.dropna(subset=['Assembly'])
+        df1_filtered = df1[df1['Lineage'].str.contains(domain_name, na=False)].copy()
+        if df1_filtered.empty:
+            print("Nenhum dado encontrado para o domínio fornecido na tabela.")
+            return
+        
+        df1_filtered = df1_filtered[df1_filtered['Assembly'].str.startswith(('GCF', 'GCA'), na=False)]
+        if df1_filtered.empty:
+            print("Nenhum valor de Assembly iniciando com 'GCF' ou 'GCA' foi encontrado nos dados filtrados.")
+            return
+
+        # Extrai o grupo taxonômico conforme o nível especificado
+        if taxonomic_level == 'Phylum':
+            df1_filtered['Taxonomic_Group'] = df1_filtered['Species'].apply(extract_phylum_ete3)
+        elif taxonomic_level == 'Order':
+            df1_filtered['Taxonomic_Group'] = df1_filtered['Species'].apply(extract_order_ete3)
+        elif taxonomic_level == 'Family':
+            df1_filtered['Taxonomic_Group'] = df1_filtered['Species'].apply(extract_family_ete3)
+        elif taxonomic_level == 'Genus':
+            df1_filtered['Taxonomic_Group'] = df1_filtered['Species'].apply(extract_genus_ete3)
+        else:
+            df1_filtered['Taxonomic_Group'] = df1_filtered['Lineage'].apply(lambda x: extract_taxonomic_group(x, taxonomic_level))
+        
+        df1_filtered = df1_filtered[df1_filtered['Taxonomic_Group'].apply(lambda x: filter_by_criteria_ete3(x, taxonomic_level))]
+        if df1_filtered.empty:
+            print("Nenhum grupo taxonômico encontrado após a filtragem.")
+            return
     
-    # Filtra amostras ambientais, se existir a coluna "Sample"
-    if "Sample" in df.columns:
-        df = df[~df["Sample"].str.contains("environmental", case=False, na=False)]
+    else:
+        # Lógica para outros domínios (ex: Bacteria)
+        df1 = df1[~df1['Lineage'].str.contains('environmental samples', na=False)]
+        df1 = df1.dropna(subset=['Assembly'])
+        df1_filtered = df1[df1['Lineage'].str.contains(domain_name, na=False)].copy()
+        if df1_filtered.empty:
+            print("Nenhum dado encontrado para o domínio fornecido na tabela.")
+            return
+        
+        df1_filtered = df1_filtered[df1_filtered['Assembly'].str.startswith(('GCF', 'GCA'), na=False)]
+        if df1_filtered.empty:
+            print("Nenhum valor de Assembly iniciando com 'GCF' ou 'GCA' foi encontrado nos dados filtrados.")
+            return
+        
+        df1_filtered['Taxonomic_Group'] = df1_filtered['Lineage'].apply(lambda x: extract_taxonomic_group(x, taxonomic_level))
+        df1_filtered = df1_filtered[df1_filtered['Taxonomic_Group'].apply(lambda x: filter_by_criteria(x, taxonomic_level, domain_name))]
+        if df1_filtered.empty:
+            print("Nenhum grupo taxonômico encontrado após a filtragem.")
+            return
     
-    # Filtro para Assembly: converte para string, remove espaços, converte para minúsculas e descarta valores inválidos
-    df["Assembly"] = df["Assembly"].astype(str)
-    mask_assembly = df["Assembly"].str.strip().str.lower().apply(lambda x: x not in ["", "none", "na", "null", "not available"])
-    df = df[mask_assembly]
-    print("Linhas após filtrar Assembly válido:", len(df))
+    # Agrupa e calcula as contagens de FAAL e número de genomas
+    faal_counts = df1_filtered.groupby('Taxonomic_Group').size().reset_index(name='Total FAAL Count')
+    genome_counts = df1_filtered.groupby('Taxonomic_Group')['Assembly'].nunique().reset_index(name='Genome Count')
     
-    # Atualiza a linhagem para Eukaryota usando a coluna Species
-    df = update_lineage_eukaryotes(df)
+    # Junta os dados
+    merged_data = pd.merge(faal_counts, genome_counts, on='Taxonomic_Group')
     
-    # Filtra as linhas cujo Lineage inicia com os domínios especificados
-    domain_list = []
-    if "Bacteria" in domain_arg:
-        domain_list.append("Bacteria")
-    if "Eukaryota" in domain_arg:
-        domain_list.append("Eukaryota")
-    if not domain_list:
-        domain_list = [dom.strip() for dom in domain_arg.split(",")]
+    # Define os critérios de corte para manter grupos com genomas suficientes
+    if domain_name == 'Eukaryota':
+        merged_data = merged_data[merged_data['Genome Count'] > 0]
+    else:
+        merged_data = merged_data[merged_data['Genome Count'] > 4]
     
-    pattern = f"^({'|'.join(domain_list)});\\s*"
-    df_filtered = df[df['Lineage'].notnull() & df['Lineage'].str.match(pattern, case=False)].copy()
-    print("Linhas após filtrar Lineage por domínio:", len(df_filtered))
-    
-    # Extrai o grupo taxonômico conforme o nível desejado
-    df_filtered['Taxonomic_Group'] = df_filtered['Lineage'].apply(lambda x: extract_taxonomic_group(x, taxonomic_level))
-    
-    # Para nível Phylum, realiza ajustes adicionais
-    if taxonomic_level == "Phylum":
-        df_filtered = df_filtered[~df_filtered['Taxonomic_Group'].str.lower().eq('proteobacteria')]
-        df_filtered.loc[df_filtered['Taxonomic_Group'].str.lower() == 'deltaproteobacteria', 'Taxonomic_Group'] = 'Pseudomonadota'
-        df_filtered = df_filtered[~df_filtered['Taxonomic_Group'].str.contains("environmental", case=False, na=False)]
-    
-    print("Após extração e ajustes, linhas com Taxonomic_Group:", len(df_filtered))
-    print(df_filtered[['Taxonomic_Group', 'Lineage']].head())
-    if df_filtered.empty:
-        print("Nenhum grupo taxonômico encontrado após os ajustes.")
+    if merged_data.empty:
+        print("Nenhum grupo taxonômico com genomas suficientes foi encontrado.")
         return
     
-    # Agrupa os dados por Taxonomic_Group
-    group_counts = df_filtered.groupby('Taxonomic_Group').agg(
-        Total_FAAL_Count=('Taxonomic_Group', 'size'),
-        Genome_Count=('Assembly', 'nunique')
-    ).reset_index()
+    # Calcula a média de FAAL por genoma
+    merged_data['Mean FAAL Count per Genome'] = merged_data['Total FAAL Count'] / merged_data['Genome Count']
     
-    # Filtra grupos com menos de 5 genomas depositados
-    group_counts = group_counts[group_counts['Genome_Count'] >= 5]
+    # Ordena e filtra os top N grupos com maior média
+    top_taxonomic_groups = merged_data.nlargest(top_n, 'Mean FAAL Count per Genome')
     
-    # Calcula o Mean FAAL Count per Genome
-    group_counts['Mean_FAALs_per_Genome'] = group_counts['Total_FAAL_Count'] / group_counts['Genome_Count']
+    # Salva a tabela com os dados de contagem
+    table_filename = 'taxonomic_group_counts.tsv'
+    merged_data.to_csv(table_filename, sep='\t', index=False)
+    print(f"Tabela de contagens salva em '{table_filename}':")
+    print(merged_data)
     
-    # Seleciona os top N grupos com maior média
-    top_groups = group_counts.sort_values(by='Mean_FAALs_per_Genome', ascending=False).head(top_n)
+    # Plota o gráfico de barras para a média de FAAL por genoma
+    sns.set(style="whitegrid")
+    plt.figure(figsize=(12, 8))
     
-    print(f"Top {top_n} grupos taxonômicos com maior média (Mean FAALs per Genome):")
-    print(top_groups)
+    order = top_taxonomic_groups.sort_values('Mean FAAL Count per Genome', ascending=False)['Taxonomic_Group']
+    barplot = sns.barplot(x='Taxonomic_Group', y='Mean FAAL Count per Genome', data=top_taxonomic_groups, palette='viridis', order=order)
+    barplot.set_xlabel(f'{taxonomic_level} Level', fontsize=14, fontweight='bold')
+    barplot.set_ylabel('Mean FAAL Count per Genome', fontsize=14, fontweight='bold')
     
-    # Gera e salva uma tabela com os resultados
-    output_table_path = 'top_taxonomic_groups_FAAL.tsv'
-    top_groups_sorted = group_counts.sort_values(by='Total_FAAL_Count', ascending=False)
-    with open(output_table_path, 'w') as f:
-        f.write("== Top Taxonomic Groups (FAAL) ==\n")
-        f.write(top_groups_sorted.to_csv(sep='\t', index=False))
+    plt.xticks(rotation=45, ha='right', fontsize=12)
     
-    # Cria o gráfico de barras
-    colors = sns.color_palette("viridis", top_n)
-    fig, ax = plt.subplots(figsize=(14, 10))
-    bars = ax.bar(top_groups['Taxonomic_Group'], top_groups['Mean_FAALs_per_Genome'],
-                  color=colors, edgecolor='black', alpha=0.85)
+    # Adiciona sobre as barras o número de genomas e o total de FAALs
+    for i, tax_group in enumerate(order):
+        mean_faal = top_taxonomic_groups[top_taxonomic_groups['Taxonomic_Group'] == tax_group]['Mean FAAL Count per Genome'].values[0]
+        genome_count = top_taxonomic_groups[top_taxonomic_groups['Taxonomic_Group'] == tax_group]['Genome Count'].values[0]
+        total_faal = top_taxonomic_groups[top_taxonomic_groups['Taxonomic_Group'] == tax_group]['Total FAAL Count'].values[0]
+        barplot.text(i, mean_faal / 2, f'{genome_count}', color='white', ha="center", va="center", fontsize=10, fontweight='bold')
+        barplot.text(i, mean_faal, f'{total_faal}', color='black', ha="center", va="bottom", fontsize=10, fontweight='bold')
     
-    xlabel = f"{taxonomic_level} Level" if taxonomic_level in ["Phylum", "Order", "Genus"] else taxonomic_level
-    ax.set_xlabel(xlabel, fontsize=20, fontweight='bold')
-    ax.set_ylabel('Mean FAAL Count per Genome', fontsize=20, fontweight='bold')
-    plt.xticks(rotation=45, ha='right', fontsize=18, fontweight='bold')
-    
-    # Faz com que o primeiro e o último bar toquem as bordas do gráfico
-    ax.set_xlim(left=-0.5, right=len(top_groups)-0.5)
-    
-    # Adiciona o Total FAAL Count acima de cada barra e o Genome Count centralizado dentro da barra.
-    for idx, bar in enumerate(bars):
-        height = bar.get_height()
-        total_faal = top_groups.iloc[idx]['Total_FAAL_Count']
-        genome_count = top_groups.iloc[idx]['Genome_Count']
-        # Total FAAL Count acima da barra
-        ax.text(bar.get_x() + bar.get_width()/2, height + 0.03 * height,
-                f'{total_faal}', ha='center', va='bottom', fontsize=16, fontweight='bold', color='black', clip_on=False)
-        # Genome Count centralizado na barra; se genome_count > 1000, texto em preto
-        label_color = 'black' if genome_count > 1000 else 'white'
-        ax.text(bar.get_x() + bar.get_width()/2, height/2,
-                f'{genome_count}', ha='center', va='center', fontsize=16, fontweight='bold', color=label_color, clip_on=False)
-    
-    max_mean = top_groups['Mean_FAALs_per_Genome'].max()
-    ax.set_ylim(bottom=0, top=max_mean * 1.1)
-    ax.margins(y=0)
-    
-    # Ajusta as margens para que os rótulos do eixo X fiquem visíveis e o gráfico ocupe toda a largura
     plt.tight_layout()
-    plt.subplots_adjust(left=0.15, right=0.95, top=0.95, bottom=0.35)
-    
-    plt.savefig('barplot_mean_faal_per_genome.png', dpi=dpi)
-    plt.savefig('barplot_mean_faal_per_genome.svg', dpi=dpi)
+    plt.savefig('mean_faal_per_genome.png', dpi=dpi, bbox_inches='tight')
+    plt.savefig('mean_faal_per_genome.svg', dpi=dpi, bbox_inches='tight')
+    plt.savefig('mean_faal_per_genome.jpeg', dpi=dpi, bbox_inches='tight')
     plt.show()
-    
-    print("Tabela de resultados salva em:", output_table_path)
 
 if __name__ == "__main__":
+    import sys
     if len(sys.argv) != 6:
-        print("Usage: python3 bar_faal_all_countsv2.py <table1.tsv> <Domain(s)> <Taxonomic Level> <Top N> <DPI>")
+        print("Uso: python3 script_name.py <table1.tsv> <Domain> <Taxonomic Level> <Top N> <DPI>")
         sys.exit(1)
-    
     table1_path = sys.argv[1]
-    domain_arg = sys.argv[2]      # Ex.: "Bacteria", "Eukaryota" ou "Bacteria,Eukaryota"
-    taxonomic_level = sys.argv[3] # Ex.: "Order", "Phylum", "Genus", etc.
+    domain_name = sys.argv[2]
+    taxonomic_level = sys.argv[3]
     top_n = int(sys.argv[4])
     dpi = int(sys.argv[5])
     
-    generate_barplot(table1_path, domain_arg, taxonomic_level, top_n, dpi)
-
+    generate_filtered_table_and_graphs(table1_path, domain_name, taxonomic_level, top_n, dpi)
 
 
