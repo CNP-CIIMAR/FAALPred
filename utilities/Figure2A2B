@@ -1,0 +1,195 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import sys
+import re
+from ete3 import NCBITaxa
+
+# Initialize NCBITaxa for correcting the taxonomic lineage
+ncbi = NCBITaxa()
+
+def standardize_lineage_format(lineage):
+    """
+    Standardizes the lineage string to ensure that each ';' is followed by a single space,
+    removes extra spaces, and guarantees that the string ends with a ';'.
+    """
+    lineage = re.sub(r'\s*;\s*', '; ', lineage)
+    lineage = lineage.strip()
+    if not lineage.endswith(';'):
+        lineage += ';'
+    return lineage
+
+def extract_taxonomic_group(lineage, level):
+    """
+    Extracts the taxonomic group corresponding to the desired level.
+    Expected levels are: Domain, Phylum, Class, Order, Family, Genus, Species.
+    Assumes the lineage is already in the standardized format.
+    """
+    levels = ['Domain', 'Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species']
+    tokens = [token.strip() for token in lineage.split(';') if token.strip()]
+    if level in levels:
+        try:
+            index = levels.index(level)
+            return tokens[index]
+        except IndexError:
+            return None
+    return None
+
+def extract_phylum(lineage):
+    """
+    Extracts the Phylum from the 'Lineage' column.
+    
+    Logic:
+      - The string is separated by commas or semicolons.
+      - The first token is the domain (e.g., "Bacteria").
+      - Starting from index 1, if a token contains the word "group" (case-insensitive), it is skipped.
+      - Returns the first token that does not contain "group".
+      - If no suitable token is found, returns an empty string.
+    """
+    if not isinstance(lineage, str):
+        return ""
+    lineage = lineage.replace(';', ',')
+    tokens = [token.strip() for token in lineage.split(',') if token.strip()]
+    if len(tokens) < 2:
+        return ""
+    i = 1
+    while i < len(tokens) and re.search(r'group', tokens[i], flags=re.IGNORECASE):
+        i += 1
+    return tokens[i] if i < len(tokens) else ""
+
+def get_corrected_lineage_from_species(species_name):
+    """
+    From the species name (Species column), use ete3 to:
+      1. Translate the name to a taxid.
+      2. Obtain the full lineage (list of taxids) and their official names.
+      3. Return the formatted and standardized lineage.
+    In case of error, returns None.
+    """
+    try:
+        name2taxid = ncbi.get_name_translator([species_name])
+        if species_name not in name2taxid:
+            return None
+        taxid = name2taxid[species_name][0]
+        lineage_ids = ncbi.get_lineage(taxid)
+        names = ncbi.get_taxid_translator(lineage_ids)
+        desired_ranks = ['superkingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
+        ranks = ncbi.get_rank(lineage_ids)
+        lineage_names = [names[t].strip() for t in lineage_ids if ranks[t] in desired_ranks]
+        raw_lineage = '; '.join(lineage_names) + ';'
+        return standardize_lineage_format(raw_lineage)
+    except Exception as e:
+        print(f"Error obtaining the lineage for species '{species_name}': {e}")
+        return None
+
+def update_lineage_eukaryotes(dataframe):
+    """
+    Updates the 'Lineage' column only for Eukaryota rows.
+    Instead of using taxid, uses the species name (Species column)
+    to obtain the corrected lineage via ete3.
+    """
+    if 'Species' not in dataframe.columns:
+        raise KeyError("Column 'Species' not found in the DataFrame.")
+    
+    mask = dataframe['Lineage'].astype(str).str.startswith("Eukaryota")
+    dataframe.loc[mask, 'Lineage'] = dataframe.loc[mask, 'Species'].apply(get_corrected_lineage_from_species)
+    return dataframe
+
+def generate_barplot(table_path, domain_names, taxonomic_level, top_n, dpi):
+    # Load the table
+    df = pd.read_csv(table_path, sep='\t', low_memory=False)
+    print("Table 1 loaded:")
+    print(df.head())
+    
+    # Display the original 'Lineage' column from the table
+    taxid_col = 'Organism Taxonomic ID' if 'Organism Taxonomic ID' in df.columns else 'Organism Tax ID'
+    print("Table 1 with original 'Lineage':")
+    print(df[[taxid_col, 'Lineage']].head())
+    
+    # Apply correction only for Eukaryota using the Species column
+    df = update_lineage_eukaryotes(df)
+    
+    # Filter rows where the Lineage column starts with "Bacteria;" or "Eukaryota;"
+    pattern = r'^(Bacteria|Eukaryota);\s*'
+    df_filtered = df[df['Lineage'].notnull() & df['Lineage'].str.match(pattern, case=False)].copy()
+    print("Filtered data (Lineage starting with Bacteria; or Eukaryota;):")
+    print(df_filtered.head())
+    
+    if df_filtered.empty:
+        print("No data found for the specified domains in the Lineage column.")
+        return
+    
+    # Function to extract the taxonomic group using the lineage (already corrected for Eukaryota)
+    def get_taxonomic_group(lineage):
+        if lineage.startswith("Eukaryota"):
+            return extract_taxonomic_group(lineage, taxonomic_level)
+        else:
+            if taxonomic_level == "Phylum":
+                return extract_phylum(lineage)
+            else:
+                return extract_taxonomic_group(lineage, taxonomic_level)
+    
+    df_filtered['Taxonomic_Group'] = df_filtered['Lineage'].apply(get_taxonomic_group)
+    
+    # If the level is "Phylum", check if any Phylum is annotated as "Proteobacteria" or "Deltaproteobacteria"
+    # and correct them to "Pseudomonadota". Also remove records annotated as "bacterium".
+    if taxonomic_level == "Phylum":
+        df_filtered.loc[df_filtered['Taxonomic_Group'].str.lower().isin(['proteobacteria', 'deltaproteobacteria']),
+                        'Taxonomic_Group'] = 'Pseudomonadota'
+        df_filtered = df_filtered[~df_filtered['Taxonomic_Group'].str.lower().eq('bacterium')]
+    
+    print("Data after extraction and adjustments:")
+    print(df_filtered[['Taxonomic_Group', 'Lineage']].head())
+    if df_filtered.empty:
+        print("No taxonomic group found after adjustments.")
+        return
+    
+    # Group the data by Taxonomic_Group and calculate:
+    # - Protein_Count: count of rows (each row represents a protein)
+    # - Genome_Count: unique count of assemblies (Assembly column)
+    group_counts = df_filtered.groupby('Taxonomic_Group').agg(
+        Protein_Count=('Taxonomic_Group', 'size'),
+        Genome_Count=('Assembly', 'nunique')
+    ).reset_index()
+    
+    # Select the top N groups with the highest protein counts
+    top_groups = group_counts.nlargest(top_n, 'Protein_Count')
+    print(f"Top {top_n} taxonomic groups based on protein count:")
+    print(top_groups)
+    
+    # Define fixed intervals for the y-axis, now including 2000
+    fixed_intervals = [0, 500, 1000, 2000, 3000, 5000, 7000, 10000, 13000, 16000, 19000, 22000, 25000]
+    max_count = min(top_groups['Protein_Count'].max(), 25000)
+    y_ticks = [tick for tick in fixed_intervals if tick <= max_count]
+    if y_ticks[-1] < max_count:
+        y_ticks.append(max_count)
+    
+    # Create the bar plot
+    colors = sns.color_palette("viridis", top_n)
+    plt.figure(figsize=(14, 10))
+    ax = plt.gca()
+    ax.bar(top_groups['Taxonomic_Group'],
+           top_groups['Protein_Count'],
+           color=colors, edgecolor='black', alpha=0.85)
+    ax.set_xlabel('Taxonomic Group', fontsize=16)
+    ax.set_ylabel('FAALs Count', fontsize=16)
+    plt.xticks(rotation=45, ha='right', fontsize=14)
+    plt.yticks(y_ticks, y_ticks)
+    ax.margins(x=0.01)
+    plt.tight_layout()
+    plt.savefig('barplot_protein_counts.png', dpi=dpi)
+    plt.savefig('barplot_protein_counts.svg', dpi=dpi)
+    plt.show()
+
+if __name__ == "__main__":
+    if len(sys.argv) != 5:
+        print("Usage: python3 bar_faal_all_countsv2.py <table1.tsv> <Domain(s)> <Taxonomic Level> <Top N>")
+        sys.exit(1)
+    
+    table_path = sys.argv[1]
+    domain_names = sys.argv[2]   # Example: "Bacteria" or "Bacteria,Eukaryota"
+    taxonomic_level = sys.argv[3]  # Example: "Order", "Phylum", etc.
+    top_n = int(sys.argv[4])
+    dpi = 900
+    
+    generate_barplot(table_path, domain_names, taxonomic_level, top_n, dpi)
+
