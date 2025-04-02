@@ -4,7 +4,6 @@ import seaborn as sns
 import os
 import sys
 import numpy as np
-
 def generate_filtered_table_and_graphs(table1_path, table2_path, domain_name, taxonomic_level, top_n, dpi, sub_taxonomic_level=None):
     # Load the tables
     df1 = pd.read_csv(table1_path, sep='\t', low_memory=False)
