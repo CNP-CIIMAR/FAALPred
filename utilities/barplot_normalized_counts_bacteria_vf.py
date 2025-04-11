@@ -304,3 +304,5 @@ if __name__ == "__main__":
     dpi = int(sys.argv[6])
     sub_taxonomic_level = sys.argv[7] if len(sys.argv) == 8 else None
     generate_filtered_table_and_graphs(table1_path, table2_path, domain_name, taxonomic_level, top_n, dpi, sub_taxonomic_level)
+
+
