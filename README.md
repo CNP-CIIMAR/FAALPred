@@ -5,12 +5,10 @@ The file Supplementary_methodology.dox serves as a detailed reference for users.
 
 
 
-1. [Detailed Explanation of Each Function](#ExplanationofEachFunction)
+1. [Function](#ExplanationofEachFunction)
    - `are_sequences_aligned`
    - `create_unique_model_directory`
    - `realign_sequences_with_mafft`
-   - `perform_clustering`
-   - `plot_dual_tsne`
    - `plot_roc_curve_global`
    - `get_class_rankings_global`
    - `calculate_roc_values`
@@ -29,8 +27,6 @@ The file Supplementary_methodology.dox serves as a detailed reference for users.
 3. [ProteinEmbeddingGenerator (Class)](#proteinembeddinggenerator-class)
    - `generate_embeddings`
    - `get_embeddings_and_labels`
-   - `compute_perplexity`
-   - `plot_dual_umap`
    - `plot_predictions_scatterplot_custom`
    - `adjust_predictions_global`
    - `main`
