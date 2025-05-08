@@ -40,7 +40,7 @@ The file Supplementary_methodology.dox serves as a detailed reference for users.
 - **Word2Vec** to generate embeddings from protein sequences
 - **Random Forest** and calibration strategies
 - **Oversampling** (`RandomOverSampler`, `SMOTE`) for balancing classes
-- **UMAP** and **t-SNE** for dimensionality reduction and visualization
+- **UMAP** for dimensionality reduction and visualization
 - **ROC** and **Precision-Recall AUC** metrics for performance evaluation
 - **A Streamlit interface** that guides through training and prediction
 
