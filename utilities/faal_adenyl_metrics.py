@@ -4,10 +4,10 @@
 """
 FAALPred vs AdenylPred — Complementary analyses (CLI, robust headers, multi-format figures)
 
-Uso:
+Usage:
   python faal_adenyl_metrics_cli.py --input ./input_table.tsv --outdir ./results --dpi 900
 
-Entradas esperadas (6 colunas; variações leves de cabeçalho são aceitas):
+Expected input columns (6 columns; minor header variations are accepted):
   - Protein
   - Refseq/GenBank
   - Substrate in literature
@@ -15,14 +15,14 @@ Entradas esperadas (6 colunas; variações leves de cabeçalho são aceitas):
   - FAALPred, Prediction Score
   - AdenylPred, Prediction Score
 
-Métricas reportadas:
-  - FAALPred: Exact-Hit (top-1 == FA preferido)
-  - AdenylPred: Jaccard (overlap) + Preferred-in-Bin
+Reported metrics:
+  - FAALPred: Exact-Hit (prediction equals literature-preferred FA)
+  - AdenylPred: Jaccard (set overlap) + Preferred-in-Bin
 
-Saídas (em --outdir; padrão = .):
-  - per_case_metrics.csv
-  - summary_metrics.json            (estrutura completa)
-  - summary_metrics_minimal.json    (apenas métricas principais)
+Outputs (written to --outdir; default = .):
+  - per_case_metrics.tsv            (per-protein metrics in TSV)
+  - summary_metrics.json            (full structure)
+  - summary_metrics_minimal.json    (key metrics only)
   - AdenylPred_overlap_and_bin.svg/.png/.tiff
   - FAALPred_exact_hit.svg/.png/.tiff
 """
@@ -34,7 +34,7 @@ import unicodedata
 import os
 from typing import List, Set, Optional, Tuple, Dict
 
-# Backend sem GUI
+# Headless backend (no GUI needed)
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -45,11 +45,12 @@ import pandas as pd
 
 # ----------------- Parsing helpers -----------------
 def ints_from_c_tokens(s: str) -> List[int]:
-    """Extrai inteiros após 'C' (ex.: 'C12:0' -> 12, 'C10' -> 10)."""
+    """Extract integers after 'C' (e.g., 'C12:0' -> 12, 'C10' -> 10)."""
     return [int(x) for x in re.findall(r'C\s*(\d+)', s, flags=re.IGNORECASE)]
 
 
 def expand_range(a: int, b: int) -> Set[int]:
+    """Return the inclusive integer range between a and b (order-agnostic)."""
     if a > b:
         a, b = b, a
     return set(range(a, b + 1))
@@ -57,29 +58,29 @@ def expand_range(a: int, b: int) -> Set[int]:
 
 def parse_experimental_set(s: str) -> Set[int]:
     """
-    Constrói conjunto experimental E:
-      - Expande 'C10-C18', 'C10:0 to C18:0', 'C10 through C18'
-      - Inclui tokens discretos 'C10', 'C12:0', etc.
+    Build the experimental set E from text in “Substrate in literature”:
+      - Expands ranges such as 'C10-C18', 'C10:0 to C18:0', 'C10 through C18'
+      - Also includes discrete mentions such as 'C10', 'C12:0', etc.
     """
     E: Set[int] = set()
     s_norm = s.replace('\u2013', '-').replace('\u2014', '-')
 
-    # Intervalos
+    # Ranges
     for m in re.finditer(r'C\s*(\d+)\s*(?::0)?\s*(?:-|to|through)\s*C?\s*(\d+)', s_norm, flags=re.IGNORECASE):
         a, b = int(m.group(1)), int(m.group(2))
         E |= expand_range(a, b)
 
-    # Discretos
+    # Discrete tokens
     E |= set(ints_from_c_tokens(s_norm))
     return E
 
 
 def parse_preferred_fa(s: str, E: Set[int]) -> Optional[int]:
     """
-    Extrai FA 'preferred' quando indicado:
-      - se existir 'preferred', usa último intervalo antes (centro arredondado) ou
-        primeira menção discreta antes;
-      - se não existir, retorna único valor de E (se E for singleton), senão None.
+    Extract the literature-preferred FA when indicated:
+      - If the word 'preferred' appears, use the last range before it (rounded midpoint),
+        or the first discrete mention before it.
+      - Otherwise, if E is a singleton, return that single value; else None.
     """
     idx = s.lower().find('preferred')
     if idx != -1:
@@ -101,7 +102,7 @@ def parse_preferred_fa(s: str, E: Set[int]) -> Optional[int]:
 
 def parse_faal_pred_set(s: str) -> Tuple[Set[int], Optional[float]]:
     """
-    FAALPred: 'C12-C14-C16 (0.74)' -> conjunto discreto {12,14,16} + score float.
+    FAALPred: 'C12-C14-C16 (0.74)' -> discrete set {12,14,16} + float score (if present).
     """
     score = None
     m = re.search(r'\(([\d.]+)\)', s)
@@ -116,9 +117,9 @@ def parse_faal_pred_set(s: str) -> Tuple[Set[int], Optional[float]]:
 
 def parse_adenyl_pred_set(s: str) -> Tuple[Set[int], Optional[float], Optional[Tuple[int, int]]]:
     """
-    AdenylPred: 'C13 through C17 (47%)' -> conjunto {13..17}, score em [0,1], e bin (low, high).
-    Aceita 'C13 through C17(47%)' (sem espaço).
-    Se vierem apenas tokens discretos, usa (min, max) como bin.
+    AdenylPred: 'C13 through C17 (47%)' -> set {13..17}, score in [0,1], and bin (low, high).
+    Accepts 'C13 through C17(47%)' (no space). If only discrete tokens appear,
+    uses (min, max) as a pseudo-bin.
     """
     score = None
     m = re.search(r'\((\d+)\s*%?\)', s)
@@ -144,7 +145,7 @@ def parse_adenyl_pred_set(s: str) -> Tuple[Set[int], Optional[float], Optional[T
 
 
 def choose_top_from_set(vals: Set[int]) -> Optional[int]:
-    """Top-1 determinístico: mediana (abaixo se par)."""
+    """Choose a deterministic 'top-1' from a set: the lower median."""
     if not vals:
         return None
     arr = sorted(vals)
@@ -154,6 +155,7 @@ def choose_top_from_set(vals: Set[int]) -> Optional[int]:
 
 
 def jaccard(P: Set[int], E: Set[int]) -> float:
+    """Jaccard index between sets P and E."""
     if not P and not E:
         return 1.0
     if not P and E:
@@ -167,9 +169,10 @@ def jaccard(P: Set[int], E: Set[int]) -> float:
 
 # ----------------- Header normalization -----------------
 def _norm_text(s: str) -> str:
+    """Normalize header strings for robust matching."""
     s = unicodedata.normalize("NFKD", s)
     s = s.strip().lower()
-    s = re.sub(r'[\s_/,-]+', ' ', s)  # junta separadores
+    s = re.sub(r'[\s_/,-]+', ' ', s)
     s = s.replace(':', '').replace('%', '').replace('(', '').replace(')', '')
     s = re.sub(r'\s+', ' ', s)
     return s
@@ -177,18 +180,18 @@ def _norm_text(s: str) -> str:
 
 def map_headers(cols) -> Dict[str, str]:
     """
-    Mapeia nomes reais de colunas para chaves canônicas:
+    Map actual column names to canonical keys:
       protein, accession, substrate, species, faalpred, adenylpred
     """
     norm_to_actual = {_norm_text(c): c for c in cols}
 
     def pick(cands: List[str]) -> Optional[str]:
-        # match exato
+        # Exact match
         for c in cands:
             n = _norm_text(c)
             if n in norm_to_actual:
                 return norm_to_actual[n]
-        # match relaxado (substring)
+        # Relaxed (substring) match
         for norm, actual in norm_to_actual.items():
             for c in cands:
                 n = _norm_text(c)
@@ -207,12 +210,14 @@ def map_headers(cols) -> Dict[str, str]:
 
 
 def ensure_columns(df) -> Dict[str, str]:
+    """Ensure all required columns exist; raise a clear error otherwise."""
     mapping = map_headers(df.columns)
     missing = [k for k, v in mapping.items() if v is None]
     if missing:
         raise ValueError(
-            "Não encontrei as colunas necessárias: {}.\nColunas encontradas: {}\n"
-            "Dica: a tabela final precisa ter exatamente:\n"
+            "Could not find the required columns: {}.\n"
+            "Found columns: {}\n"
+            "Hint: the final table must have exactly:\n"
             "Protein | Refseq/GenBank | Substrate in literature | Species | "
             "FAALPred, Prediction Score | AdenylPred, Prediction Score".format(missing, list(df.columns))
         )
@@ -222,7 +227,7 @@ def ensure_columns(df) -> Dict[str, str]:
 # ----------------- IO helpers -----------------
 def read_table_any(input_path: str) -> pd.DataFrame:
     """
-    Lê TSV/CSV com autodetecção de separador; se extensão for .xls/.xlsx, lê Excel.
+    Read TSV/CSV with automatic delimiter detection; if extension is .xls/.xlsx, read Excel.
     """
     lower = input_path.lower()
     if lower.endswith(".xls") or lower.endswith(".xlsx"):
@@ -236,6 +241,7 @@ def read_table_any(input_path: str) -> pd.DataFrame:
 
 
 def macro_mean(series: pd.Series) -> float:
+    """Mean over non-NaN values; returns NaN (float) if empty."""
     vals = series.dropna().values
     return float(np.mean(vals)) if len(vals) > 0 else float("nan")
 
@@ -243,22 +249,22 @@ def macro_mean(series: pd.Series) -> float:
 # ----------------- Save figures in multiple formats -----------------
 def save_multiformats(fig: plt.Figure, base_path_no_ext: str, dpi: int = 900) -> None:
     """
-    Salva a figura como:
-      - SVG (vetorial)
-      - PNG (dpi especificado)
-      - TIFF (dpi especificado; tenta .tiff e, se falhar, .tif)
+    Save the figure as:
+      - SVG (vector)
+      - PNG (specified dpi)
+      - TIFF (specified dpi; falls back to .tif if needed)
     """
     svg_path  = f"{base_path_no_ext}.svg"
     png_path  = f"{base_path_no_ext}.png"
     tiff_path = f"{base_path_no_ext}.tiff"
 
-    # SVG (vetorial)
+    # SVG
     fig.savefig(svg_path, format="svg")
 
-    # PNG 900 dpi (ou --dpi)
+    # PNG (e.g., 900 dpi)
     fig.savefig(png_path, format="png", dpi=dpi)
 
-    # TIFF 900 dpi (ou --dpi)
+    # TIFF (e.g., 900 dpi)
     try:
         fig.savefig(tiff_path, format="tiff", dpi=dpi)
     except Exception:
@@ -286,7 +292,7 @@ def run(input_path: str, outdir: str, dpi: int):
         E = parse_experimental_set(exp_text)
         preferred = parse_preferred_fa(exp_text, E)
 
-        # FAALPred (discreto): Exact-Hit
+        # FAALPred (discrete): Exact-Hit
         P_faal, faal_score = parse_faal_pred_set(faal_text)
         faal_top = choose_top_from_set(P_faal)
         faal_exact_hit = int(faal_top == preferred) if (preferred is not None and faal_top is not None) else np.nan
@@ -319,7 +325,7 @@ def run(input_path: str, outdir: str, dpi: int):
 
     res = pd.DataFrame.from_records(recs)
 
-    # ----- Resumo somente com as métricas pedidas -----
+    # ----- Summary with the requested metrics only -----
     summary = {
         "FAALPred": {
             "Exact_Hit_rate": macro_mean(res["FAALPred_ExactHit"]),
@@ -336,19 +342,21 @@ def run(input_path: str, outdir: str, dpi: int):
         "AdenylPred_Preferred_in_Bin_rate": summary["AdenylPred"]["Preferred_in_Bin_rate"],
     }
 
-    # ----- Escrita de arquivos -----
+    # ----- Write outputs -----
     os.makedirs(outdir, exist_ok=True)
-    per_case_path   = os.path.join(outdir, "per_case_metrics.csv")
+    per_case_path   = os.path.join(outdir, "per_case_metrics.tsv")   # TSV output
     summary_path    = os.path.join(outdir, "summary_metrics.json")
     summary_minimal = os.path.join(outdir, "summary_metrics_minimal.json")
 
-    res.to_csv(per_case_path, index=False)
+    # Per-protein metrics TSV
+    res.to_csv(per_case_path, sep="\t", index=False)
+    # JSON summaries
     with open(summary_path, "w") as f:
         json.dump(summary, f, indent=2)
     with open(summary_minimal, "w") as f:
         json.dump(minimal_summary, f, indent=2)
 
-    # ----- Figuras -----
+    # ----- Figures -----
     # A) AdenylPred: Jaccard + Preferred-in-Bin
     cats_ap = ["Jaccard (mean)", "Preferred-in-Bin"]
     vals_ap = [
@@ -380,11 +388,11 @@ def run(input_path: str, outdir: str, dpi: int):
 
 
 def main():
-    p = argparse.ArgumentParser()
-    p.add_argument("--input", "-i", required=True, help="TSV/CSV/XLSX no formato final (6 colunas)")
-    p.add_argument("--outdir", "-o", default=".", help="Diretório de saída (padrão: .)")
-    p.add_argument("--dpi", type=int, default=900, help="DPI para PNG/TIFF (padrão: 900)")
-    args = p.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input", "-i", required=True, help="Input TSV/CSV/XLSX in the final 6-column format")
+    parser.add_argument("--outdir", "-o", default=".", help="Output directory (default: current directory)")
+    parser.add_argument("--dpi", type=int, default=900, help="DPI for PNG/TIFF (default: 900)")
+    args = parser.parse_args()
 
     per_case, summary_json, summary_minimal, summary, minimal = run(args.input, args.outdir, dpi=args.dpi)
     print(json.dumps(minimal, indent=2))
@@ -395,4 +403,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
