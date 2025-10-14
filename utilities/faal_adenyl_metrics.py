@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 #Autor: Leandro de Mattos Pereira
+# -*- coding: utf-8 -*-
 """
-FAALPred vs AdenylPred — Complementary analyses (final, local-dir, robust headers)
+FAALPred vs AdenylPred — Complementary analyses (CLI, robust headers, multi-format figures)
 
 Uso:
-  python analysis_metrics_local_final.py --input ./input_table.tsv --outdir . --dpi 900
+  python faal_adenyl_metrics_cli.py --input ./input_table.tsv --outdir ./results --dpi 900
 
-Entrada esperada (6 colunas; variações leves de cabeçalho são aceitas):
+Entradas esperadas (6 colunas; variações leves de cabeçalho são aceitas):
   - Protein
   - Refseq/GenBank
   - Substrate in literature
@@ -21,7 +22,7 @@ Métricas reportadas:
 Saídas (em --outdir; padrão = .):
   - per_case_metrics.csv
   - summary_metrics.json            (estrutura completa)
-  - summary_metrics_minimal.json    (apenas X, Y, Z usados no paper)
+  - summary_metrics_minimal.json    (apenas métricas principais)
   - AdenylPred_overlap_and_bin.svg/.png/.tiff
   - FAALPred_exact_hit.svg/.png/.tiff
 """
@@ -33,7 +34,7 @@ import unicodedata
 import os
 from typing import List, Set, Optional, Tuple, Dict
 
-# Backend sem GUI (evita erro de display)
+# Backend sem GUI
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -261,7 +262,6 @@ def save_multiformats(fig: plt.Figure, base_path_no_ext: str, dpi: int = 900) ->
     try:
         fig.savefig(tiff_path, format="tiff", dpi=dpi)
     except Exception:
-        # fallback: algumas instalações aceitam melhor .tif
         fig.savefig(f"{base_path_no_ext}.tif", format="tiff", dpi=dpi)
 
     plt.close(fig)
@@ -395,3 +395,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
