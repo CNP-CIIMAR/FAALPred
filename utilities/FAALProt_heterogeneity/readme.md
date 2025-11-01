@@ -1,6 +1,8 @@
 # FAALProt Heterogeneity Analysis
 **Complete documentation for both the Jupyter notebook and the CLI script**  
 
+---
+
 ## Table of Contents
 - [1. Overview](#1-overview)
 - [2. Approach at a Glance](#2-approach-at-a-glance)
@@ -77,28 +79,27 @@ All figures are exported as **PNG (900 dpi)**, **TIFF (900 dpi)** and **SVG**, w
 ---
 
 
+
 ## 5. Mathematical Definitions
 
 ### 5.1 Pairwise Identity (from MSA)
 Let $A_i(t)$ be the residue of sequence $i$ at aligned position $t$, and let “$-$” denote a gap.  
 Identity between sequences $i$ and $j$ is
 $$
-\mathrm{Id}(i,j)
-=
-\frac{\sum_{t} \mathbf{1}\!\left\{A_i(t)=A_j(t)\ \land\ A_i(t)\neq -\ \land\ A_j(t)\neq -\right\}}
-     {\sum_{t} \mathbf{1}\!\left\{A_i(t)\neq -\ \land\ A_j(t)\neq -\right\}}
-\times 100\% \, .
+\mathrm{Id}(i,j) \;=\; 100\,\times\,
+\frac{\sum_{t} \mathbb{1}\big[ A_i(t)=A_j(t) \land A_i(t)\ne - \land A_j(t)\ne - \big]}
+     {\sum_{t} \mathbb{1}\big[ A_i(t)\ne - \land A_j(t)\ne - \big]} \, .
 $$
 
 ### 5.2 Dissimilarity
 $$
-d_{ij} \;=\; 1 - \frac{\mathrm{Id}(i,j)}{100}\, .
+d_{ij} \;=\; 1 \;-\; \frac{\mathrm{Id}(i,j)}{100} \, .
 $$
 
 ### 5.3 Cosine Similarity on W2V Mean Embeddings
 For mean vectors $v_i, v_j \in \mathbb{R}^{d}$:
 $$
-\cos(\theta_{ij}) \;=\; \frac{v_i \cdot v_j}{\lVert v_i\rVert \,\lVert v_j\rVert } \, .
+\cos(\theta_{ij}) \;=\; \frac{v_i \cdot v_j}{\lVert v_i\rVert \, \lVert v_j\rVert } \, .
 $$
 For dendrograms based on W2V, we use distances such as $1 - \cos(\theta_{ij})$.
 
@@ -282,3 +283,4 @@ Branches are colored by the **unique** phylum if all descendants share it; other
 - Pedregosa, F. *et al.* (2011). **scikit‑learn**: Machine Learning in Python. *JMLR*.
 - Hunter, J.D. (2007). **Matplotlib**: A 2D graphics environment. *Computing in Science & Engineering*.
 - Cock, P.J.A. *et al.* (2009). **Biopython**: freely available Python tools for computational biology. *Bioinformatics*.
+
