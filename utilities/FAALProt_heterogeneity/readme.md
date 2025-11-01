@@ -42,7 +42,7 @@ All figures are exported as **PNG (900 dpi)**, **TIFF (900 dpi)** and **SVG**, w
 
 ---
 
-## 2. Approach at a Glance
+## 2. Approach
 1. **Read FASTA** and an optional **Table_S2** metadata file.
 2. Derive **Phylum** from `Lineage` (if provided) and normalize names.
 3. (Optional) **Subsample** sequences for tractable MSA and visualization.
