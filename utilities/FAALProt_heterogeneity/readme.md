@@ -1,5 +1,6 @@
 # FAALProt Heterogeneity Analysis
 **Complete documentation for both the Jupyter notebook and the CLI script**  
+
 ---
 
 ## Table of Contents
@@ -85,13 +86,11 @@ All figures are exported as **PNG (900 dpi)**, **TIFF (900 dpi)** and **SVG**, w
 ### 5.1 Pairwise Identity (from MSA)
 Let A_i(t) be the residue of sequence i at aligned position t, and let '-' denote a gap.
 Identity between sequences i and j is:
-  
+
 $$
-\mathrm{Id}(i,j)
-=
-100 \times
-\frac{\sum_{t} \mathbf{1}[\, A_i(t)=A_j(t) \wedge A_i(t)\neq - \wedge A_j(t)\neq - \,]}
-     {\sum_{t} \mathbf{1}[\, A_i(t)\neq - \wedge A_j(t)\neq - \,]}
+\mathrm{Id}(i,j) \;=\; 100 \times
+\frac{\sum_{t} \mathbf{1}\big[\,A_i(t)=A_j(t) \wedge A_i(t)\neq - \wedge A_j(t)\neq -\,\big]}
+     {\sum_{t} \mathbf{1}\big[\,A_i(t)\neq - \wedge A_j(t)\neq -\,\big]}
 \, .
 $$
 
