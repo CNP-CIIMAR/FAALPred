@@ -5,7 +5,7 @@
 
 ## Table of Contents
 - [1. Overview](#1-overview)
-- [2. Approach at a Glance](#2-approach-at-a-glance)
+- [2. Approach ](#2-approach)
 - [3. Input Data & Metadata](#3-input-data--metadata)
 - [4. Software & Environment](#4-software--environment)
 - [5. Mathematical Definitions](#5-mathematical-definitions)
@@ -127,11 +127,13 @@ $$
 - For UMAP (identity‑based), we pass a **precomputed** dissimilarity matrix.
 
 ### 6.3 Subsampling of Pairs
-To limit the number of plotted pairs while keeping global coverage, we deterministically sample pairs using a **stride** over the upper triangle:
-\[
-\text{stride} = \left\lfloor \frac{N(N-1)/2}{S} \right\rfloor,
-\]
-where \(N\) is the number of sequences and \(S\) the target pair sample size (e.g., **600,000** and **1,000,000**). Every \(k\)-th pair (modulo `stride`) is retained. This yields evenly‑spaced coverage without bias toward any region of the triangle.
+To limit the number of plotted pairs while keeping global coverage, we deterministically sample pairs using a stride over the upper triangle:
+
+$$
+\text{stride} \;=\; \left\lfloor \frac{N(N-1)/2}{S} \right\rfloor \; .
+$$
+
+Here, $N$ is the number of sequences and $S$ the target pair sample size (e.g., 600{,}000 and 1{,}000{,}000). Every $k$-th pair (modulo stride) is retained. This yields evenly spaced coverage without bias toward any region of the triangle.
 
 ### 6.4 MMseqs2 Clustering Across Identity Cutoffs
 - We cluster with **MMseqs2** for cutoffs: **10, 20, …, 90%**.
