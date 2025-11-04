@@ -1,0 +1,35 @@
+name: faalpred
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+
+dependencies:
+  - python=3.9
+
+  # Core scientific stack
+  - numpy
+  - pandas
+  - scikit-learn
+  - imbalanced-learn
+  - umap-learn
+  - gensim
+  - joblib
+
+  # Bioinformatics
+  - biopython
+  - mafft
+  - bedtools
+
+  # Plotting and visualization
+  - matplotlib
+  - seaborn
+  - plotly
+  - python-kaleido   # needed for Plotly fig.to_image(...)
+  - pillow
+  - tabulate
+
+  # Web / app / I/O
+  - streamlit
+  - requests
+  - openpyxl         # Excel writer engine
