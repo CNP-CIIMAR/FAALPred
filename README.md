@@ -10,7 +10,7 @@ FAALPred is available as:
 
 ![FAALPred overview](image.png)
 
-*Figure – FAALPred workflow.*
+*Figure – Conceptual representation / screenshot related to FAALPred (place your figure in `image.png`).*
 
 ---
 
@@ -432,13 +432,17 @@ which can be cited as Supplementary Methods in the Protein Science article.
 
 If you use FAALPred in your research, please cite:
 
-> **Pereira LM**, Liong A, Leão PN.  
-> *FAALPred: Predicting fatty acyl chain specificities in Fatty Acyl-AMP Ligases using integrated neural-network embeddings and machine learning*.  
-> Protein Science, **in press** (details and DOI to be updated upon publication).
+**Diversity of FAAL enzymes and prediction of their substrate specificity using FAALPred**  
+Anne Liong¹˒²,†, Leandro de Mattos Pereira¹,† and Pedro N. Leão¹,*  
+¹ Interdisciplinary Centre of Marine and Environmental Research (CIIMAR/CIMAR), University of Porto, Matosinhos, 4450-208, Portugal  
+² ICBAS – School of Medicine and Biomedical Sciences, University of Porto, Porto, 4050-313, Portugal  
 
-(Please update this section with the final citation and DOI once the Protein Science paper is published.)
+*To whom correspondence should be addressed.* Email: [pleao@ciimar.up.pt](mailto:pleao@ciimar.up.pt)  
+† Anne Liong and Leandro de Mattos Pereira contributed equally to this work. *Artigo em revisão.*
 
 ---
+
+
 
 ## Contact and Acknowledgements
 
@@ -452,3 +456,4 @@ within the **Natural Products and Bioengineering group (CNP)**, led by **Pedro N
 For questions, bug reports or feature requests, please open an issue in this repository.
 
 The web server and code are supported by CIIMAR/CNP and associated funding agencies, as shown in the app footer (lab and institutional logos).
+
