@@ -1,4 +1,3 @@
-
 # FAALPred: Fatty Acyl-AMP Ligases (FAAL) Prediction Tool
 
 This document provides a comprehensive, Markdown-friendly explanation and usage guide for the FAALPred code.  
@@ -74,6 +73,8 @@ FAALPred is available as:
 
 - A public web server: **https://faalpred.ciimar.up.pt/**
 - A standalone package from GitHub: **https://github.com/CNP-CIIMAR/FAALPred**
+
+![FAALPred web interface](image.png)
 
 It is implemented in Python and distributed with a Conda environment file  
 **`faalpred_environment.yml`** that installs all required dependencies.
@@ -222,3 +223,4 @@ If you are running on a remote server, use the appropriate host/port combination
 If you do not wish to install anything locally, you can use FAALPred directly via the public web interface:
 
 👉 **https://faalpred.ciimar.up.pt/**
+
