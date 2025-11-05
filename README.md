@@ -1,157 +1,212 @@
 # FAALPred: Fatty Acyl-AMP Ligases (FAAL) Prediction Tool
 
-This document provides a comprehensive, Markdown-friendly explanation and usage guide for the FAALPred code.  
-The Supplementary Methodology is structured to clearly outline the main functions and workflow of FAALPred.  
-The file **`Supplementary_methodology.dox`** serves as a detailed reference for users.
+FAALPred is a reproducible, open-source workflow to predict the fatty acyl chain-length specificity of Fatty Acyl-AMP Ligases (FAALs), in the range from C4 to C18.  
+It combines **protein-domain extraction**, **MAFFT-based alignment**, **Word2Vec protein embeddings**, **oversampling strategies**, and **Random Forest models with probability calibration**, all wrapped in an interactive **Streamlit** interface.
+
+FAALPred is available as:
+
+- 🌐 **Public web server**: https://faalpred.ciimar.up.pt/  
+- 💻 **Local Streamlit app** (this repository)
+
+![FAALPred overview](image.png)
+
+*Figure – Conceptual representation / screenshot related to FAALPred (place your figure in `image.png`).*
 
 ---
 
-## Functions and Classes
+## Table of Contents
 
-### Standalone Functions
-
-- `are_sequences_aligned`
-- `create_unique_model_directory`
-- `realign_sequences_with_mafft`
-- `plot_roc_curve_global`
-- `get_class_rankings_global`
-- `calculate_roc_values`
-- `visualize_latent_space_with_similarity`
-- `format_and_sum_probabilities`
-- `plot_predictions_scatterplot_custom`
-- `adjust_predictions_global`
-- `main`
-
-### Support (class)
-
-- `_oversample_single_sample_classes`
-- `fit`
-- `_perform_grid_search`
-- `get_best_param`
-- `plot_learning_curve` (method of `Support`)
-- `get_class_rankings` (method of `Support`)
-- `test_best_RF`
-- `_calculate_score`
-- `plot_roc_curve` (method of `Support`)
-
-### ProteinEmbeddingGenerator (class)
-
-- `generate_embeddings`
-- `get_embeddings_and_labels`
-
-### Additional Streamlit Setup and Theming
-
-The codebase also includes extended Streamlit configuration and theming to provide:
-
-- A customized sidebar and main layout
-- Styled tables and buttons
-- Downloadable plots and result tables
-- Integration with external tools (InterProScan, bedtools) for FAAL domain extraction
+- [Overview](#overview)
+- [Method Summary](#method-summary)
+- [Code Structure](#code-structure)
+- [Requirements](#requirements)
+- [Installation](#installation)
+  - [1. Install Git and Conda](#1-install-git-and-conda)
+  - [2. Clone this repository](#2-clone-this-repository)
+  - [3. Create and activate the `faalpred` environment](#3-create-and-activate-the-faalpred-environment)
+- [Running FAALPred](#running-faalpred)
+  - [Default training data vs custom training](#default-training-data-vs-custom-training)
+  - [Input formats](#input-formats)
+  - [Main outputs](#main-outputs)
+- [Auxiliary Tool: Automatic FAAL Domain Extraction](#auxiliary-tool-automatic-faal-domain-extraction)
+- [Reproducibility, Logging and Directories](#reproducibility-logging-and-directories)
+- [Supplementary Methodology and Internal API](#supplementary-methodology-and-internal-api)
+- [Citation](#citation)
+- [Contact and Acknowledgements](#contact-and-acknowledgements)
 
 ---
 
 ## Overview
 
-FAALPred is a comprehensive bioinformatics tool designed to predict fatty-acid chain-length specificity (ranging from C4 to C18) of Fatty Acyl-AMP Ligases (FAALs).  
-It integrates several computational approaches in a single workflow:
+Fatty Acyl-AMP Ligases (FAALs) activate fatty acids of different chain lengths for incorporation into natural product biosynthetic pathways.  
+FAALPred predicts **chain-length specificity profiles** (C4–C18) of FAAL domains based only on their amino acid sequences.
 
-### Main Features
+The core model was developed and tested on FAAL domains identified with conserved domain annotations (e.g. **CDD cd05931: FAAL**), and is intended to be used **on FAAL domains**, not full-length multidomain proteins.  
 
-- **MAFFT alignment** for realigning sequences when they are unaligned.
-- **Word2Vec embeddings** to represent protein sequences via sliding-window k-mers.
-- **Random Forest classifier** with probability calibration for substrate prediction.
-- **Oversampling strategies** using `RandomOverSampler` and `SMOTE` to balance classes in small datasets.
-- **UMAP-based dimensionality reduction and visualization** to inspect latent spaces and synthetic vs. original samples.
-- **Performance evaluation** with ROC curves, Precision–Recall AUC, F1 scores, calibration curves, and confusion matrices.
-- **Interactive Streamlit interface** guiding the user through training, prediction, visualization, and exporting results.
+The graphical interface provides:
 
----
-
-## Requirements and Installation
-
-FAALPred is available as:
-
-- A public web server: **https://faalpred.ciimar.up.pt/**
-- A standalone package from GitHub: **https://github.com/CNP-CIIMAR/FAALPred**
-
-![FAALPred web interface](image.png)
-
-It is implemented in Python and distributed with a Conda environment file  
-**`faalpred_environment.yml`** that installs all required dependencies.
-
-### Python version
-
-FAALPred was developed and tested with **Python 3.9**  
-(Python ≥ 3.8 should also work, but 3.9 is recommended).
+- Guided training and prediction workflow (with default training data or user-supplied data),
+- FAAL domain extraction helper using InterProScan + bedtools,
+- Multiple quality-control plots (UMAP, oversampling diagnostics, F1 per class, calibration, etc.),
+- Tabular output with a **single “best specificity block”** plus a **continuous confidence score (0–1)**.
 
 ---
 
-## 0. Install Git and Conda (if needed)
+## Method Summary
 
-### Install Git
+At a high level, FAALPred performs:
 
-- **Ubuntu / Debian (Linux)**:
-  ```bash
-  sudo apt update
-  sudo apt install git
-  ```
-- **macOS**:
-  - Either install Xcode Command Line Tools:
-    ```bash
-    xcode-select --install
-    ```
-  - Or install via Homebrew:
-    ```bash
-    brew install git
-    ```
-- **Windows**:
-  - Download and install Git from: https://git-scm.com/downloads
+1. **FAAL domain extraction (optional but recommended)**  
+   - Via an auxiliary pipeline that uses the InterProScan REST API and `bedtools getfasta` to extract FAAL domains from full-length proteins.
 
-### Install Anaconda or Miniconda
+2. **Sequence alignment and preprocessing**
+   - If sequences are not aligned, FAALPred calls **MAFFT** (localpair / maxiterate 1000) to generate a multiple sequence alignment.
+   - The model operates on the aligned sequences.
 
-If Conda is not installed, install either:
+3. **Protein sequence embedding**
+   - Sequences are tokenized into overlapping k-mers (default `k=3`, user-configurable `step_size`).
+   - A **Word2Vec** model (`gensim`) is trained (or reused if already present) on k-mer “sentences”.
+   - Per-protein embeddings are built by:
+     - generating k-mer embeddings,
+     - standardizing the number of k-mers per sequence (`min_kmers`),
+     - aggregating k-mer embeddings (currently using the **mean** aggregation by default).
 
+4. **Feature scaling**
+   - Embeddings are standardized using `StandardScaler`.
+   - The scaler is saved (`scaler_associated.pkl`) for later reuse in prediction.
+
+5. **Class balancing and oversampling**
+   - Class distributions are often highly imbalanced.
+   - FAALPred applies:
+     - **RandomOverSampler** (with class-specific minimum counts ≥ CV folds + 1),
+     - followed by **SMOTE** oversampling.
+   - Quality diagnostics include:
+     - 3D **UMAP** visualizations of original vs synthetic samples,
+     - cosine similarity histograms,
+     - silhouette coefficient distributions by class.
+
+6. **Model training and calibration**
+   - A **Random Forest** classifier is trained on the oversampled embeddings.
+   - Hyperparameters are tuned via **GridSearchCV** with stratified cross-validation.
+   - The best model is then calibrated with **isotonic regression** (`CalibratedClassifierCV`).
+   - Evaluation includes:
+     - F1 scores (global and per class),
+     - ROC AUC (binary or multi-class OVO),
+     - Precision–Recall AUC,
+     - confusion matrices,
+     - calibration curves,
+     - violin plots of predicted probabilities for the true class (train vs test).
+
+7. **Prediction on new sequences**
+   - New sequences are aligned (if required), embedded, scaled with the trained scaler, and fed into the calibrated RF model.
+   - For each query:
+     - full ranked probabilities for all classes are computed,
+     - FAALPred maps single-chain-length labels into **chain-length “blocks”** (e.g. `C4–C6–C8`, `C10–C12–C14`, …),
+     - a **single main block** is returned together with a **continuous confidence score in [0,1]**, based on normalized probabilities across top blocks.
+
+---
+
+## Code Structure
+
+The implementation is contained in a single main Streamlit script (`faalpred.py`) plus supporting data and image folders.
+
+### Main Classes
+
+- **`Support`**
+  - Random Forest training with oversampling and cross-validation
+  - Grid search for hyperparameter tuning
+  - Probability calibration with `CalibratedClassifierCV`
+  - Learning-curve plotting
+  - Testing and evaluation (`test_best_RF`), including:
+    - F1 per class,
+    - confusion matrix & calibration curves,
+    - violin plots of predicted probabilities.
+
+- **`ProteinEmbeddingGenerator`**
+  - Handles sequence alignment (MAFFT if needed),
+  - Generates k-mer based Word2Vec embeddings,
+  - Manages the `min_kmers` logic and aggregation strategy,
+  - Produces standardized embedding matrices and associated labels (`associated_variable`).
+
+### Key Standalone Functions
+
+- `are_sequences_aligned`  
+- `create_unique_model_directory`  
+- `realign_sequences_with_mafft`  
+- `plot_roc_curve_global`  
+- `plot_precision_recall_curve_global`  
+- `get_class_rankings_global`  
+- `visualize_latent_space_with_similarity`  
+- `plot_umap_3d_combined`  
+- `plot_oversampling_quality`  
+- `plot_confusion_and_calibration`  
+- `adjust_predictions_global`  
+- `format_and_sum_probabilities`  
+- `plot_predictions_scatterplot_custom`  
+- `plot_prediction_confidence_bar`  
+
+### Auxiliary Tools (FAAL domain extraction)
+
+- InterProScan REST API workflow:
+  - `submit_job`, `poll_status`, `retrieve_result`
+- FAAL-specific domain extraction:
+  - `extract_faal`, `create_bed`, `run_bedtools`, `process_faal_domain`
+
+A more detailed, method-oriented description is provided in the file  
+**`Supplementary_methodology.dox`**, which serves as an extended “Supplementary Methods” reference for the accompanying manuscript.
+
+---
+
+## Requirements
+
+- **Python**: 3.9 (Python ≥ 3.8 should work, but the environment is built for 3.9).
+- **Conda** (Anaconda or Miniconda)
+- **Operating system**: Linux, macOS, or Windows (64-bit recommended)
+- **MAFFT** (for sequence alignment; must be available in `PATH`)
+- **bedtools** (for the optional FAAL domain extraction tool; see below)
+
+All Python dependencies are specified in the `faalpred_environment.yml` file.
+
+---
+
+## Installation
+
+### 1. Install Git and Conda
+
+If not already installed:
+
+- **Git**: https://git-scm.com/downloads  
 - **Anaconda**: https://www.anaconda.com/download  
-- **Miniconda** (lighter): https://docs.conda.io/en/latest/miniconda.html  
+  or  
+- **Miniconda** (lightweight): https://docs.conda.io/en/latest/miniconda.html  
 
-After installation, open a **terminal** (or Anaconda Prompt on Windows).
+After installation, open a **terminal** (or **Anaconda Prompt** on Windows).
 
----
-
-## 1. Clone the FAALPred repository
-
-In your terminal, run:
+### 2. Clone this repository
 
 ```bash
 git clone https://github.com/CNP-CIIMAR/FAALPred.git
 cd FAALPred
 ```
 
-After these commands:
+After this step, the file **`faalpred_environment.yml`** is available in the current directory.
 
-- You will be inside the `FAALPred` directory.
-- The file **`faalpred_environment.yml`** will be in this directory.
+### 3. Create and activate the `faalpred` environment
 
----
-
-## 2. Create and activate the Conda environment
-
-From inside the `FAALPred` directory, create the environment using the provided YAML file:
+Create the Conda environment from the YAML file:
 
 ```bash
 conda env create -f faalpred_environment.yml
 conda activate faalpred
 ```
 
-The environment name is **`faalpred`** (defined in the YAML file).
-
-Each time you want to work with FAALPred, you must activate the environment:
+Every time you want to use FAALPred locally:
 
 ```bash
 conda activate faalpred
 ```
 
-To deactivate it when you are done:
+To leave the environment:
 
 ```bash
 conda deactivate
@@ -159,29 +214,23 @@ conda deactivate
 
 ---
 
-## 3. (Optional) Verify the installation
+## Running FAALPred
 
-You can quickly verify that the most important packages are correctly installed:
-
-```bash
-python -c "import numpy, pandas, sklearn, matplotlib, plotly, streamlit, gensim, Bio; print('All key packages imported successfully!')"
-```
-
-If you see the message **`All key packages imported successfully!`**, the environment is correctly set up.
-
----
-
-## 4. Configure Streamlit (optional, for server deployment)
-
-To customize Streamlit’s server behavior (useful on remote servers), create or edit the file  
-`~/.streamlit/config.toml`:
+With the environment activated (`conda activate faalpred`) and standing in the repository root:
 
 ```bash
-mkdir -p ~/.streamlit
-nano ~/.streamlit/config.toml
+streamlit run faalpred.py
 ```
 
-Add the following content:
+Streamlit will print a local URL such as:
+
+```text
+Local URL: http://localhost:8501
+```
+
+Open this URL in your browser to access the FAALPred interface.
+
+If running on a remote server, you can configure Streamlit via `~/.streamlit/config.toml` (for example):
 
 ```toml
 [server]
@@ -192,35 +241,214 @@ address = "0.0.0.0"
 port = 8501
 ```
 
-Save and close the file.
+---
 
-This step is **optional** for local use but helpful if running FAALPred on a server.
+### Default training data vs custom training
+
+On the **left sidebar**, the app provides:
+
+- **Use Default Training Data** (checkbox)  
+  - If enabled, FAALPred uses the internal training set:
+    - `data/train.fasta`
+    - `data/train_table.tsv`
+- If you uncheck this option, you can upload your own:
+  - **Training FASTA** (aligned or unaligned protein sequences),
+  - **Training table (TSV)** with at least the columns:
+    - `Protein.accession`
+    - `Target variable`
+    - `Associated variable`  
+    (`Associated variable` is the chain-length specificity label used for training.)
+
+For **prediction**, you must upload a **FASTA file** containing the **query FAAL domains**.
+
+Other tunable parameters in the sidebar:
+
+- `K-mer Size` (default: 3)  
+- `Step Size` (default: 1)  
+- `Aggregation Method` (currently `mean`)  
+- Optional Word2Vec settings: window size, number of workers, number of epochs.
 
 ---
 
-## 5. Run the FAALPred application (Streamlit)
+### Input formats
 
-With the **`faalpred`** environment activated and from inside the `FAALPred` directory, run:
+#### 1. Training FASTA
 
-```bash
-streamlit run faalpred.py
-```
+- Multi-FASTA protein file with one sequence per FAAL domain.
+- Sequences may be aligned or unaligned:
+  - If unaligned, FAALPred automatically runs MAFFT and creates an `_aligned.fasta` file.
 
-Streamlit will start the web application and print a URL in the terminal, typically:
+#### 2. Training table (TSV)
+
+A tab-delimited file where each row corresponds to a FAAL domain in the training FASTA.  
+Required columns:
+
+- `Protein.accession` – identifier matching sequence headers (up to first whitespace),
+- `Target variable` – optional or unused in some runs,
+- `Associated variable` – chain-length specificity label used as the **class**.
+
+#### 3. Prediction FASTA
+
+- Multi-FASTA file with the **FAAL domains to be predicted**.
+- Recommended: use the **Auxiliary FAAL domain tool** to extract domains first (see below).
+
+---
+
+### Main outputs
+
+By default, outputs are created under:
 
 ```text
-  Local URL: http://localhost:8501
+results/models_<aggregation_method>/
 ```
 
-Open this URL in your web browser to use **FAALPred** locally.
+For example, with the default aggregation method `mean`:
 
-If you are running on a remote server, use the appropriate host/port combination (for example, `http://server_ip:8501`) depending on your network and firewall settings.
+```text
+results/models_mean/
+```
+
+Key files include:
+
+- **`predictions.tsv`**  
+  Tab-separated file with, for each protein:
+  - Protein ID,
+  - Predicted specificity label (`Associated_Prediction`),
+  - Full probability ranking across classes.
+
+- **`results.xlsx`**  
+  Excel version of the formatted results table:
+
+  - **Query Name**
+  - **SS Prediction Specificity** (e.g. `C10-C12-C14`)
+  - **Prediction Confidence ( range: 0 - 1 )**  
+    (continuous score derived from normalized probabilities of the top specificity blocks)
+
+- **`formatted_results.txt`**  
+  The same table as ASCII/Markdown-style grid (via `tabulate`).
+
+- **`scatterplot_predictions.png`**  
+  Publication-ready scatter plot:  
+  - Y-axis: protein IDs  
+  - X-axis: chain-length positions (C4 to C18)  
+  - Lines mark the predicted block for each protein.
+
+- **Oversampling and latent-space diagnostics** (in `quality_figures/` and root of `model_dir`)
+  - `cosine_similarity_histogram_by_class.[png|svg]`
+  - `silhouette_per_class_boxplot.[png|svg]`
+  - `umap_3d_pre_cv.html`
+  - `umap_similarity_3D.html`
+
+- **Model & scaler files**
+  - `word2vec_model.bin`
+  - `scaler_associated.pkl`
+  - `model_best_associated.pkl`
+  - `calibrated_model_associated.pkl`
+
+- **Performance plots**
+  - `f1_per_class.[png|svg]`
+  - `true_probability_violin.[png|svg]`
+  - `learning_curve_associated.png`
+  - `roc_curve_associated.png`
+  - `test_best_RF_cm_calibration.png` (side-by-side confusion matrix and calibration curve)
+  - `pr_curve_associated.png`
+
+From the Streamlit interface, you can also:
+
+- Download **CSV** and **Excel** tables directly,
+- Download a **`results.zip`** archive containing all outputs in the chosen run directory.
 
 ---
 
-## 6. Use the public FAALPred web server
+## Auxiliary Tool: Automatic FAAL Domain Extraction
 
-If you do not wish to install anything locally, you can use FAALPred directly via the public web interface:
+FAALPred includes an **Auxiliary Tool** in the sidebar: **“Get your FAAL domain”**.
 
-👉 **https://faalpred.ciimar.up.pt/**
+This workflow:
 
+1. Accepts a **full-length FASTA** file uploaded by the user.
+2. Submits the file to the **EBI InterProScan REST API** (`iprscan5`).
+3. Monitors the job until completion.
+4. Parses the TSV output to find hits containing `"FAAL"`.
+5. Builds a **BED** file with FAAL coordinates.
+6. Uses `bedtools getfasta` to extract the corresponding FAAL regions.
+7. Returns a processed FASTA file containing only the FAAL domains.
+
+The final FASTA can then be used as:
+
+- **Training FASTA** (if you are building your own model), or
+- **Prediction FASTA** (for direct specificity prediction).
+
+> **Important:**  
+> The model in this repository was trained **only on FAAL domains**, identified by conserved-domain signatures (e.g. **CDD cd05931: FAAL**).  
+> For best performance and interpretability, **always extract the FAAL domain** before running predictions.
+
+### Additional requirement for this tool
+
+- `bedtools` must be installed and available in your `PATH`. For example:
+
+```bash
+conda install -c bioconda bedtools
+```
+
+The InterProScan calls require Internet access and comply with EBI’s usage policies.
+
+---
+
+## Reproducibility, Logging and Directories
+
+- Outputs are organized under `results/` by **aggregation method**:
+  - e.g. `results/models_mean/`
+- Oversampling statistics are recorded in:
+  - `oversampling_counts.txt`
+  - `training_sample_counts_after_oversampling.txt`
+- A simple visit counter for the web interface uses:
+  - `logs/visit_count.txt` (created automatically if missing)
+- Progress bars and status messages within Streamlit track the main pipeline steps.
+
+Random seeds (`SEED = 42`) are fixed in the code for NumPy and Python’s random module to improve reproducibility.
+
+---
+
+## Supplementary Methodology and Internal API
+
+A detailed description of the FAALPred workflow, including:
+
+- k-mer generation strategy,
+- embedding dimensionality and Word2Vec training hyperparameters,
+- oversampling and cross-validation setup,
+- ROC / PR AUC evaluation and calibration,
+- latent-space visualizations (UMAP, silhouette analyses),
+
+is provided in the file:
+
+- **`Supplementary_methodology.dox`**
+
+which can be cited as Supplementary Methods in the Protein Science article.
+
+---
+
+## Citation
+
+If you use FAALPred in your research, please cite:
+
+> **Pereira LM**, Liong A, Leão PN.  
+> *FAALPred: Predicting fatty acyl chain specificities in Fatty Acyl-AMP Ligases using integrated neural-network embeddings and machine learning*.  
+> Protein Science, **in press** (details and DOI to be updated upon publication).
+
+(Please update this section with the final citation and DOI once the Protein Science paper is published.)
+
+---
+
+## Contact and Acknowledgements
+
+FAALPred was developed at **CIIMAR – Interdisciplinary Centre of Marine and Environmental Research**,  
+within the **Natural Products and Bioengineering group (CNP)**, led by **Pedro N. Leão**.
+
+- Leandro de Mattos Pereira  
+- Anne Liong  
+- Pedro N. Leão  
+
+For questions, bug reports or feature requests, please open an issue in this repository.
+
+The web server and code are supported by CIIMAR/CNP and associated funding agencies, as shown in the app footer (lab and institutional logos).
