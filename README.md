@@ -10,7 +10,7 @@ FAALPred is available as:
 
 ![FAALPred overview](image.png)
 
-*Figure – Conceptual representation / screenshot related to FAALPred (place your figure in `image.png`).*
+*Figure – FAALPred workflow.*
 
 ---
 
