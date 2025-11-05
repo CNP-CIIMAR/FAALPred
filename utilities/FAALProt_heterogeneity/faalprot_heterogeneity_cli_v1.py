@@ -1,34 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-FAALProt Heterogeneity Analysis — CLI
-====================================
-
-End-to-end pipeline for heterogeneity analyses of FAAL proteins.
-
-What it does
-------------
-A) Multiple sequence alignment (MAFFT) on a (sub)set of input sequences.
-B) Pairwise identities (streamed) -> sampled pairs ->
-   • Barplot of identity distribution
-   • UMAP on dissimilarity (1 − identity) with distinct Phylum colors, legend below
-   • Dendrogram (linkage on dissimilarity) with branch colors by Phylum
-   • Intra-cluster (MMseqs2) counts × identity deciles × cutoff: lines + heatmap
-   • Cluster-size vs identity-cutoff curves (mean/median/P95 and largest cluster)
-C) Optional Part B — Word2Vec (k-mer embeddings from MSA sequences without gaps):
-   • Cosine vs identity (hexbin) for intra- and inter-phylum
-   • t‑SNE and UMAP of mean W2V vectors by Phylum
-   • Dendrogram from W2V mean vectors (branches colored by Phylum)
-
-All figures are saved WITHOUT titles, with legends positioned BELOW the plot,
-and exported as: .png (900 dpi), .tiff (900 dpi), and .svg.
-
-Notes
------
-• Phylum normalization: "Actinobacteria" → "Actinomycetota".
-• Phyla named "Unknown"/"uncultured"/"uncultivated" are excluded from color plots.
-• Requires MAFFT and MMseqs2 installed and reachable (see --mafft-bin/--mmseqs-bin).
-"""
-
 from __future__ import annotations
 
 import os, sys, json, shutil, random, warnings, argparse, subprocess
@@ -207,7 +176,7 @@ def read_table_s2(table_path: Optional[str]) -> Optional[pd.DataFrame]:
         return None
     ext = Path(table_path).suffix.lower()
     if ext == '.tsv':
-        df = pd.read_csv(table_path, sep='\\t', dtype=str, engine='python')
+        df = pd.read_csv(table_path, sep='\t', dtype=str, engine='python')
     else:
         try:
             df = pd.read_csv(table_path, sep=None, dtype=str, engine='python')
@@ -347,6 +316,11 @@ def read_aligned_fasta_to_array(fa_aligned: str) -> Tuple[List[str], np.ndarray]
     return ids, arr
 
 def msa_identities_stream(ids: List[str], arr: np.ndarray, out_csv: str, sample_sizes: List[int]) -> Dict[int, pd.DataFrame]:
+    """
+    Calcula identidades par-a-par e escreve:
+      - pairs.csv                  -> todos os pares
+      - pairs_sample_reqX_real_Y   -> amostras, com Y = número real de pares
+    """
     n = len(ids); total = n*(n-1)//2
     ensure_outdir(os.path.dirname(out_csv))
     with open(out_csv, 'w', encoding='utf-8') as f:
@@ -367,10 +341,14 @@ def msa_identities_stream(ids: List[str], arr: np.ndarray, out_csv: str, sample_
                         buffers[s].append((ids[i], ids[j], idp))
                 k += 1
     out = {}
+    base_dir = os.path.dirname(out_csv)
     for s, buf in buffers.items():
         df = pd.DataFrame(buf, columns=['seq_i','seq_j','identity_percent'])
-        df.to_csv(os.path.join(os.path.dirname(out_csv), f"pairs_sample_{s}.csv"), index=False)
+        real_n = len(df)
+        csv_path = os.path.join(base_dir, f"pairs_sample_req{s}_real_{real_n}.csv")
+        df.to_csv(csv_path, index=False)
         out[s] = df
+        print(f"[pairs_sample] target={s} real={real_n} -> {os.path.basename(csv_path)}")
     return out
 
 # ---------- MMseqs2 Clustering ----------
@@ -496,7 +474,7 @@ def plot_umap_from_pairs_sample(pairs_df_sample: pd.DataFrame, seqs_df: pd.DataF
         color_map = {p: colors[i] for i,p in enumerate(phyla)}
     else:
         color_map = {p: palette.get(p, (0.6,0.6,0.6,1.0)) for p in phyla}
-    point_colors = [color_map.get(ph_map.get(sid), (0.5,0.5,0.5,1)) for sid in ids_filt]
+    point_colors = [color_map.get(ph_map.get(sid, (0.5,0.5,0.5,1))) for sid in ids_filt]
     plt.figure(figsize=(13.0, 13.0))
     ax = plt.gca()
     ax.scatter(emb[:,0], emb[:,1], c=point_colors, s=18, alpha=0.95, linewidths=0)
@@ -684,7 +662,7 @@ def _reduce_and_plot(df_mean: pd.DataFrame, method: str, outdir: str, palette: O
     plt.gca().set_aspect('equal', adjustable='box')
     from matplotlib.lines import Line2D
     handles = [Line2D([0],[0], marker='o', color='w', label=p, markerfacecolor=color_map[p], markersize=6) for p in uniq]
-    plt.legend(handles=handles, bbox_to_anchor=(0.5, -0.12), loc='upper center', ncol=min(6, max(1, len(uniq))))
+    plt.legend(handles=handles, bbox_to_anchor=(0.5, -0.12), loc='upper center', ncol=min(6, max(1, len(handles))))
     return _save_multiformat(out)
 
 def plot_tsne_umap_w2v_means(df_mean: pd.DataFrame, outdir: str, palette: Optional[Dict[str, tuple]]=None) -> None:
@@ -870,7 +848,8 @@ def run_pipeline(
     clusters_df = generate_clusters_with_mmseqs(mmseqs_bin, seqs_df, run_dir, FIXED_CUTOFFS, extra_opts=mmseqs_extra_opts or ['--cov-mode','0'])
 
     for s, df_s in samples.items():
-        subplots_dir = os.path.join(run_dir, f'plots_sample_{s}'); ensure_outdir(subplots_dir)
+        sample_label = f"req{s}_real_{len(df_s)}"
+        subplots_dir = os.path.join(run_dir, f'plots_sample_{sample_label}'); ensure_outdir(subplots_dir)
         plot_bar_identity_distribution(df_s, subplots_dir)
         plot_umap_from_pairs_sample(df_s, seqs_df, subplots_dir, palette=global_palette)
         plot_dendrogram_from_pairs_sample(df_s, seqs_df, subplots_dir, palette=global_palette, method='average', max_leaves=800)
@@ -909,7 +888,8 @@ def run_pipeline(
             emb_df = emb_df.merge(seqs_df[['sequence_id','phylum']], on='sequence_id', how='left').fillna({'phylum':'Unknown'})
             emb_df['phylum'] = emb_df['phylum'].apply(normalize_phylum_name)
             for s, df_s in samples.items():
-                subplots_dir = os.path.join(run_dir, f'plots_sample_{s}'); ensure_outdir(subplots_dir)
+                sample_label = f"req{s}_real_{len(df_s)}"
+                subplots_dir = os.path.join(run_dir, f'plots_sample_{sample_label}'); ensure_outdir(subplots_dir)
                 cosine_vs_identity_plots(df_s, emb_df, seqs_df, subplots_dir)
             plot_tsne_umap_w2v_means(emb_df[['sequence_id','phylum'] + [c for c in emb_df.columns if c.startswith('f')]], run_dir, palette=global_palette)
             plot_dendrogram_from_w2v_means(emb_df[['sequence_id','phylum'] + [c for c in emb_df.columns if c.startswith('f')]], run_dir, palette=global_palette, metric='cosine', method='average', max_leaves=w2v_dendro_max_leaves)
@@ -961,7 +941,7 @@ Analyses produced (saved as PNG/TIFF 900 dpi and SVG):
 Optional Part B (Word2Vec):
   07_cosine_vs_identity_intra          Cosine (W2V mean) vs real identity — intra-phylum.
   08_cosine_vs_identity_inter          Cosine (W2V mean) vs real identity — inter-phylum.
-  09_tsne_w2v_mean_by_phylum           t‑SNE on W2V means, colored by Phylum.
+  09_tsne_w2v_mean_by_phylum           t-SNE on W2V means, colored by Phylum.
   10_umap_w2v_mean_by_phylum           UMAP on W2V means, colored by Phylum.
   13_dendrogram_w2v_mean_by_phylum     Dendrogram from W2V means (branches by Phylum).
 
