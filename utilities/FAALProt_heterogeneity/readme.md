@@ -1,35 +1,35 @@
 # FAALProt Heterogeneity Analysis
-**Complete documentation for both the Jupyter notebook and the CLI script (v2, with Word2Vec grid search)**  
+
+**Complete documentation for the FAAL heterogeneity CLI (`faalprot_heterogeneity_cli_v2.py`) and the underlying approach.**
 
 ---
 
 ## Table of Contents
-- [1. Overview](#1-overview)
-- [2. Approach](#2-approach)
-- [3. Input Data & Metadata](#3-input-data--metadata)
-- [4. Software & Environment](#4-software--environment)
-- [5. Mathematical Definitions](#5-mathematical-definitions)
-  - [5.1 Pairwise Identity](#51-pairwise-identity)
-  - [5.2 Dissimilarity](#52-dissimilarity)
-  - [5.3 k-mer Tokenization (Aligned Sequences)](#53-kmer-tokenization-aligned-sequences)
-  - [5.4 Word2Vec Sequence Embeddings](#54-word2vec-sequence-embeddings)
-  - [5.5 Cosine Similarity on Embeddings](#55-cosine-similarity-on-embeddings)
-  - [5.6 Binned Identity & Counts](#56-binned-identity--counts)
-  - [5.7 Correlation Between Identity and Cosine Similarity](#57-correlation-between-identity-and-cosine-similarity)
-- [6. Pipeline Stages](#6-pipeline-stages)
-  - [6.1 Multiple Sequence Alignment (MAFFT)](#61-multiple-sequence-alignment-mafft)
-  - [6.2 Pairwise Identities & Dissimilarity Matrix](#62-pairwise-identities--dissimilarity-matrix)
-  - [6.3 Subsampling of Pairs](#63-subsampling-of-pairs)
-  - [6.4 MMseqs2 Clustering Across Identity Cutoffs](#64-mmseqs2-clustering-across-identity-cutoffs)
-  - [6.5 Visualizations (Alignment-based)](#65-visualizations-alignment-based)
-  - [6.6 Optional Part B — Word2Vec Analyses (Alignment → k-mers → Embeddings)](#66-optional-part-b--word2vec-analyses-alignment--k-mers--embeddings)
-- [7. Color Policy (Distinct Phylum Colors)](#7-color-policy-distinct-phylum-colors)
-- [8. Outputs & Directory Layout](#8-outputs--directory-layout)
-- [9. Reproducibility, Performance & Practical Notes](#9-reproducibility-performance--practical-notes)
-- [10. How to Run — Jupyter Version](#10-how-to-run--jupyter-version)
-- [11. How to Run — CLI Version (v2)](#11-how-to-run--cli-version-v2)
-- [12. FAQ](#12-faq)
-- [13. References](#13-references)
+
+- [1. Overview](#1-overview)  
+- [2. Approach](#2-approach)  
+- [3. Input Data & Metadata](#3-input-data--metadata)  
+- [4. Software & Environment](#4-software--environment)  
+- [5. Mathematical Definitions](#5-mathematical-definitions)  
+  - [5.1 Aligned Sequences](#51-aligned-sequences)  
+  - [5.2 Pairwise Identity](#52-pairwise-identity)  
+  - [5.3 Dissimilarity Matrix](#53-dissimilarity-matrix)  
+  - [5.4 k-mers and Word2Vec Embeddings](#54-k-mers-and-word2vec-embeddings)  
+  - [5.5 Identity Bins and Pair Sampling](#55-identity-bins-and-pair-sampling)  
+  - [5.6 Correlation Identity vs Cosine Similarity](#56-correlation-identity-vs-cosine-similarity)  
+- [6. Pipeline Stages](#6-pipeline-stages)  
+  - [6.1 Multiple Sequence Alignment (MAFFT)](#61-multiple-sequence-alignment-mafft)  
+  - [6.2 Pairwise Identities & Dissimilarity Matrix](#62-pairwise-identities--dissimilarity-matrix)  
+  - [6.3 Subsampling of Sequences and Pairs](#63-subsampling-of-sequences-and-pairs)  
+  - [6.4 MMseqs2 Clustering Across Identity Cutoffs](#64-mmseqs2-clustering-across-identity-cutoffs)  
+  - [6.5 Heterogeneity Visualizations](#65-heterogeneity-visualizations)  
+  - [6.6 Part B — Word2Vec Analyses and Grid Search](#66-part-b--word2vec-analyses-and-grid-search)  
+- [7. Color Policy (Distinct Phylum Colors)](#7-color-policy-distinct-phylum-colors)  
+- [8. Outputs & Directory Layout](#8-outputs--directory-layout)  
+- [9. Reproducibility, Performance & Practical Notes](#9-reproducibility-performance--practical-notes)  
+- [10. How to Run — CLI Version](#10-how-to-run--cli-version)  
+- [11. FAQ](#11-faq)  
+- [12. References](#12-references)  
 
 ---
 
@@ -37,289 +37,258 @@
 
 This repository provides a complete, publication-grade pipeline to quantify and visualize **heterogeneity in FAAL proteins** across thousands of sequences. It integrates:
 
-- **MAFFT** for multiple sequence alignment (MSA)
-- **Streaming pairwise identity** estimation with deterministic subsampling of the upper triangle
-- **UMAP** (precomputed metric) on *dissimilarity* derived from alignment identity
-- **Hierarchical clustering** and **dendrograms** with **branch colors by Phylum**
-- **MMseqs2 clustering** over fixed identity thresholds (10–90%) and diagnostic plots
-- **(Optional) Word2Vec Part B**, now extended to a **grid search** over:
-  - embedding dimensions (e.g. **100**, **390**, and user-defined),
-  - number of training epochs (e.g. **200, 500, 1500, 2500**),
-  - always following the logic: **alignment → k-mers → Word2Vec → cosine similarity**
+- **MAFFT** for multiple sequence alignment (MSA)  
+- **Streaming pairwise identity** estimation with deterministic subsampling of the upper triangle  
+- **UMAP (precomputed metric)** on *dissimilarity* derived from alignment identity  
+- **Hierarchical clustering** and **dendrograms** with **branch colors by Phylum**  
+- **MMseqs2 clustering** over fixed identity thresholds (10–90%) and diagnostic plots  
+- **Word2Vec (Part B)**: k-mer embeddings from aligned sequences using the **same MSA**, with configurable dimension and epochs (grid search)  
 
-All figures are exported as **PNG (900 dpi)**, **TIFF (900 dpi)** and **SVG**, **without titles**, and with legends **below** the plots.  
+All figures are exported as **PNG (900 dpi)**, **TIFF (900 dpi)** and **SVG**, without titles, and with legends **below** the plots.
 
-> **Taxonomic normalization:** Any Phylum string equal to `Actinobacteria` is normalized to `Actinomycetota`. Phyla labelled as `Unknown` / `uncultured` / `uncultivated` are excluded from color-coded plots and legends.
+> **Note**: Any Phylum string equal to `Actinobacteria` is normalized to `Actinomycetota`. Phyla labelled as `Unknown` / `uncultured` / `uncultivated` are excluded from color-coded plots and legends, though they are still used in numeric computations.
 
 ---
 
 ## 2. Approach
 
-For a given FASTA + metadata table, the pipeline:
+1. **Read FASTA** and an optional **Table_S2**-like metadata file.  
+2. Derive **Phylum** from `Lineage` (if provided) and normalize names.  
+3. Define **subsets** of sequences (25%, 50%, 75%, 100%) and run the full pipeline for each subset.  
+4. For each subset, run **MAFFT** → compute **pairwise identities** for all pairs (streamed with deterministic sampling).  
+5. Convert identity to **dissimilarity** and build UMAP + dendrograms.  
+6. Run **MMseqs2 clustering** at fixed identity cutoffs (10–90%) on each subset.  
+7. **Part B**: using the *same* aligned sequences, generate **k-mers** (k=3 by default), train **Word2Vec** with:
+   - **default configuration**:
+     - window = 5  
+     - `sg = 1` (skip-gram)  
+     - `hs = 0` (hierarchical softmax OFF)  
+     - `negative = 5` (negative sampling ON)  
+     - `min_count = 1`  
+     - `workers = 48`  
+   - **dimensions grid**: by default `100` and `390`, but fully configurable via CLI (`--w2v-dims`).  
+   - **epochs grid**: configurable via CLI (`--w2v-epochs-list`).  
+8. For **every combination** of:
+   - subset ∈ {25%, 50%, 75%, 100%},  
+   - embedding dimension ∈ {100, 390, ...},  
+   - epochs ∈ user-specified list,  
 
-1. **Reads FASTA** and an optional **Table_S2** metadata file.
-2. Derives **Phylum** from `Lineage` (if provided) and normalizes names.
-3. Automatically defines **four sequence subsets**:  
-   **25%, 50%, 75%, and 100%** of all sequences (deterministic subsampling with fixed seed).
-4. For **each subset**:
-   - Runs **MAFFT**.
-   - Computes **all-vs-all pairwise identities** (streamed).
-   - Builds a **dissimilarity matrix** \(d_{ij}=1-\mathrm{Id}(i,j)/100\).
-   - Runs **MMseqs2 clustering** at identity cutoffs 10–90%.
-   - Generates alignment-based figures:
-     - **01_bar_identity_10_100**
-     - **03_dendrogram_branches_by_phylum**
-     - **04_umap_dissimilarity_by_phylum**
-     - **06a_counts_intra_identity_bins_by_cutoff_lines_REALX**
-     - **06b_counts_intra_identity_bins_by_cutoff_heatmap**
-5. If **Part B** is enabled (`--run-part-b`), still per subset:
-   - **Removes gaps** from the aligned sequences.
-   - Extracts **k-mers** (default \(k=3\)) with a sliding window (step size 1).
-   - Calculates `min_kmers` (minimum number of valid k-mers across all sequences) and
-     **truncates/pads all sequences to exactly `min_kmers` tokens**.
-   - Trains **Word2Vec** for each combination of:
-     - dimension \(d \in 	exttt{--w2v-dims}\) (default: `100,390`),
-     - epochs \(E \in 	exttt{--w2v-epochs-list}\) (default: `2500`),
-     using **skip-gram**, `hs=0`, `negative=5`, `window=5`, `min_count=1`.
-   - Computes **mean embedding** per sequence, **cosine similarity** for sequence pairs,
-     and all W2V-based figures for each *(subset, dim, epochs)* combination:
-     - **07_cosine_vs_identity_intra**
-     - **08_cosine_vs_identity_inter**
-     - **09_tsne_w2v_mean_by_phylum**
-     - **10_umap_w2v_mean_by_phylum**
-     - **13_dendrogram_w2v_mean_by_phylum**
-   - Fills a **summary table** of **correlations between identity and cosine similarity**:
-     `summary_identity_vs_cosine_correlations.csv`.
+   we generate the full set of figures, including:
+   - `03_dendrogram_branches_by_phylum`  
+   - `07_cosine_vs_identity_intra`  
+   - `08_cosine_vs_identity_inter`  
+   - `01_bar_identity_10_100`  
+   - `06a_counts_intra_identity_bins_by_cutoff_lines_REALX`  
+   - `06b_counts_intra_identity_bins_by_cutoff_heatmap`  
+   - identity-based plots and MMseqs2 diagnostics,  
+
+   plus a **summary table** with the Pearson correlation between alignment identity and cosine similarity for each (subset, dim, epochs) combination.
 
 ---
 
 ## 3. Input Data & Metadata
 
-- **FASTA**: protein sequences (the header’s first token is used as `sequence_id`).
-- **Table_S2.tsv (optional but recommended)**: a tab-separated table with at least:
-  - `Protein Accession` (or a column that can be mapped to `sequence_id`)
-  - `Lineage` (e.g., `Bacteria; Pseudomonadota; Gammaproteobacteria; ...`)
+- **FASTA**: protein sequences (headers’ first token is used as `sequence_id`).  
+- **Metadata table (optional)**: tab-separated file with at least:
+  - `Protein Accession` or equivalent ID that matches FASTA headers  
+  - `Lineage` (e.g., `Bacteria; Pseudomonadota; Gammaproteobacteria; ...`)  
 
-**Phylum extraction**:
-
-- Phylum is extracted from `Lineage` **position 2** (0-based index 1) if it exists.
-- If `Lineage` has fewer levels, we use the last level if it is not a known domain-level token.
-- `Actinobacteria` is normalized to `Actinomycetota`.
+Phylum is extracted from `Lineage` **position 2** if present; otherwise we fall back to a single-token lineage when it is not a domain-level token.
 
 ---
 
 ## 4. Software & Environment
 
-- **MAFFT** (e.g., `/usr/bin/mafft`)
-- **MMseqs2** (e.g., `<conda-env>/bin/mmseqs`)
+- **MAFFT** (e.g., `/usr/bin/mafft`)  
+- **MMseqs2** (e.g., `<conda-env>/bin/mmseqs`)  
 - **Python 3.9+**, with libraries:
-  - `numpy`, `pandas`, `matplotlib`
-  - `umap-learn` (UMAP)
-  - `scikit-learn` (t-SNE, distances, clustering utilities)
-  - `scipy` (hierarchical clustering, linkage, dendrogram)
-  - `biopython` (FASTA parsing, optional but recommended)
-  - `gensim` (Word2Vec; required for Part B)
+  - `numpy`, `pandas`, `matplotlib`  
+  - `umap-learn` (for UMAP)  
+  - `scikit-learn` (t-SNE, pairwise distances, metrics)  
+  - `scipy` (hierarchical clustering/dendrogram)  
+  - `biopython` (FASTA parsing; optional but recommended)  
+  - `gensim` (Word2Vec; needed for Part B)  
 
-The CLI tries to auto-locate MAFFT and MMseqs2 via `PATH`, `CONDA_PREFIX`, and `whereis`.  
-You can force paths with `--mafft-bin` and `--mmseqs-bin`.
+> The CLI tries to auto-locate MAFFT and MMseqs2 via `PATH`, `CONDA_PREFIX`, and `whereis`. You can force paths with `--mafft-bin` and `--mmseqs-bin`.
 
 ---
 
 ## 5. Mathematical Definitions
 
-### 5.1 Pairwise Identity
+### 5.1 Aligned Sequences
 
-Let \(A_i(t)\) be the residue of sequence \(i\) at aligned position \(t\), and `-` a gap.  
-The **pairwise identity** between sequences \(i\) and \(j\) is:
+Let the aligned sequence for protein \(i\) be
 
-\[
+$$
+S_i = [s_{i,1}, s_{i,2}, \dots, s_{i,L}],
+$$
+
+where each position \(s_{i,t}\) is either an amino acid or a gap:
+
+$$
+s_{i,t} \in \{	ext{amino acids}\} \cup \{-\}.
+$$
+
+For **Word2Vec**, we first remove gaps from the MSA to obtain a gapped-free sequence:
+
+$$
+	ilde{S}_i = [	ilde{s}_{i,1}, 	ilde{s}_{i,2}, \dots, 	ilde{s}_{i,	ilde{L}_i}],
+\qquad
+	ilde{s}_{i,u} \in \{	ext{amino acids}\},
+$$
+
+where \(	ilde{L}_i\) is the length of the non-gapped sequence.
+
+### 5.2 Pairwise Identity
+
+Let \(A_i(t)\) be the residue of sequence \(i\) at aligned position \(t\), and let `'-'` denote a gap.  
+The identity between sequences \(i\) and \(j\) is:
+
+$$
 \mathrm{Id}(i,j) \;=\; 100 	imes
-rac{\displaystyle\sum_{t} \mathbf{1}ig[\,A_i(t)=A_j(t) \wedge A_i(t)
-eq - \wedge A_j(t)
-eq -\,ig]}
-     {\displaystyle\sum_{t} \mathbf{1}ig[\,A_i(t)
-eq - \wedge A_j(t)
-eq -\,ig]}
-\, .
-\]
+rac{\displaystyle \sum_{t=1}^L \mathbf{1}ig(A_i(t)=A_j(t),\,A_i(t)
+eq -,\,A_j(t)
+eq -ig)}
+{\displaystyle \sum_{t=1}^L \mathbf{1}ig(A_i(t)
+eq -,\,A_j(t)
+eq -ig)}.
+$$
 
-Only aligned positions where **neither sequence has a gap** are considered in the denominator.
+Here, \(\mathbf{1}(\cdot)\) is the indicator function.
 
----
+### 5.3 Dissimilarity Matrix
 
-### 5.2 Dissimilarity
+We define a **dissimilarity** \(d_{ij}\) from identity:
 
-From the pairwise identity we define a **dissimilarity** in \([0,1]\):
+$$
+d_{ij} = 1 - rac{\mathrm{Id}(i,j)}{100}.
+$$
 
-\[
-d_{ij} \;=\; 1 \;-\; rac{\mathrm{Id}(i,j)}{100} \,.
-\]
+The matrix \(\mathbf{D} = [d_{ij}]\) is used as a **precomputed** distance matrix in UMAP (metric=`precomputed`) and for hierarchical clustering.
 
-This is the input to **UMAP** when using `metric="precomputed"` and to hierarchical clustering for the **MSA-based dendrogram**.
+### 5.4 k-mers and Word2Vec Embeddings
 
----
+From each gapped-free sequence \(	ilde{S}_i\), we generate **overlapping k-mers** of size \(k\) (default \(k=3\)) with step size 1:
 
-### 5.3 k-mer Tokenization (Aligned Sequences)
+$$
+k_{i,u} = 	ilde{s}_{i,u} 	ilde{s}_{i,u+1} \dots 	ilde{s}_{i,u+k-1},
+\qquad
+u = 1, \dots, M_i,
+$$
 
-Let a **gapped alignment** sequence be:
+where
 
-\[
-S_i = [s_{i,1}, s_{i,2}, \dots, s_{i,L}], \quad s_{i,t} \in \{	ext{amino acids} \cup \{-\}\}.
-\]
+$$
+M_i = 	ilde{L}_i - k + 1
+$$
 
-We first **remove gaps** to obtain a gapped-free sequence:
+is the number of k-mers for sequence \(i\).  
+Each sequence \(S_i\) is thus mapped to a **sentence** of tokens:
 
-\[
-	ilde{S}_i = [ 	ilde{s}_{i,1}, 	ilde{s}_{i,2}, \dots, 	ilde{s}_{i,	ilde{L}} ], 
-\quad 	ilde{s}_{i,u} \in \{	ext{amino acids}\}.
-\]
+$$
+\mathcal{K}_i = [k_{i,1}, k_{i,2}, \dots, k_{i,M_i}].
+$$
 
-For a fixed **k-mer size** \(k\) (default \(k=3\)) and **step size** \(s=1\), we generate tokens:
+These sentences are used to train a **Word2Vec** model:
 
-\[
-	ext{kmer}_{i,u} = (	ilde{s}_{i,u}, 	ilde{s}_{i,u+1}, \dots, 	ilde{s}_{i,u+k-1}),
-\quad u = 1, 1+s, 1+2s, \dots, 	ilde{L} - k + 1 \,.
-\]
+- dimension \(d \in \{100, 390, \dots\}\) (grid via `--w2v-dims`)  
+- window size \(w = 5\)  
+- skip-gram (`sg = 1`)  
+- hierarchical softmax disabled (`hs = 0`)  
+- negative sampling (`negative = 5`)  
+- `min_count = 1`, `workers = 48`  
 
-In code, this is implemented as a sliding window with optional filtering of degenerate patterns.  
-For each subset, we compute:
+Once the W2V model is trained, each k-mer \(k\) has an embedding vector \(\mathbf{w}(k) \in \mathbb{R}^d\).
 
-\[
-m \;=\; \min_i |\{	ext{kmer}_{i,\cdot}\}| \,,
-\]
+#### Standardization by \(m_{\min}\) (min\_kmers)
 
-the **minimum number of valid k-mers across all sequences** (`min_kmers`).  
-Later we **truncate**/pad each sequence to exactly \(m\) k-mers (Section 5.4).
+Let \(M_i\) be the number of k-mers in sequence \(i\), and let
 
----
+$$
+m_{\min} = \min_i M_i
+$$
 
-### 5.4 Word2Vec Sequence Embeddings
+be the minimum number of k-mers across all sequences in the training set. For each sequence:
 
-Let \(\phi(\cdot)\) be the trained **Word2Vec embedding** that maps each k-mer token to \(\mathbb{R}^d\):
+- If \(M_i \ge m_{\min}\), we keep **only the first** \(m_{\min}\) k-mers.  
+- If \(M_i < m_{\min}\), we **pad** with zero vectors to reach \(m_{\min}\) k-mers.
 
-\[
-\phi:\; 	ext{k-mer string} \;\longrightarrow\; \mathbb{R}^d,
-\quad d \in 	exttt{--w2v-dims}.
-\]
+Thus, for each sequence we obtain exactly \(m_{\min}\) k-mer embeddings \(\mathbf{w}(k_{i,u})\), \(u = 1,\dots,m_{\min}\).
 
-After training, each sequence \(i\) has a list of valid k-mers \(\{	ext{kmer}_{i,1}, \dots, 	ext{kmer}_{i,n_i}\}\).  
-We truncate or pad to exactly \(m = 	exttt{min\_kmers}\) tokens:
+We then build a **sequence-level embedding**. In this project, we use the **mean embedding**:
 
-- if \(n_i > m\): keep the **first** \(m\) tokens,
-- if \(n_i < m\): pad with “missing” tokens mapped to the **zero vector**.
-
-We obtain a length-\(m\) list of vectors:
-
-\[
-ig(\phi(	ext{kmer}_{i,1}), \dots, \phi(	ext{kmer}_{i,m})ig)
-\in (\mathbb{R}^d)^m.
-\]
-
-For the **mean embedding** used in this pipeline:
-
-\[
+$$
 \mathbf{v}_i
-= rac{1}{m} \sum_{u=1}^{m} \phi(	ext{kmer}_{i,u}) 
-\;\;\in\; \mathbb{R}^d.
-\]
+=
+rac{1}{m_{\min}}
+\sum_{u=1}^{m_{\min}} \mathbf{w}(k_{i,u}) \in \mathbb{R}^d.
+$$
 
-This ensures each sequence contributes **exactly the same number of tokens** (`min_kmers`) to its embedding, reducing bias from different sequence lengths.
+These \(\mathbf{v}_i\) are the W2V sequence embeddings used in cosine-similarity analyses and W2V-based dendrograms.
 
----
+### 5.5 Identity Bins and Pair Sampling
 
-### 5.5 Cosine Similarity on Embeddings
+Pairwise identities \(\mathrm{Id}(i,j)\) are grouped into **identity bins** in the range 10–100%, typically in steps of 5% or 10%, depending on the figure (e.g., 10–20, 20–30, …, 90–100).
 
-Given mean embeddings \(\mathbf{v}_i, \mathbf{v}_j \in \mathbb{R}^d\), the **cosine similarity** is:
+To limit the number of plotted pairs while keeping coverage of the full identity space, we deterministically **subsample** the upper triangle of all pairs \((i,j)\), \(i<j\), using a stride.
 
-\[
-\cos(	heta_{ij})
-\;=\;
-rac{\mathbf{v}_i \cdot \mathbf{v}_j}
-     {\|\mathbf{v}_i\|_2 \,\|\mathbf{v}_j\|_2} \,.
-\]
+Let \(N\) be the number of sequences, and
 
-For **W2V-based dendrograms**, we use a distance derived from the cosine:
+$$
+P = rac{N(N-1)}{2}
+$$
 
-\[
-\delta_{ij}^{(\mathrm{w2v})}
-\;=\;
-1 - \cos(	heta_{ij}) \,,
-\]
+the total number of unordered pairs. Given a desired number of sampled pairs \(S\) (e.g., \(600{,}000\) or \(1{,}000{,}000\)), we define:
 
-and build a hierarchical clustering on the matrix \(\delta_{ij}^{(\mathrm{w2v})}\).
-
----
-
-### 5.6 Binned Identity & Counts
-
-For diagnostics and heatmaps, we discretize identity into **deciles**:
-
-\[
-	ext{bin}(i,j) = 
-\left\lfloor rac{\mathrm{Id}(i,j)}{10} 
+$$
+	ext{stride} = \left\lfloor rac{P}{S} 
 ight
-floor,
-\quad
-	ext{clipped to } 1,\dots,10.
-\]
+floor.
+$$
 
-For a given identity cutoff \(c\) and an identity bin \(b\), the **count of intra-cluster pairs** is:
+Then we enumerate all pairs in a fixed (deterministic) order and keep every `stride`-th pair. This yields a **deterministic, evenly spaced** subsample without bias toward any region of the triangle.
 
-\[
-N_{	ext{intra}}(c,b) 
-= 
-\sum_{(i,j) \in \mathcal{P}(c)}
-\mathbf{1}ig[	ext{bin}(i,j) = big],
-\]
-
-where \(\mathcal{P}(c)\) is the set of pairs in clusters produced at cutoff \(c\)
-(e.g., MMseqs2 cluster identity ≥ \(c\)).
-
-These counts build the **line plot** and the **heatmap**:
-
-- **06a_counts_intra_identity_bins_by_cutoff_lines_REALX**
-- **06b_counts_intra_identity_bins_by_cutoff_heatmap**.
-
----
-
-### 5.7 Correlation Between Identity and Cosine Similarity
+### 5.6 Correlation Identity vs Cosine Similarity
 
 To quantify how well the embedding space reflects alignment identity, we compute the **Pearson correlation** between:
 
-- \(x_n = \mathrm{Id}(i_n,j_n)\) (identity, typically in % or normalized to \([0,1]\)),
+- \(x_n = \mathrm{Id}(i_n, j_n)\) (identity, typically in % or normalized to \([0,1]\)),  
 - \(y_n = \cos(	heta_{i_n j_n})\) (cosine similarity of W2V mean embeddings),
 
-for sampled pairs \((i_n,j_n)\).  
+for sampled pairs \((i_n, j_n)\), \(n = 1,\dots,N\).
 
-Let:
+Cosine similarity between two embedding vectors \(\mathbf{v}_i\) and \(\mathbf{v}_j\) is:
 
-\[
-ar{x} = rac{1}{N}\sum_{n=1}^N x_n, 
-\qquad
+$$
+\cos(	heta_{ij}) =
+rac{\mathbf{v}_i \cdot \mathbf{v}_j}{\|\mathbf{v}_i\|\,\|\mathbf{v}_j\|}.
+$$
+
+Let
+
+$$
+ar{x} = rac{1}{N}\sum_{n=1}^N x_n, \qquad
 ar{y} = rac{1}{N}\sum_{n=1}^N y_n.
-\]
+$$
 
-The **Pearson correlation coefficient** is:
+The **Pearson correlation coefficient** is
 
-\[
-r
-=
-rac{
-  \sum_{n=1}^N (x_n - ar{x})(y_n - ar{y})
-}{
-  \sqrt{\sum_{n=1}^N (x_n - ar{x})^2}
-  \,\sqrt{\sum_{n=1}^N (y_n - ar{y})^2}
+$$
+r_{xy} =
+rac{\displaystyle \sum_{n=1}^N (x_n - ar{x})(y_n - ar{y})}
+{\displaystyle
+\sqrt{\sum_{n=1}^N (x_n - ar{x})^2}\,
+\sqrt{\sum_{n=1}^N (y_n - ar{y})^2}
 }.
-\]
+$$
 
-The pipeline computes \(r\) separately for:
+This value is reported in a **summary table** for each combination of:
 
-- **intra-phylum pairs**,
-- **inter-phylum pairs**,
-- optionally **all pairs combined**.
+- subset ∈ {25%, 50%, 75%, 100%},  
+- W2V dimension (e.g., 100, 390, …),  
+- W2V epochs (from `--w2v-epochs-list`),
 
-The results across **subsets × dimensions × epochs** are stored in:
-`summary_identity_vs_cosine_correlations.csv`.
+allowing direct comparison of which configuration best captures the identity signal.
 
 ---
 
@@ -327,459 +296,258 @@ The results across **subsets × dimensions × epochs** are stored in:
 
 ### 6.1 Multiple Sequence Alignment (MAFFT)
 
-For each subset (25%, 50%, 75%, 100%) the script:
-
-1. Selects a deterministic subset of sequences (fixed random seed 42).
-2. Runs **MAFFT** (default `--auto`) on the subset:
-   - MSA is used for **pairwise identity**.
-   - Gaps are **removed only for Word2Vec tokenization** in Part B; the identity still uses the full, gapped alignment.
-
----
+- Aligns each subset with **MAFFT** (default `--auto`, configurable via CLI).  
+- The **gapped alignment** is used for identity calculations.  
+- For **Word2Vec**, we remove gaps (as in Section 5.1) to build k-mer sentences, but the alignment itself is always the same underlying MSA for both identity and embeddings.
 
 ### 6.2 Pairwise Identities & Dissimilarity Matrix
 
-For a subset with \(N\) sequences:
+- We stream the upper triangle of all pairs to compute identity percentages \(\mathrm{Id}(i,j)\).  
+- **Dissimilarity** is derived as \(d_{ij}=1-\mathrm{Id}(i,j)/100\).  
+- For UMAP, we pass a **precomputed** dissimilarity matrix as input (metric=`precomputed`).  
+- For hierarchical clustering, we use linkage on the same dissimilarity matrix.
 
-- The script walks over the **upper triangle** of the \(N	imes N\) matrix
-  and computes \(\mathrm{Id}(i,j)\) for all pairs \((i<j)\) using the formula in [5.1].
-- It then derives the **dissimilarity matrix** \(d_{ij}=1-\mathrm{Id}(i,j)/100\) (Section 5.2).
-- This matrix is used for:
-  - **UMAP** with `metric="precomputed"`,
-  - **hierarchical clustering** (linkage, default `average`) for `03_dendrogram_branches_by_phylum`.
+### 6.3 Subsampling of Sequences and Pairs
 
----
+- The pipeline runs separately for subsets of **25%, 50%, 75% and 100%** of all sequences.
+- For each subset:
+  - We run the full MSA, identity, and clustering pipeline.  
+  - We apply pairwise subsampling as in Section 5.5 for the large scatter/hexbin plots.  
 
-### 6.3 Subsampling of Pairs
-
-To keep the scatter and density plots tractable while preserving global structure, we deterministically subsample pairs.
-
-Let:
-
-- total number of pairs: \( M = N(N-1)/2 \),
-- target number of pairs to plot: \(S\) (e.g., 600,000 or 1,000,000).
-
-We define the **stride**:
-
-\[
-	ext{stride} = \left\lfloor rac{M}{S} 
-ight
-floor.
-\]
-
-We then enumerate pairs \((i,j)\) in a fixed order and keep every pair whose index \(k\) satisfies:
-
-\[
-k \equiv 0 \pmod{	ext{stride}}.
-\]
-
-This yields a deterministic, evenly spaced coverage over the upper triangle, without bias toward a specific block of the matrix.
-
----
+This allows us to inspect heterogeneity and embedding behavior across different dataset sizes.
 
 ### 6.4 MMseqs2 Clustering Across Identity Cutoffs
 
-For each subset, the pipeline runs **MMseqs2** clustering at identity thresholds:
+- For each subset, we cluster with **MMseqs2** using identity cutoffs:
+  - 10%, 20%, 30%, ..., 90%.  
+- Diagnostics include:
+  - **Intra-cluster** pair counts over identity **deciles** (10–100) → **line plots** and **heatmap**.  
+  - **Cluster size** vs **cutoff** (mean/median/P95) and **largest cluster** vs cutoff.
 
-\[
-p \in \{10, 20, \dots, 90\}\%.
-\]
+### 6.5 Heterogeneity Visualizations
 
-For each cutoff \(p\):
+For each subset and configuration, the following plots are generated (filenames may be prefixed with subset, dim, and epochs information):
 
-1. Clusters are computed using MMseqs2 with the corresponding minimum identity.
-2. The script collects:
-   - cluster assignments,
-   - **intra-cluster pairs** and their identities,
-   - **cluster size** statistics (mean, median, 95th percentile, maximum).
+- **01_bar_identity_10_100**:  
+  - Barplot of identity distribution (10–100%), often in 5% bins.  
+- **03_dendrogram_branches_by_phylum**:  
+  - Dendrogram built from the dissimilarity matrix, with branches colored by Phylum where clades are homogeneous; mixed clades are colored gray.  
+- **04_umap_dissimilarity_by_phylum**:  
+  - UMAP 2D projection (metric=`precomputed`, using \(d_{ij}\)) colored by Phylum.  
+- **06a_counts_intra_identity_bins_by_cutoff_lines_REALX**:  
+  - Line plots of intra-cluster pair counts binned by identity for each MMseqs2 identity cutoff.  
+- **06b_counts_intra_identity_bins_by_cutoff_heatmap**:  
+  - Heatmap of counts of intra-cluster pairs across (identity bin × cutoff).  
+- **04_cluster_size_vs_identity_cutoff**:  
+  - Cluster size statistics vs identity cutoff.  
+- **05_largest_cluster_by_identity_cutoff**:  
+  - Size of the largest cluster vs identity cutoff.
 
-The resulting diagnostics feed into:
+All figures are exported as:
 
-- **04_cluster_size_vs_identity_cutoff**  
-  (mean, median, P95 cluster size vs cutoff),
-- **05_largest_cluster_by_identity_cutoff**  
-  (size of the largest cluster vs cutoff),
-- **06a/06b** (intra-cluster identity distributions).
+- `.png` (900 dpi)  
+- `.tiff` (900 dpi)  
+- `.svg`  
 
----
+with **no plot title** and legends placed **below** the plot.
 
-### 6.5 Visualizations (Alignment-based)
+### 6.6 Part B — Word2Vec Analyses and Grid Search
 
-For each subset, the following figures are generated (all without titles, legends below):
+Part B adds Word2Vec-based analyses to the heterogeneity pipeline.  
+The **logic is the same** for all subsets and follows the alignment → k-mers → W2V steps described earlier:
 
-1. **01_bar_identity_10_100**  
-   - Histogram / barplot of pairwise identities (10–100%, typically in 5% bins).
-2. **03_dendrogram_branches_by_phylum**  
-   - Hierarchical clustering on \(d_{ij}\) (Section 5.2) with branches colored by phylum:
-     - a clade is colored if all leaves share the same phylum;
-     - mixed-phylum clades are drawn in neutral gray.
-3. **04_umap_dissimilarity_by_phylum**  
-   - UMAP on precomputed dissimilarity:
-     - `n_neighbors=20`, `min_dist=0.05`, `metric="precomputed"`, `random_state=42`.
-     - Points colored by phylum with a **globally consistent palette**.
-4. **06a_counts_intra_identity_bins_by_cutoff_lines_REALX**  
-   - Line plots of intra-cluster counts per identity bin and cutoff.
-5. **06b_counts_intra_identity_bins_by_cutoff_heatmap**  
-   - Heatmap of intra-cluster counts, identity bins (10–100) × cutoffs (10–90).
+1. **Alignment (same as Part A)**:  
+   We always use the same MAFFT alignment already computed for the given subset.
 
-Additionally, for each subset, **subset-level** plots are generated in the subset folder:
+2. **k-mer extraction** (from gapped-free sequences):  
+   - \(k = 3\)  
+   - step size = 1  
+   - ignore k-mers consisting only of gaps (after removal, gaps are not present).
 
-- **04_cluster_size_vs_identity_cutoff**
-- **05_largest_cluster_by_identity_cutoff**
+3. **Word2Vec training** for each combination of:
+   - subset ∈ {25%, 50%, 75%, 100%}  
+   - dimension \(d \in\) `--w2v-dims` (default includes 100 and 390)  
+   - epochs ∈ `--w2v-epochs-list` (e.g., 200, 500, 1500, 2500)  
 
----
+   with:
 
-### 6.6 Optional Part B — Word2Vec Analyses (Alignment → k-mers → Embeddings)
+   - `vector_size = d`  
+   - `window = 5`  
+   - `sg = 1` (skip-gram)  
+   - `hs = 0`  
+   - `negative = 5`  
+   - `min_count = 1`  
+   - `workers = 48`  
 
-Part B is activated via `--run-part-b` in the CLI.
+   Embeddings are standardized by \(m_{\min}\) (`min_kmers`), as in Section 5.4.
 
-For each subset (25%, 50%, 75%, 100%):
+4. **Sequence embeddings**:  
+   - mean of k-mer embeddings per sequence (dimension \(d\)), \(\mathbf{v}_i \in \mathbb{R}^d\).
 
-1. **Gap removal & k-mer generation**
+5. **Figures generated for each (subset, dim, epochs)**:
 
-   - Remove gaps from the aligned sequences.
-   - Generate k-mers of size \(k\) (default `--kmer-size 3`) with step size `--kmer-step 1`.
-   - Keep only valid k-mers (optionally filtering those dominated by gaps).
-   - Compute `min_kmers` = minimum number of valid k-mers across all sequences.
+   - **07_cosine_vs_identity_intra**:  
+     - Cosine similarity vs identity for **intra-phylum** pairs; typically plotted as density/hexbins with identity on the x-axis and cosine on the y-axis.  
+   - **08_cosine_vs_identity_inter**:  
+     - Same as above, but for **inter-phylum** pairs.  
+   - **09_tsne_w2v_mean_by_phylum** (optional if t-SNE enabled):  
+     - 2D t-SNE embedding of \(\mathbf{v}_i\), colored by Phylum.  
+   - **10_umap_w2v_mean_by_phylum**:  
+     - 2D UMAP embedding of \(\mathbf{v}_i\), colored by Phylum.  
+   - **13_dendrogram_w2v_mean_by_phylum**:  
+     - Dendrogram based on distances \(1 - \cos(	heta_{ij})\) between W2V sequence embeddings, with branches colored by Phylum.  
 
-2. **Standardization via `min_kmers`**
+6. **Correlation summary table**:
 
-   - For each sequence, its list of k-mers is:
-     - **truncated** to the first `min_kmers` tokens if it has more; or
-     - **padded** with “missing” tokens mapped to the **zero vector** if it has fewer.
-   - This ensures each sequence contributes **exactly `min_kmers` tokens** to its embedding, aligning the logic with FAALPred.
+   For each combination of:
 
-3. **Word2Vec training (per (dim, epochs) combination)**
+   - subset (25/50/75/100%),  
+   - W2V dimension,  
+   - epochs,
 
-   The script iterates over:
+   we compute the Pearson correlation coefficient \(r_{xy}\) (Section 5.6) between identity and cosine similarity over a sampled set of pairs and write a summary table, e.g.:
 
-   - embedding dimensions:  
-     \[
-     d \in 	exttt{--w2v-dims}
-     \quad	ext{(default: } d\in\{100,390\}	ext{)}
-     \]
-   - epochs:  
-     \[
-     E \in 	exttt{--w2v-epochs-list}
-     \quad	ext{(default: } E = 2500	ext{; user can set e.g. } 200,500,1500,2500).
-     \]
+   ```text
+   subset   w2v_dim   epochs   pearson_r_identity_cosine
+   0.25     100       200      0.78
+   0.25     100       500      0.81
+   ...
+   1.00     390       2500     0.86
+   ```
 
-   For each pair \((d,E)\) and each subset, it trains a Word2Vec model with:
-
-   - `vector_size = d`
-   - `window = 5`
-   - `sg = 1` (skip-gram)
-   - `hs = 0` (hierarchical softmax disabled)
-   - `negative = 5` (negative sampling)
-   - `min_count = 1`
-   - `workers = 48` (default; configurable in the code/CLI if exposed)
-   - fixed random seed = `42` for reproducibility.
-
-4. **Sequence embeddings**
-
-   - For each sequence, compute the **mean embedding** of its `min_kmers` token embeddings as in [5.4].
-   - Store \(\mathbf{v}_i \in \mathbb{R}^d\) for downstream analyses.
-
-5. **Cosine vs Identity plots (intra / inter)**
-
-   For each (subset, \(d\), \(E\)):
-
-   - Compute cosine similarity \(\cos(	heta_{ij})\) between mean embeddings (Section 5.5).
-   - Join with pairwise identity \(\mathrm{Id}(i,j)\) and phylum labels.
-   - Produce:
-
-     - **07_cosine_vs_identity_intra**  
-       Scatter/hexbin of identity vs cosine similarity for **intra-phylum** pairs.  
-       Includes a trend line (e.g., binned average of cosine over identity deciles).
-
-     - **08_cosine_vs_identity_inter**  
-       Same but **inter-phylum** pairs.
-
-   - These figures use the same **pair subsampling** strategy (Section 6.3).
-
-6. **Low-dimensional projections based on embeddings**
-
-   For each (subset, \(d\), \(E\)):
-
-   - **t-SNE** on mean embeddings (`perplexity=30`) →  
-     **09_tsne_w2v_mean_by_phylum_dim{d}_ep{E}_subset{fraction}**.
-   - **UMAP** on mean embeddings (Euclidean metric) →  
-     **10_umap_w2v_mean_by_phylum_dim{d}_ep{E}_subset{fraction}**.
-
-   In both, points are colored by phylum using the same global palette.
-
-7. **W2V-based dendrogram**
-
-   - Compute pairwise distances \(\delta_{ij}^{(\mathrm{w2v})}=1-\cos(	heta_{ij})\).
-   - Build a hierarchical clustering (e.g., `average` linkage).
-   - Produce:
-
-     - **13_dendrogram_w2v_mean_by_phylum_dim{d}_ep{E}_subset{fraction}**
-
-   Branch coloring follows the **same phylum rules** as in the MSA-based dendrogram (Section 6.5).
-
-8. **Correlation summary table**
-
-   - For each *(subset, dim, epochs)* and each pair type (intra, inter, combined),
-     compute the **Pearson correlation coefficient \(r\)** between identity and cosine similarity (Section 5.7).
-   - Append a row to:
-
-     - `summary_identity_vs_cosine_correlations.csv`
-
-   with columns such as:
-
-   - `subset_fraction` (e.g., 0.25, 0.50, 0.75, 1.00)
-   - `embedding_dim`
-   - `epochs`
-   - `pair_type` (intra / inter / all)
-   - `pearson_r`
-   - `n_pairs` (number of pairs used to compute \(r\))
-
-This table allows direct comparison of **which embedding dimension / training regime best captures alignment signal**.
+   This allows direct inspection of which configuration best captures the identity signal.
 
 ---
 
 ## 7. Color Policy (Distinct Phylum Colors)
 
-- A **global palette** is built across all phyla using `tab20`, `tab20b`, `tab20c`, and HSV fallbacks.
-- `Actinobacteria` is always mapped to `Actinomycetota`.
-- Any phylum string containing `Unknown`, `uncultured`, or `uncultivated` is:
-  - **excluded** from color-coded plots and legends,
-  - but still included in numerical computations (identities, clustering, etc.).
-- The same color mapping is reused in **all figures** involving phylum labels:
-  - UMAPs, t-SNEs, dendrograms, barplots, etc.
+- We construct a **global palette** across all phyla using `tab20`, `tab20b`, `tab20c` as base, with golden-ratio HSV fallbacks when needed.  
+- **Normalization**:  
+  - `Actinobacteria` → `Actinomycetota`.  
+- **Excluded from color plots**:  
+  - labels containing `Unknown`, `uncultured`, `uncultivated` (they remain in numeric analyses, but not in color legends).  
+- The same palette is reused across all plots for visual consistency.
 
 ---
 
 ## 8. Outputs & Directory Layout
 
-For an output directory `results_faal`, the CLI v2 organizes results approximately as:
+For an output directory `results_faal`, and a subset label (e.g., `subset_25pct`, `subset_50pct`, `subset_75pct`, `subset_100pct`):
 
 ```text
 results_faal/
-  subset_0.25/
+  subset_25pct_dim100_epochs200/
     input_subset.fasta
     pairs.csv
     clusters_multi_threshold.csv
     subset_ids.csv
     subset_phylum_map.csv
-
     plots_sample_600000/
       01_bar_identity_10_100.(png|tiff|svg)
       03_dendrogram_branches_by_phylum.(png|tiff|svg)
       04_umap_dissimilarity_by_phylum.(png|tiff|svg)
       06a_counts_intra_identity_bins_by_cutoff_lines_REALX.(png|tiff|svg)
       06b_counts_intra_identity_bins_by_cutoff_heatmap.(png|tiff|svg)
-
-      # Only if --run-part-b, and for each (dim, epochs):
-      07_cosine_vs_identity_intra_dim{d}_ep{E}.(png|tiff|svg)
-      08_cosine_vs_identity_inter_dim{d}_ep{E}.(png|tiff|svg)
-      09_tsne_w2v_mean_by_phylum_dim{d}_ep{E}.(png|tiff|svg)
-      10_umap_w2v_mean_by_phylum_dim{d}_ep{E}.(png|tiff|svg)
-      13_dendrogram_w2v_mean_by_phylum_dim{d}_ep{E}.(png|tiff|svg)
-
+      07_cosine_vs_identity_intra.(png|tiff|svg)
+      08_cosine_vs_identity_inter.(png|tiff|svg)
     04_cluster_size_vs_identity_cutoff.(png|tiff|svg)
     05_largest_cluster_by_identity_cutoff.(png|tiff|svg)
+    09_tsne_w2v_mean_by_phylum.(png|tiff|svg)
+    10_umap_w2v_mean_by_phylum.(png|tiff|svg)
+    13_dendrogram_w2v_mean_by_phylum.(png|tiff|svg)
+    correlation_summary.tsv
     FIGURE_MANIFEST.txt
-
-  subset_0.50/
+  subset_25pct_dim100_epochs500/
     ...
-  subset_0.75/
+  subset_25pct_dim390_epochs200/
     ...
-  subset_1.00/
+  subset_100pct_dim390_epochs2500/
     ...
-
-  # Global W2V correlation summary (all subsets × dims × epochs)
-  summary_identity_vs_cosine_correlations.csv
 ```
 
-The exact filenames may have additional suffixes (e.g., `_subset0.25`) to make the combination *(subset, dim, epochs)* explicit.
+Each `(subset, dim, epochs)` combination has its own subdirectory, so results are clearly separated.
 
 ---
 
 ## 9. Reproducibility, Performance & Practical Notes
 
-- **Random seed**:
-  - Subsetting, UMAP, t-SNE, and Word2Vec all use **seed = 42** for reproducibility.
-- **Scalability**:
-  - MAFFT and all-vs-all identities are the main bottlenecks.
-  - Working with subsets at 25–75% helps keep runtime and memory usage reasonable.
-  - Pairwise **identities are streamed**, and plots use **deterministic subsampling** (Section 6.3).
-- **MMseqs2**:
-  - Runs on each subset separately; cluster IDs and sizes are reported per subset.
-- **Word2Vec**:
-  - Training can be heavy for large datasets, especially with many combinations of `--w2v-dims` and `--w2v-epochs-list`.
-  - You can start with fewer combinations (e.g., only 100 and 390 dimensions; only 2500 epochs) and then expand.
-- **Metadata gaps**:
-  - Sequences lacking phylum information are included in numerical analyses but omitted from color legends.
-- **Binary paths**:
-  - Use `--mafft-bin` and `--mmseqs-bin` if your binaries are not discoverable via `PATH`.
+- **Random seed** fixed to **42** for subsetting, UMAP, and t-SNE (where applicable).  
+- **Scalability**:  
+  - Pairwise identity computation streams the upper triangle and writes results incrementally.  
+  - Subsampling by stride (Section 5.5) controls plot sizes (e.g., 600k and 1M sampled pairs).  
+- **MSA cost** still dominates for very large \(N\).  
+  - Consider subset fractions (25–75%) for exploratory analyses, then run 100% once.  
+- **MMseqs2** is run on each subset separately with the same identity thresholds.  
+- If metadata is missing, Phylum is `Unknown`; these entries are excluded from color plots but remain in numeric computations.  
+- Use `--mafft-bin` and `--mmseqs-bin` to force binary paths when Conda/`PATH` resolution differs by system.
 
 ---
 
-## 10. How to Run — Jupyter Version
+## 10. How to Run — CLI Version
 
-1. Open the Jupyter notebook (English version) and set:
+The main CLI script is `faalprot_heterogeneity_cli_v2.py` (check `--help` for full options).
 
-   ```python
-   FASTA_PATH = "FAAL_NR_MIBIG_LEGE_FFT_NS_2_raw_data.fasta"
-   TABLE_S2_PATH = "Table_S2.tsv"   # optional but recommended
-   OUTDIR = "results_faal"
-   ```
-
-2. The notebook internally handles the **four subset fractions**: 0.25, 0.50, 0.75, 1.00.
-
-3. Optionally tune:
-
-   ```python
-   KMER_SIZE = 3
-   KMER_STEP = 1
-   W2V_DIMS = [100, 390]          # or add more, e.g. [100, 200, 390]
-   W2V_EPOCHS_LIST = [2500]       # or [200, 500, 1500, 2500]
-   RUN_PART_B = True              # to enable W2V analyses
-   ```
-
-4. Run the main orchestration cell (e.g. `run_pipeline(...)`).
-
-The notebook exports all figures as `.png`/`.tiff` (900 dpi) and `.svg`, prints summary tables, and fills `summary_identity_vs_cosine_correlations.csv` if Part B is active.
-
----
-
-## 11. How to Run — CLI Version (v2)
-
-The CLI script is:
-
-```text
-faalprot_heterogeneity_cli_v2.py
-```
-
-You can inspect all options with:
-
-```bash
-python faalprot_heterogeneity_cli_v2.py --help
-```
-
-### 11.1 Minimal run (alignment, identities, MMseqs2; no Word2Vec)
+### 10.1 Minimal run (Part A only, default subset = 100%)
 
 ```bash
 python faalprot_heterogeneity_cli_v2.py   --fasta FAAL_NR_MIBIG_LEGE_FFT_NS_2_raw_data.fasta   --table Table_S2.tsv   --outdir results_faal
 ```
 
-This will:
-
-- Build the four subsets (25%, 50%, 75%, 100%),
-- Run MAFFT, pairwise identities, MMseqs2,
-- Generate figures: 01, 03, 04, 06a, 06b, 04_cluster_size, 05_largest_cluster,
-- **Not** run any Word2Vec analyses.
-
----
-
-### 11.2 With Word2Vec Part B (default dimensions and epochs)
+### 10.2 Enable Word2Vec Part B (default dims 100 and 390)
 
 ```bash
 python faalprot_heterogeneity_cli_v2.py   --fasta FAAL_NR_MIBIG_LEGE_FFT_NS_2_raw_data.fasta   --table Table_S2.tsv   --outdir results_faal_w2v   --run-part-b
 ```
 
-Defaults (in v2):
+### 10.3 Custom Word2Vec grid (dimensions and epochs)
 
-- `--w2v-dims 100,390`
-- `--w2v-epochs-list 2500`
-- `--kmer-size 3`
-- `--kmer-step 1`
-- `window=5`, `sg=1`, `hs=0`, `negative=5`, `min_count=1`, `workers=48`, `seed=42`.
-
-For each subset and each (dim, epochs) pair, the script:
-
-- Trains Word2Vec,
-- Computes mean embeddings,
-- Generates figures 07, 08, 09, 10, 13,
-- Updates `summary_identity_vs_cosine_correlations.csv`.
-
----
-
-### 11.3 Full W2V grid (example: multiple dimensions and epochs)
-
-To explicitly test several dimensions and epoch counts:
+For example, to test dimensions 100, 200, 390 and epochs 200, 500, 1500, 2500:
 
 ```bash
-python faalprot_heterogeneity_cli_v2.py   --fasta my_sequences.fasta   --outdir resultados_grid   --table table_S2.tsv   --run-part-b   --w2v-dims 100,200,390   --w2v-epochs-list 200,500,1500,2500
+python faalprot_heterogeneity_cli_v2.py   --fasta my_sequences.fasta   --table table_S2.tsv   --outdir resultados_grid   --run-part-b   --w2v-dims 100,200,390   --w2v-epochs-list 200,500,1500,2500
 ```
 
-This will, for each subset fraction (0.25, 0.50, 0.75, 1.00):
+The script will:
 
-- Train Word2Vec for:
-  - dims: 100, 200, 390
-  - epochs: 200, 500, 1500, 2500
-- Generate all W2V-dependent figures (07/08/09/10/13) for each combination.
-- Fill the correlation summary table with one row per combination and pair type.
+- run alignment → k-mers → W2V **with the same logic** as FAALPred (alignment-based k-mers, min\_kmers cropping/padding, skip-gram, `hs=0`, `negative=5`, window=5),  
+- for **all subsets (25%, 50%, 75%, 100%)**,  
+- for **all combinations** of dimensions and epochs provided.
 
----
-
-### 11.4 Custom pair sampling & binary paths (optional)
-
-If exposed in your version of the CLI, you can tune pair sampling sizes and binary paths, e.g.:
+### 10.4 Explicit binary paths
 
 ```bash
-python faalprot_heterogeneity_cli_v2.py   --fasta FAAL_NR_MIBIG_LEGE_FFT_NS_2_raw_data.fasta   --table Table_S2.tsv   --outdir results_custom   --run-part-b   --mafft-bin /usr/bin/mafft   --mmseqs-bin /home/USER/miniconda3/envs/faal/bin/mmseqs
+python faalprot_heterogeneity_cli_v2.py   --fasta FAAL_NR_MIBIG_LEGE_FFT_NS_2_raw_data.fasta   --table Table_S2.tsv   --outdir results_bins   --mafft-bin /usr/bin/mafft   --mmseqs-bin /home/USER/anaconda3/envs/faal/bin/mmseqs   --run-part-b   --w2v-dims 100,390   --w2v-epochs-list 500,1500,2500
 ```
 
-Consult `--help` for the exact option names available in your installed version.
-
 ---
 
-## 12. FAQ
+## 11. FAQ
 
-**Q1. Why sample pairs instead of showing all?**  
-The number of pairs grows as \(N(N-1)/2\). We **compute all** identities for correctness, but plots would be too dense and slow. We therefore use a **deterministic stride** over the upper triangle (Section 6.3) to sample a fixed number of pairs (e.g., 600k, 1M) for visualization.
-
----
+**Q1. Why sample pairs instead of plotting all?**  
+The number of pairs grows as \(N(N-1)/2\). Even when we compute all identities, we **plot** only a **deterministic subsample** for clarity and performance.
 
 **Q2. Why exclude “Unknown/uncultured” from color plots?**  
-Color is used to distinguish **taxonomic phyla**. Labels like `Unknown` or `uncultured` do not add interpretable phylogenetic structure. They are still used in **numerical analyses**, but their points are either dropped from colored plots or shown in neutral tones without cluttering the legend.
+Color encodes discrete taxa (Phylum). Unknown labels would receive arbitrary colors and clutter legends without adding biological signal.
+
+**Q3. Why use Word2Vec on gapped-free sequences, but identity on the gapped alignment?**  
+Word2Vec models sequence **content/context** (k-mer tokens) and benefits from removing alignment-introduced gaps. Identity must respect aligned positions, hence uses the **gapped** MSA.
+
+**Q4. How are dendrogram colors assigned?**  
+Branches are colored by the **unique** phylum if all descendants share it; otherwise the branch is gray, highlighting mixed clades.
+
+**Q5. How do I compare different W2V configs (dims, epochs)?**  
+Check the **correlation summary table** (`correlation_summary.tsv`) for each (subset, dim, epochs). Higher Pearson \(r\) between identity and cosine typically indicates a better embedding for capturing the alignment signal.
 
 ---
 
-**Q3. Why is Word2Vec trained on gap-free sequences but identity on gapped alignments?**  
-Word2Vec models local **sequence context** in the amino acid chain and benefits from **removing alignment-induced gaps**. In contrast, alignment identity quantifies conservation of aligned positions, which correctly uses the **registered, gapped coordinates** from MAFFT. The pipeline keeps both representations consistent by:
+## 12. References
 
-- using gapped alignment for identity (Section 5.1),
-- using gap-free sequences for k-mer generation and Word2Vec (Section 5.3),
-- standardizing token counts with `min_kmers` (Section 5.4).
-
----
-
-**Q4. How should I interpret the correlation summary table?**  
-`summary_identity_vs_cosine_correlations.csv` reports the Pearson correlation \(r\) between identity and cosine similarity for each *(subset fraction, dimension, epochs)* and pair type (intra / inter / all).  
-
-Roughly:
-
-- **Higher \(r\)** (closer to 1) means the embedding space preserves alignment identity better.
-- Comparing rows lets you see whether:
-  - higher dimensions (e.g. 390 vs 100),
-  - more epochs (e.g. 2500 vs 200),
-  improve or degrade the alignment-based signal.
-
-This table is designed to help you choose the **best embedding regime** for downstream tasks.
-
----
-
-**Q5. Why four fixed subsets (25%, 50%, 75%, 100%)?**  
-These fractions provide a **systematic view of how dataset size affects heterogeneity**:
-
-- 25% and 50% allow much faster exploration and debugging,
-- 75% and 100% show the behavior near the full dataset,
-- Word2Vec and MMseqs2 are all evaluated consistently across these four regimes.
-
----
-
-## 13. References
-
-- Katoh, K. & Standley, D.M. (2013). MAFFT multiple sequence alignment software version 7: improvements in performance and usability. *Mol. Biol. Evol.*
-- Steinegger, M. & Söding, J. (2017). MMseqs2 enables sensitive protein sequence searching. *Nat. Biotechnol.*
-- McInnes, L., Healy, J., & Melville, J. (2018). UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction. arXiv:1802.03426.
-- van der Maaten, L. & Hinton, G. (2008). Visualizing data using t-SNE. *JMLR*.
-- Mikolov, T., Chen, K., Corrado, G., & Dean, J. (2013). Distributed Representations of Words and Phrases and their Compositionality. *NIPS*.
-- Virtanen, P. *et al.* (2020). SciPy 1.0: Fundamental algorithms for scientific computing in Python. *Nat. Methods*.
-- Pedregosa, F. *et al.* (2011). Scikit-learn: Machine learning in Python. *JMLR*.
-- Hunter, J.D. (2007). Matplotlib: A 2D graphics environment. *Computing in Science & Engineering*.
-- Cock, P.J.A. *et al.* (2009). Biopython: Freely available Python tools for computational molecular biology and bioinformatics. *Bioinformatics*.
-
+- Katoh, K. & Standley, D.M. (2013). MAFFT multiple sequence alignment software version 7: improvements in performance and usability. *Mol. Biol. Evol.*  
+- Steinegger, M. & Söding, J. (2017). MMseqs2 enables sensitive protein sequence searching. *Nat. Biotechnol.*  
+- McInnes, L., Healy, J., & Melville, J. (2018). UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction. arXiv:1802.03426.  
+- van der Maaten, L. & Hinton, G. (2008). Visualizing data using t-SNE. *JMLR*.  
+- Mikolov, T., Chen, K., Corrado, G., & Dean, J. (2013). Efficient Estimation of Word Representations in Vector Space. *NIPS* / arXiv.  
+- Virtanen, P. *et al.* (2020). SciPy 1.0: fundamental algorithms for scientific computing in Python. *Nat. Methods*.  
+- Pedregosa, F. *et al.* (2011). Scikit-learn: Machine Learning in Python. *JMLR*.  
+- Hunter, J.D. (2007). Matplotlib: A 2D graphics environment. *Computing in Science & Engineering*.  
+- Cock, P.J.A. *et al.* (2009). Biopython: freely available Python tools for computational molecular biology and bioinformatics. *Bioinformatics*.  
