@@ -76,12 +76,12 @@ After this, you should be able to run `faal_adenyl_validation.py` from within th
 
 The script expects a tabular file (TSV/CSV) with at least the following columns:
 
-- `Protein`
-- `Refseq/GenBank`
-- `Substrate in literature`
-- `Species`
-- `FAALPred, Prediction Score`
-- `AdenylPred, Prediction Score`
+- `Protein`  
+- `Refseq/GenBank`  
+- `Substrate in literature`  
+- `Species`  
+- `FAALPred, Prediction Score`  
+- `AdenylPred, Prediction Score`  
 
 In the repository, this corresponds to **Supplementary Table S6**, placed in the same directory as the script (e.g. `validation/`).
 
@@ -107,52 +107,52 @@ Qualitative modifiers such as “mainly”, “preferred”, “tested”, etc. 
 
 We denote the set of experimental chain lengths for a given enzyme by:
 
-\[
+$$
 \{c_1, c_2, \dots, c_n\}
-\]
+$$
 
 and define:
 
-\[
+$$
 c_{\min} = \min_i c_i, \quad
 c_{\max} = \max_i c_i.
-\]
+$$
 
 ### 2. Chain-length bins for FAALPred and AdenylPred
 
 FAALPred predictions are reported as triplet labels, which are interpreted as closed integer ranges:
 
-- `C4-C6-C8` → \([4, 8]\)  
-- `C8-C10-C12` → \([8, 12]\)  
-- `C12-C14-C16` → \([12, 16]\)  
-- `C14-C16-C18` → \([14, 18]\)
+- `C4-C6-C8` → $[4, 8]$  
+- `C8-C10-C12` → $[8, 12]$  
+- `C12-C14-C16` → $[12, 16]$  
+- `C14-C16-C18` → $[14, 18]$  
 
 AdenylPred predictions use broader categories:
 
-- `C6 through C12` → \([6, 12]\)  
-- `C13 through C17` → \([13, 17]\)
+- `C6 through C12` → $[6, 12]$  
+- `C13 through C17` → $[13, 17]$  
 
 Before binning, experimental chain lengths are clipped to the range relevant for each method:
 
-- **FAALPred**: only chain lengths in \([4, 18]\) are retained.  
-- **AdenylPred**: only chain lengths in \([6, 17]\) are retained.
+- **FAALPred**: only chain lengths in $[4, 18]$ are retained.  
+- **AdenylPred**: only chain lengths in $[6, 17]$ are retained.
 
 If all experimental chain lengths fall outside the clipping range, the enzyme is excluded from the corresponding method’s evaluation.
 
 ### 3. Overlap-based mapping of experimental data to model bins
 
-For each enzyme and each model bin with range \([r_{\min}, r_{\max}]\), we compute the **discrete overlap** between the experimental range \([c_{\min}, c_{\max}]\) and the model bin as:
+For each enzyme and each model bin with range $[r_{\min}, r_{\max}]$, we compute the **discrete overlap** between the experimental range $[c_{\min}, c_{\max}]$ and the model bin as:
 
-\[
+$$
 \text{inter}_{\min} = \max(c_{\min}, r_{\min}), \quad
 \text{inter}_{\max} = \min(c_{\max}, r_{\max}),
-\]
+$$
 
-\[
+$$
 \text{overlap} = \max\left(0,\ \text{inter}_{\max} - \text{inter}_{\min} + 1\right).
-\]
+$$
 
-This corresponds to the number of integer chain lengths shared by the two intervals (e.g. the overlap between \([6, 8]\) and \([4, 8]\) is 3, corresponding to C6, C7 and C8).
+This corresponds to the number of integer chain lengths shared by the two intervals (e.g. the overlap between $[6, 8]$ and $[4, 8]$ is 3, corresponding to C6, C7 and C8).
 
 For each enzyme, the **true bin** is defined as the model bin with the largest overlap:
 
@@ -169,52 +169,52 @@ The script simultaneously reads the **predicted** bin from the FAALPred/AdenylPr
 For each method, a confusion matrix is built with rows corresponding to true bins and columns to predicted bins:
 
 - FAALPred: `crosstab(True_FAAL_interval, FAALPred_interval)`  
-- AdenylPred: `crosstab(True_Adenyl_interval, AdenylPred_interval)`
+- AdenylPred: `crosstab(True_Adenyl_interval, AdenylPred_interval)`  
 
-Let \(N_{ij}\) denote the count of enzymes whose **true** bin is \(i\) and **predicted** bin is \(j\). To facilitate interpretation, the script converts counts into row-wise percentages:
+Let $N_{ij}$ denote the count of enzymes whose **true** bin is $i$ and **predicted** bin is $j$. To facilitate interpretation, the script converts counts into row-wise percentages:
 
-\[
+$$
 P_{ij} = 100 \times \frac{N_{ij}}{\sum_j N_{ij}}.
-\]
+$$
 
-Each row of \(P_{ij}\) therefore sums to 100%, showing how each true class is distributed over the predicted classes.
+Each row of $P_{ij}$ therefore sums to 100%, showing how each true class is distributed over the predicted classes.
 
 The script plots these matrices as heatmaps with:
 
 - y-axis: **True label**  
 - x-axis: **Predicted label** (tick labels vertical)  
-- each cell annotated with \(P_{ij}\) (one decimal place)  
+- each cell annotated with $P_{ij}$ (one decimal place)  
 - a color bar labelled “Row-wise percentage”.
 
 ### 5. Per-class performance metrics
 
-Using a one-vs-all scheme, the script computes, for each class \(c\):
+Using a one-vs-all scheme, the script computes, for each class $c$:
 
-- True positives: \(TP_c\)  
-- False negatives: \(FN_c\)  
-- False positives: \(FP_c\)  
-- True negatives: \(TN_c\)
+- True positives: $TP_c$  
+- False negatives: $FN_c$  
+- False positives: $FP_c$  
+- True negatives: $TN_c$  
 
 from the full confusion matrix.
 
 From these, the following metrics are calculated:
 
-\[
+$$
 \text{Sensitivity}_c = \frac{TP_c}{TP_c + FN_c},
-\]
+$$
 
-\[
+$$
 \text{Specificity}_c = \frac{TN_c}{TN_c + FP_c},
-\]
+$$
 
-\[
+$$
 \text{Precision}_c = \frac{TP_c}{TP_c + FP_c},
-\]
+$$
 
-\[
+$$
 F1_c = \frac{2 \times \text{Precision}_c \times \text{Sensitivity}_c}
             {\text{Precision}_c + \text{Sensitivity}_c}.
-\]
+$$
 
 If any denominator is zero, the corresponding metric is reported as `NaN` (not defined).
 
@@ -237,7 +237,7 @@ The combined figure is exported in three formats:
 
 - `<prefix>_combined_panel.png` (600 dpi)  
 - `<prefix>_combined_panel.tiff` (600 dpi)  
-- `<prefix>_combined_panel.svg`
+- `<prefix>_combined_panel.svg`  
 
 where `<prefix>` is derived from the input file name and output directory.
 
@@ -250,7 +250,10 @@ From the `validation/` directory (where the script and Supplementary Table S6 ar
 ```bash
 conda activate faalpred_validation  # if using the suggested conda env
 
-python faal_adenyl_validation.py   -i Supplementary_Table_S6.tsv   -o results   --sep "	"
+python faal_adenyl_validation.py \
+  -i Supplementary_Table_S6.tsv \
+  -o results \
+  --sep "\t"
 ```
 
 Command-line arguments:
@@ -260,7 +263,7 @@ Command-line arguments:
   (e.g. `Supplementary_Table_S6.tsv`).
 
 - `--sep`  
-  Field separator for the input file. Default: `"	"` (TSV).
+  Field separator for the input file. Default: `"\t"` (TSV).
 
 - `-o, --output_dir`  
   Directory to save output files. Default: current directory (`"."`).
