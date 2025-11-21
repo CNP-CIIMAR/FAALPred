@@ -189,7 +189,7 @@ git clone https://github.com/CNP-CIIMAR/FAALPred.git
 cd FAALPred
 ```
 
-After this step, the file **`faalpred_environment.yml`** is available in the current directory.
+After this step, the file **`faalpred_env.yml`** is available in the current directory.
 
 ### 3. Create and activate the `faalpred` environment
 
