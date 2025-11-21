@@ -81,10 +81,6 @@ At a high level, FAALPred performs:
    - FAALPred applies:
      - **RandomOverSampler** (with class-specific minimum counts ≥ CV folds + 1),
      - followed by **SMOTE** oversampling.
-   - Quality diagnostics include:
-     - 3D **UMAP** visualizations of original vs synthetic samples,
-     - cosine similarity histograms,
-     - silhouette coefficient distributions by class.
 
 6. **Model training and calibration**
    - A **Random Forest** classifier is trained on the oversampled embeddings.
@@ -94,9 +90,6 @@ At a high level, FAALPred performs:
      - F1 scores (global and per class),
      - ROC AUC (binary or multi-class OVO),
      - Precision–Recall AUC,
-     - confusion matrices,
-     - calibration curves,
-     - violin plots of predicted probabilities for the true class (train vs test).
 
 7. **Prediction on new sequences**
    - New sequences are aligned (if required), embedded, scaled with the trained scaler, and fed into the calibrated RF model.
@@ -118,10 +111,6 @@ The implementation is contained in a single main Streamlit script (`faalpred.py`
   - Grid search for hyperparameter tuning
   - Probability calibration with `CalibratedClassifierCV`
   - Learning-curve plotting
-  - Testing and evaluation (`test_best_RF`), including:
-    - F1 per class,
-    - confusion matrix & calibration curves,
-    - violin plots of predicted probabilities.
 
 - **`ProteinEmbeddingGenerator`**
   - Handles sequence alignment (MAFFT if needed),
@@ -137,14 +126,17 @@ The implementation is contained in a single main Streamlit script (`faalpred.py`
 - `plot_roc_curve_global`  
 - `plot_precision_recall_curve_global`  
 - `get_class_rankings_global`  
+- `adjust_predictions_global`  
+- `format_and_sum_probabilities`  
+- `plot_predictions_scatterplot_custom`  
+- `plot_prediction_confidence_bar`
+
+### Optional functions
 - `visualize_latent_space_with_similarity`  
 - `plot_umap_3d_combined`  
 - `plot_oversampling_quality`  
 - `plot_confusion_and_calibration`  
-- `adjust_predictions_global`  
-- `format_and_sum_probabilities`  
-- `plot_predictions_scatterplot_custom`  
-- `plot_prediction_confidence_bar`  
+
 
 ### Auxiliary Tools (FAAL domain extraction)
 
