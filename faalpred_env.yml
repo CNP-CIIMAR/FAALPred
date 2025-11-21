@@ -1,26 +1,29 @@
-name: faalpred
+name: faalpred_env
 channels:
   - bioconda
   - conda-forge
   - defaults
 dependencies:
-  - matplotlib
-  - openpyxl
-  - python-kaleido
-  - gensim
-  - joblib
-  - scikit-learn=1.3.2
-  - biopython
-  - seaborn
-  - tabulate
-  - plotly
-  - mafft
-  - numpy
-  - pillow
   - python=3.9
-  - pandas
   - streamlit
-  - imbalanced-learn
+  - gensim
   - requests
+  - numpy=1.26
+  - python-kaleido
+  - openpyxl
   - bedtools
-prefix: /home/mattoslmp/anaconda3/envs/faalpred
+  - biopython
+  - scikit-learn=1.3.2
+  - mafft
+  - plotly
+  - matplotlib
+  - tabulate
+  - imbalanced-learn
+  - pillow
+  - joblib
+  - seaborn=0.13
+  - scipy=1.11
+  - umap-learn=0.5
+  - numba=0.59
+  - pynndescent=0.5
+  - llvmlite=0.42
