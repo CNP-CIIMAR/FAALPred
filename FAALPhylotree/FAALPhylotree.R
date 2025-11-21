@@ -1,4 +1,5 @@
 ############################################################
+# Autor: Leandro de Mattos Pereira - 21/11/2025
 # Circular FAAL tree with fatty acid structures (FAs)
 # - Circular phylogenetic tree (ggtree)
 # - Rectangular rings (MIBIG + Multi-domain)
@@ -70,7 +71,7 @@ ANGLE_FIXED_DEG  <- 90   # rotate FA images (degrees)
 FA_POS_FRAC      <- 0.55 # fraction of distance from tip to ring where FA is placed
 
 # Fixed FA width in tree units (all FAs will use exactly this size)
-FA_CONST_SIZE <- 0.4    # tweak this if you want larger/smaller FAs
+FA_CONST_SIZE <- 0.5    # tweak this if you want larger/smaller FAs
 
 # FA rendering parameters (internal resolution)
 FA_SRC_SIZE_PX   <- 3000    # internal image size used for processing
@@ -275,7 +276,6 @@ get_pubchem_record <- function(nC, nDB){
   cid_used <- NA_character_
   smiles   <- NA_character_
   
-  # Try each synonym until we get a CID and a SMILES
   for (nm in syns){
     if (DEBUG_FA) {
       message(sprintf("[DEBUG][get_pubchem_record]   trying name='%s'", nm))
@@ -317,7 +317,6 @@ get_pubchem_record <- function(nC, nDB){
 generate_fa_smiles <- function(nC, nDB){
   if (is.na(nC) || nC < 4L) return(NA_character_)
   if (is.na(nDB) || nDB == 0L){
-    # Very simple linear chain: CH3-(CH2)_(nC-2)-COOH
     smi <- paste0(strrep("C", nC - 1L), "C(=O)O")
     if (DEBUG_FA) {
       message(sprintf("[DEBUG][generate_fa_smiles] Using generated saturated SMILES for C%d:%d: %s",
@@ -334,37 +333,26 @@ generate_fa_smiles <- function(nC, nDB){
 
 ########## 4.1) Mask extraction for magick ##########
 
-# Create a binary mask: white = molecule, black = background
 extract_fa_mask <- function(img){
   img <- safe_resize(img, paste0(FA_SRC_SIZE_PX, "x", FA_SRC_SIZE_PX))
   g   <- image_convert(img, colorspace = "gray")
   bw  <- image_threshold(g, type = "white", threshold = "90%")
-  image_negate(bw)   # white = molecule, black = background
+  image_negate(bw)
 }
 
 
 ########## 4.2) Apply red-only style on square canvas (no black outline) ##########
 
-# Take an image, recolor the drawing to red, put it on a square transparent canvas,
-# then resize to FA_FINAL_PX. This ensures all FAs have the same aspect ratio.
 fa_red_nobg <- function(img){
-  # 1) Convert to PNG and upscale
   img_big <- image_convert(img, "PNG")
   img_big <- safe_resize(img_big, paste0(FA_SRC_SIZE_PX, "x", FA_SRC_SIZE_PX))
   
-  # 2) Build mask: white = molecule (lines/labels), black = background
   mask <- extract_fa_mask(img_big)
-  
-  # 3) Recolor original drawing to pure red (lines)
   red_lines <- image_colorize(img_big, opacity = 100, color = FA_RED_COLOR)
-  
-  # 4) Apply mask as alpha so background becomes fully transparent
   red_mol <- image_composite(red_lines, mask, operator = "copyopacity")
   
-  # 5) Put the red molecule on a square transparent canvas (to standardize aspect)
   info <- image_info(red_mol)
   side <- max(info$width, info$height)
-  # extent makes a larger canvas, centering the image; color="transparent" keeps alpha
   red_square <- image_extent(
     red_mol,
     geometry = paste0(side, "x", side),
@@ -372,7 +360,6 @@ fa_red_nobg <- function(img){
     color    = "transparent"
   )
   
-  # 6) Resize to final target size (still square for everyone)
   final <- safe_resize(red_square, FA_FINAL_PX)
   final
 }
@@ -380,7 +367,6 @@ fa_red_nobg <- function(img){
 
 ########## 4.3) Draw FA from SMILES using rcdk ##########
 
-# Given a SMILES, use rcdk to create a 2D drawing and return it as magick image
 draw_fa_from_smiles <- function(smiles,
                                 width  = FA_SRC_SIZE_PX,
                                 height = FA_SRC_SIZE_PX){
@@ -395,7 +381,6 @@ draw_fa_from_smiles <- function(smiles,
     message(sprintf("[DEBUG][draw_fa_from_smiles] Parsing SMILES: %s", smiles))
   }
   
-  # Parse SMILES to Java molecule object
   mols <- tryCatch(rcdk::parse.smiles(smiles), error = function(e) {
     if (DEBUG_FA) {
       message(sprintf("[DEBUG][draw_fa_from_smiles] ERROR in parse.smiles: %s", e$message))
@@ -411,11 +396,9 @@ draw_fa_from_smiles <- function(smiles,
   
   mol <- mols[[1]]
   
-  # Ensure 2D coordinates and aromaticity
   try(rcdk::do.aromaticity(mol), silent = TRUE)
   try(rcdk::convert.2d(mol),     silent = TRUE)
   
-  # Set up depictor with some zoom & style
   depictor <- tryCatch(
     rcdk::get.depictor(
       width  = width,
@@ -435,7 +418,6 @@ draw_fa_from_smiles <- function(smiles,
     }
   )
   
-  # Render 2D image to a raster via rcdk
   img_raster <- tryCatch(
     rcdk::view.image.2d(mol, depictor = depictor),
     error = function(e) {
@@ -452,11 +434,6 @@ draw_fa_from_smiles <- function(smiles,
     return(NULL)
   }
   
-  if (DEBUG_FA) {
-    message("[DEBUG][draw_fa_from_smiles] Successfully obtained raster from rcdk.")
-  }
-  
-  # Save raster as a temporary PNG so we can read with magick
   tmp <- tempfile(fileext = ".png")
   grDevices::png(tmp, width = width, height = height, bg = "white", res = NA)
   par(mar = c(0, 0, 0, 0))
@@ -473,20 +450,16 @@ draw_fa_from_smiles <- function(smiles,
 
 ########## 4.4) Generate FA PNG file (SMILES + rcdk only) ##########
 
-# Generate FA PNG file for C:nDB (if possible), return file path or NULL
 download_fa_png <- function(
     nC, nDB,
     outdir = "fa_fatty_acids_png"
 ){
-  # Ensure output directory exists
   if (!dir.exists(outdir)){
     dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
   }
   
-  # Output filename (e.g. FA_C16_0.png)
   outfile <- file.path(outdir, sprintf("FA_C%02d_%d.png", nC, nDB))
   
-  # If file already exists and we don't want to overwrite, return it
   if (file.exists(outfile) && !ALWAYS_OVERWRITE_FA){
     if (DEBUG_FA) {
       message(sprintf("[DEBUG][download_fa_png] File already exists, skipping: %s", outfile))
@@ -498,7 +471,6 @@ download_fa_png <- function(
     message(sprintf("[DEBUG][download_fa_png] Generating FA image for C%d:%d", nC, nDB))
   }
   
-  # 1) Try get SMILES from PubChem
   rec    <- get_pubchem_record(nC, nDB)
   smiles <- rec$smiles
   if (DEBUG_FA) {
@@ -507,7 +479,6 @@ download_fa_png <- function(
                     ifelse(is.na(smiles),"NA", smiles)))
   }
   
-  # 2) Fallback: generate simple saturated SMILES if PubChem fails
   if (is.na(smiles) || !nzchar(smiles)){
     smiles <- generate_fa_smiles(nC, nDB)
     if (is.na(smiles) || !nzchar(smiles)){
@@ -519,7 +490,6 @@ download_fa_png <- function(
     }
   }
   
-  # 3) Draw molecule using rcdk
   img_raw <- draw_fa_from_smiles(smiles)
   if (is.null(img_raw)){
     warning(sprintf(
@@ -529,7 +499,6 @@ download_fa_png <- function(
     return(NULL)
   }
   
-  # 4) Apply red-only style on square canvas and save PNG
   img_proc <- fa_red_nobg(img_raw)
   image_write(img_proc, outfile, "png")
   
@@ -540,9 +509,7 @@ download_fa_png <- function(
   outfile
 }
 
-# Helper to compute FA size in tree units (standardized)
 get_hw_units <- function(path, target_h = IMG_TARGET_H, max_w = IMG_MAX_W){
-  # We ignore the actual image size and force a constant width in tree units
   c(
     size   = FA_CONST_SIZE,
     h      = target_h,
@@ -553,22 +520,15 @@ get_hw_units <- function(path, target_h = IMG_TARGET_H, max_w = IMG_MAX_W){
 
 ########## 5) Read metadata and tree ##########
 
-# metadata1: tree tip-level annotations (lineage, phylum, signature, etc.)
 m1 <- read_xlsx(FILE_META1)
-
-# metadata2: biome, location, coordinates
 m2 <- read_xlsx(FILE_META2)
-
-# metadata3: FA specificity (SubstrateLabel) and color
 m3 <- read_xlsx(FILE_META3)
 
 
 ########## 6) Process and merge metadata ##########
 
-# Ensure expected column exists
 stopifnot("Combined Signature description" %in% names(m1))
 
-# Process metadata1: parse lineage, define MultiDomain, normalize IDs
 meta1 <- m1 %>%
   rename(
     ProteinRaw = `Protein Accession`,
@@ -598,7 +558,6 @@ meta1 <- m1 %>%
   ) %>%
   distinct(ProtNorm,.keep_all = TRUE)
 
-# Process metadata2: pick best columns for assembly / biome / location
 meta2 <- tibble(
   Assembly = pick_col(m2, c("Assembly Accession","Assembly","Assembly_Accession")),
   Biome    = pick_col(m2, c("BiomeDistribution","Biome Distribution","Biome","Biome_Distribution")),
@@ -607,7 +566,6 @@ meta2 <- tibble(
   Longitude= suppressWarnings(as.numeric(pick_col(m2, c("Longitude","Long","Lon"))))
 ) %>% distinct()
 
-# Process metadata3: FA specificity (substrate label + color)
 meta3 <- m3 %>%
   rename(
     ProteinRaw     = `Protein Accession`,
@@ -625,22 +583,15 @@ meta3 <- m3 %>%
 
 ########## 7) Tree and merged annotation ##########
 
-# Read Newick tree
 tree_raw <- read.tree(FILE_TREE)
-
-# Check that outgroup is present among tip labels
 stopifnot(OUTGROUP_PROTEIN %in% tree_raw$tip.label)
-
-# Root the tree using the outgroup
 tree <- root(tree_raw, outgroup = OUTGROUP_PROTEIN, resolve.root = TRUE)
 
-# Build a data frame for tree tips with normalized IDs
 tips <- tibble(
   Protein  = tree$tip.label,
   ProtNorm = normalize_id(tree$tip.label)
 )
 
-# Merge metadata (meta1, meta2, meta3) to tree tips
 meta_tree <- tips %>%
   left_join(meta1 %>% select(-Protein,-ProteinRaw), by = "ProtNorm") %>%
   left_join(meta2, by = "Assembly") %>%
@@ -653,15 +604,12 @@ meta_tree <- tips %>%
     )
   )
 
-# Count phylum frequency
 phylum_counts <- meta_tree %>%
   filter(!is.na(Phylum)) %>%
   count(Phylum, sort = TRUE)
 
-# Select top N phyla
 top_phyla <- phylum_counts$Phylum[seq_len(min(TOP_N_PHYLA, nrow(phylum_counts)))]
 
-# Build final annotation table 'ann' matching tree tip order
 ann <- meta_tree %>%
   transmute(
     Protein, Assembly, Lineage, Phylum, Class, Order, Family, Genus, Species,
@@ -677,19 +625,13 @@ ann <- meta_tree %>%
   distinct(Protein,.keep_all = TRUE) %>%
   slice(match(tree$tip.label, Protein))
 
-# Row names = protein ID for ggtree mapping
 rownames(ann) <- ann$Protein
-
-# Factor for multi-domain classification
 ann$MultiDomain <- factor(ann$MultiDomain, levels = c("Multidomain","Single"))
-
-# Set special label for outgroup phylum
 ann$PhylumCollapsed[ann$Protein == OUTGROUP_PROTEIN] <- "Outgroup"
 
 
 ########## 8) Phylum color palette ##########
 
-# Pre-defined large palette for phyla
 phylum_palette <- c(
   "Myxococcota"="#0000ff","Candidatus Riflebacteria"="#008000","Candidatus Tectomicrobia"="#008b8b",
   "Candidatus Eremiobacterota"="#00bfff","Cyanobacteriota"="#00ff4f","Ignavibacteriota"="#00ffff",
@@ -719,31 +661,24 @@ phylum_palette <- c(
   "Bacteroidota"="#ffff00"
 )
 
-# Get unique phylum labels in collapsed annotation
 phylum_levels_raw <- ann$PhylumCollapsed %>%
   unique() %>%
   na.omit()
 
-# We treat "Other phyla" and "Outgroup" specially
 other_label <- "Other phyla"
 phylum_main <- setdiff(phylum_levels_raw, c(other_label, "Outgroup"))
 phylum_levels <- c(phylum_main, other_label)
 
-# Default color for phyla that are not in the palette
 phylum_colors <- setNames(rep("#8D8D8D", length(phylum_levels)), phylum_levels)
-
-# Override with palette where available
 matchable <- intersect(names(phylum_palette), phylum_levels)
 phylum_colors[matchable] <- phylum_palette[matchable]
 
-# Colors for "Other phyla" and "Outgroup"
 phylum_colors[other_label] <- "#A0A0A0"
 phylum_colors["Outgroup"]  <- "#4D4D4D"
 
 
 ########## 9) Base circular tree ##########
 
-# Build base circular tree with ggtree + tip colors by phylum
 p_tree <- ggtree(
   tree,
   layout = "circular",
@@ -767,10 +702,8 @@ p_tree <- ggtree(
     alpha     = "none"
   )
 
-# Outer radius of the tips
 r_tip <- max(layer_data(p_tree)$x, na.rm = TRUE)
 
-# Extract tip (x,y) positions for further use (rings + FA placement)
 tips_xy <- p_tree$data %>%
   dplyr::filter(isTip) %>%
   select(label, x, y) %>%
@@ -779,19 +712,15 @@ tips_xy <- p_tree$data %>%
 
 ########## 10) Rectangular rings for MIBIG and Multi-domain ##########
 
-# Convert gap (FIRST_GAP_CM) from cm to tree units
 first_gap_units <- cm_to_offset(FIRST_GAP_CM, r_ref = r_tip)
 w_units         <- RING_WIDTH
 
-# Build data for MIBIG ring
 ann_mibig <- ann %>%
   transmute(Protein, FillKey = paste0("MIBIG:", MIBIG))
 
-# Build data for Multi-domain ring
 ann_multi <- ann %>%
   transmute(Protein, FillKey = paste0("Multi:", MultiDomain))
 
-# Function that turns tip coordinates into rectangular ring segments
 ring_df <- function(df, x_inner){
   df %>%
     left_join(tips_xy, by = "Protein") %>%
@@ -803,13 +732,9 @@ ring_df <- function(df, x_inner){
     )
 }
 
-# First ring (closest to tips) = MIBIG
 ring1 <- ring_df(ann_mibig, x_inner = first_gap_units)
-
-# Second ring (outside) = Multi-domain
 ring2 <- ring_df(ann_multi, x_inner = first_gap_units + w_units)
 
-# Add rings to tree
 p_tree <- p_tree +
   geom_rect(
     data  = ring1,
@@ -850,7 +775,7 @@ mibig_keys <- paste0("MIBIG:", c("MIBIG","Non-MIBIG"))
 multi_keys <- paste0("Multi:", c("Multidomain","Single"))
 
 # Mapping FillKey -> colors in legend
-# We also add fake "title" keys mapped to NA so they show text only (no boxes)
+# Titles and blanks têm fill = NA (sem cor)
 ring_fill_colors <- c(
   setNames(NA, TITLE_PHY),
   setNames(phylum_cols2[c(phylum_levels,"Outgroup")], phylum_keys2),
@@ -862,7 +787,7 @@ ring_fill_colors <- c(
   setNames(c(MULTI_BLACK, MULTI_SINGLE_GRAY), multi_keys)
 )
 
-# Labels for legend entries
+# Labels para a legenda
 phylum_labels <- phylum_levels
 
 all_breaks <- c(
@@ -880,20 +805,34 @@ all_labels <- c(
   " Phyla",
   phylum_labels,
   OUTGROUP_LAB,
-  " ",                 # blank line before MIBIG
+  " ",                 # linha em branco antes de MIBIG
   " MIBIG",
   c("MIBIG","Non-MIBIG"),
-  " ",                 # blank line before Multi-Architecture
+  " ",                 # linha em branco antes de Multi-Architecture
   " Multi-Architecture",
   c("Multidomain","Single")
 )
 
-# Dummy data to force legend entries for FillKey
+# Dummy data para forçar todas as chaves da legenda
 dummy_df <- data.frame(
   FillKey = unique(all_breaks),
   x = 0,
   y = 0
 )
+
+# Vetores de override para NÃO mostrar quadrinho nos títulos e espaços em branco
+n_keys <- length(all_breaks)
+shape_vec <- rep(22, n_keys)
+size_vec  <- rep(6,  n_keys)
+alpha_vec <- rep(1,  n_keys)
+
+no_box_keys <- c(TITLE_PHY, TITLE_BLANK_MIBIG, TITLE_MIBIG,
+                 TITLE_BLANK_MULTI, TITLE_MULTI)
+idx_nobox <- all_breaks %in% no_box_keys
+
+shape_vec[idx_nobox] <- NA  # sem símbolo
+size_vec[idx_nobox]  <- 0   # sem tamanho
+alpha_vec[idx_nobox] <- 0   # evita qualquer traço
 
 # Attach legend to plot via scale_fill_manual + dummy layer
 p_tree <- p_tree +
@@ -915,11 +854,11 @@ p_tree <- p_tree +
     na.translate = FALSE,
     guide  = guide_legend(
       override.aes = list(
-        shape  = 22,
-        size   = 6,
-        alpha  = 1,
-        colour = NA,
-        stroke = 0
+        shape  = shape_vec,
+        size   = size_vec,
+        alpha  = alpha_vec,
+        colour = rep(NA, n_keys),
+        stroke = rep(0,  n_keys)
       ),
       ncol  = 1,
       byrow = FALSE,
@@ -945,7 +884,6 @@ ring1_inner <- r_tip + first_gap_units
 
 ########## 12) Parse FA labels (C:nDB) ##########
 
-# Extract nC (number of carbons) and nDB (double bonds) from SubstrateLabel
 ann <- ann %>%
   mutate(
     nC  = as.integer(sapply(SubstrateLabel, function(s) parse_fa(s)[1])),
@@ -961,21 +899,17 @@ if (DEBUG_FA) {
 
 ########## 13) Generate FA PNGs and add to tree ##########
 
-# Base FA directory and "red" subdirectory
 fa_base_dir <- "fa_fatty_acids_png"
 fa_dir <- file.path(fa_base_dir, "red")
 
 message("=== Generating figure for red FAs (SMILES + rcdk, red only, standardized size) ===")
 
-# Start from base tree (no FAs yet)
 p_tree <- p_tree_base
 
-# Ensure FA directory exists
 if (!dir.exists(fa_dir)){
   dir.create(fa_dir, recursive = TRUE, showWarnings = FALSE)
 }
 
-# Data frame of proteins that have FAs (distinct by protein)
 fa_list <- ann %>%
   filter(!is.na(nC), !is.na(SubstrateLabel)) %>%
   mutate(img = file.path(fa_dir, sprintf("FA_C%02d_%d.png", nC, nDB))) %>%
@@ -985,7 +919,6 @@ if (DEBUG_FA) {
   message(sprintf("[DEBUG] Number of distinct proteins with FA to draw: %d", nrow(fa_list)))
 }
 
-# Loop through each FA and generate PNG via SMILES + rcdk
 if (nrow(fa_list) > 0){
   for (i in seq_len(nrow(fa_list))){
     if (DEBUG_FA) {
@@ -1007,11 +940,9 @@ if (nrow(fa_list) > 0){
   }
 }
 
-# Clean up any open magick devices and do garbage collection
 close_magick_devices()
 gc()
 
-# Build DF for FAs for which PNG files exist
 fa_img_df <- ann %>%
   filter(!is.na(nC), !is.na(SubstrateLabel)) %>%
   mutate(img = file.path(fa_dir, sprintf("FA_C%02d_%d.png", nC, nDB))) %>%
@@ -1030,7 +961,6 @@ if (DEBUG_FA) {
   message(sprintf("[DEBUG] Number of FA images found on disk: %d", nrow(fa_img_df)))
 }
 
-# Merge FA info with tip coordinates and compute final FA positions
 fa_plot_df <- fa_img_df %>%
   left_join(tips_xy, by = "Protein") %>%
   filter(!is.na(y)) %>%
@@ -1045,9 +975,7 @@ if (DEBUG_FA) {
   message(sprintf("[DEBUG] Number of FA images with valid coordinates: %d", nrow(fa_plot_df)))
 }
 
-# Add FA connecting segments + images + labels
 if (nrow(fa_plot_df) > 0){
-  # Segment from tip to near FA image
   fa_conn_df <- fa_plot_df %>%
     mutate(
       x_start   = x_tip,
@@ -1059,7 +987,6 @@ if (nrow(fa_plot_df) > 0){
       )
     )
   
-  # Colors for connecting segments (from SubstrateColor, or auto)
   fa_color_df <- fa_plot_df %>%
     filter(!is.na(SubstrateLabel)) %>%
     select(SubstrateLabel, SubstrateColor) %>%
@@ -1072,7 +999,6 @@ if (nrow(fa_plot_df) > 0){
   }
   fa_cols <- setNames(fa_color_df$SubstrateColor, fa_color_df$SubstrateLabel)
   
-  # Add connection segments (FA label colors)
   p_tree <- p_tree +
     ggnewscale::new_scale_color() +
     geom_segment(
@@ -1088,7 +1014,6 @@ if (nrow(fa_plot_df) > 0){
     ) +
     scale_color_manual(values = fa_cols, guide = "none")
   
-  # Add FA images (red-only molecules, standardized size)
   p_tree <- p_tree +
     ggimage::geom_image(
       data  = fa_plot_df,
@@ -1104,7 +1029,6 @@ if (nrow(fa_plot_df) > 0){
     ) +
     scale_size_identity()
   
-  # Add text labels (e.g. C16:0) next to FA images
   fa_label_df <- fa_plot_df %>%
     filter(!is.na(SubstrateLabel)) %>%
     mutate(
@@ -1119,16 +1043,14 @@ if (nrow(fa_plot_df) > 0){
       inherit.aes = FALSE,
       hjust  = 0,
       vjust  = 0.5,
-      size   = 2.2,
+      size   = 1.5,
       colour = "#222222",
       fontface = "bold"
     )
 }
 
-# Final combined plot
 p_all <- p_tree
 
-# Close any open devices
 while (!is.null(dev.list())) dev.off()
 
 
@@ -1136,7 +1058,6 @@ while (!is.null(dev.list())) dev.off()
 
 base_name <- "figure_tree_publication_circular_full_FAred_version_simple_nobarplot_redonly_stdsize"
 
-# SVG (vector)
 ggsave(
   paste0(base_name, ".svg"),
   p_all,
@@ -1145,7 +1066,6 @@ ggsave(
   device = "svg"
 )
 
-# High-res PNG
 ggsave(
   paste0(base_name, ".png"),
   p_all,
@@ -1155,7 +1075,6 @@ ggsave(
   limitsize = FALSE
 )
 
-# Safer TIFF export (smaller size + try() to avoid memory error)
 tiff_try <- try({
   tiff(
     paste0(base_name, ".tiff"),
@@ -1175,7 +1094,6 @@ if (inherits(tiff_try, "try-error")) {
           TIFF_DPI, " dpi. Skipping TIFF export.")
 }
 
-# PDF (vector)
 ggsave(
   paste0(base_name, ".pdf"),
   p_all,
@@ -1184,7 +1102,7 @@ ggsave(
   device = "pdf"
 )
 
-# Final garbage collection
 gc()
 
-message("Done: red FAs rendered from SMILES using rcdk (standardized size, only red, no black outline), with transparent background, no barplots, with Phyla/MIBIG/Multi legends.")
+message("Done: red FAs rendered from SMILES using rcdk (standardized size, only red, no black outline), with transparent background, no barplots, with Phyla/MIBIG/Multi legends and no boxes on legend titles/blank rows.")
+
