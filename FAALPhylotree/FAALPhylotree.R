@@ -1,5 +1,6 @@
 ############################################################
-# Autor: Leandro de Mattos Pereira - 21/11/2025
+# Please cite the authors of the article after publication: Leandro de Mattos Pereira, Anne Liong and Pedro Leão.
+
 # Circular FAAL tree with fatty acid structures (FAs)
 # - Circular phylogenetic tree (ggtree)
 # - Rectangular rings (MIBIG + Multi-domain)
