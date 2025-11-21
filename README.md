@@ -165,7 +165,7 @@ A more detailed, method-oriented description is provided in the file
 - **MAFFT** (for sequence alignment; must be available in `PATH`)
 - **bedtools** (for the optional FAAL domain extraction tool; see below)
 
-All Python dependencies are specified in the `faalpred_environment.yml` file.
+All Python dependencies are specified in the `faalpred_env.yml` file.
 
 ---
 
