@@ -456,7 +456,7 @@ Rscript FAALPhylotree.R
 
 ## 8.1 - Note:
 
-**The final figure of the article was edited after generating the figure using the code provided in this repository**.
+**The final figure (svg format) of the article was edited after generating the figure using the code (FAALPhylotree.R) provided in this repository**.
 
 ## 9. Important parameters you may want to adjust
 
