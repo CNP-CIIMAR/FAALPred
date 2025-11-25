@@ -352,53 +352,7 @@ From the Streamlit interface, you can also:
 - Download a **`results.zip`** archive containing all outputs in the chosen run directory.
 
 ---
-
-## Running FAALPred with Docker
-
-FAALPred is also available as a ready-to-use Docker image on Docker Hub: **`mattoslmp/faalpred`**.  
-This allows you to run the full Streamlit app (with all dependencies) without manually installing the Conda environment.
-
-### 1. Install Docker on Ubuntu
-
-On a fresh Ubuntu system, you can install Docker using the official convenience script:
-
-```bash
-sudo apt-get update
-sudo apt-get install -y ca-certificates curl gnupg lsb-release
-
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-```
-
-After installation, add your user to the `docker` group so you can run Docker without `sudo`:
-
-```bash
-sudo usermod -aG docker $USER
-```
-
-**Log out and log back in** (or fully restart your session) so group changes take effect.  
-Then test:
-
-```bash
-docker ps
-```
-
-You should see an empty list of containers (no “permission denied” error).
-
-> If you prefer the long-form installation following Ubuntu’s documentation, see:  
-> https://docs.docker.com/engine/install/ubuntu/
-
-### 2. Pull the FAALPred Docker image
-
-Once Docker is installed and working:
-
-```bash
-docker pull mattoslmp/faalpred:latest
-```
-
-This will download the FAALPred image from Docker Hub.
-
-### 3. Run the FAALPred container
+### 2.4. Run the FAALPred container (simple mode)
 
 To start the Streamlit app in a container and expose it on port **8501** of your machine:
 
@@ -417,24 +371,53 @@ http://localhost:8501
 
 If you are running Docker on a remote server, replace `localhost` with the server IP or hostname, and ensure that port 8501 is open in the firewall.
 
-### 4. Stopping the container
-
-To stop FAALPred, go to the terminal where `docker run` is running and press `Ctrl + C`.  
+To stop FAALPred in this mode, go to the terminal where `docker run` is running and press `Ctrl + C`.  
 Because we used `--rm`, the container will be automatically removed.
 
-### 5. Notes on volumes and persistence
+---
+
+### 2.5. Run with persistent outputs and local data (recommended)
 
 By default, any result files generated inside the container (e.g. under `results/`) will be **lost when the container stops**.  
-If you want to keep outputs on your host machine, mount a local directory as a volume:
+To keep outputs and optionally use your local `data/` and `validation/` directories, you can mount them as volumes.
+
+From inside the cloned repository (where `results/` and `logs/` exist):
 
 ```bash
-mkdir -p /path/on/host/faalpred_results
-
-docker run --rm   -p 8501:8501   -v /path/on/host/faalpred_results:/app/results   mattoslmp/faalpred:latest
+docker run --rm -it \
+  -p 8501:8501 \
+  -v "$(pwd)/results:/app/results" \
+  -v "$(pwd)/logs:/app/logs" \
+  mattoslmp/faalpred:latest
 ```
 
-Replace `/path/on/host/faalpred_results` with an appropriate directory on your system.  
-All `results/` produced by FAALPred inside the container will then appear on your host.
+- `results/` and `logs/` on the host will store all outputs and logs created by FAALPred.
+- The container still runs the embedded app and environment.
+
+If you also want to mount your own training/validation data:
+
+```bash
+docker run --rm -it \
+  -p 8501:8501 \
+  -v "$(pwd)/data:/app/data" \
+  -v "$(pwd)/validation:/app/validation" \
+  -v "$(pwd)/results:/app/results" \
+  -v "$(pwd)/logs:/app/logs" \
+  mattoslmp/faalpred:latest
+```
+
+In this setup:
+
+- The code inside the container continues to refer to `data/`, `validation/`, `results/`, and `logs/`,
+- But the actual files live in your cloned GitHub project on the host, making it easy to inspect, back up, or version-control them.
+
+---
+
+## 3. Development notes
+
+- The main entry point of the app is `faal_pred.py`.
+- Environment dependencies are defined in `faalpred_env.yml` (Python 3.9 + scientific stack).
+- Most helper functions and reusable code are under the `utilities/` directory.
 
 ---
 
