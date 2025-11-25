@@ -324,11 +324,6 @@ Key files include:
   - X-axis: chain-length positions (C4 to C18)  
   - Lines mark the predicted block for each protein.
 
-- **Oversampling and latent-space diagnostics** (in `quality_figures/` and root of `model_dir`)
-  - `cosine_similarity_histogram_by_class.[png|svg]`
-  - `silhouette_per_class_boxplot.[png|svg]`
-  - `umap_3d_pre_cv.html`
-  - `umap_similarity_3D.html`
 
 - **Model & scaler files**
   - `word2vec_model.bin`
@@ -337,12 +332,8 @@ Key files include:
   - `calibrated_model_associated.pkl`
 
 - **Performance plots**
-  - `f1_per_class.[png|svg]`
-  - `true_probability_violin.[png|svg]`
   - `learning_curve_associated.png`
   - `roc_curve_associated.png`
-  - `test_best_RF_cm_calibration.png` (side-by-side confusion matrix and calibration curve)
-  - `pr_curve_associated.png`
 
 From the Streamlit interface, you can also:
 
