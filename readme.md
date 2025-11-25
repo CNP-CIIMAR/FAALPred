@@ -591,7 +591,7 @@ A detailed description of the FAALPred workflow, including:
 - embedding dimensionality and Word2Vec training hyperparameters,
 - oversampling and cross-validation setup,
 - ROC / PR AUC evaluation and calibration,
-- latent-space visualizations (UMAP, silhouette analyses),
+- Others.
 
 is provided in the file:
 
