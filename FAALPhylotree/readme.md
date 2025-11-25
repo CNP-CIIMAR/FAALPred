@@ -454,6 +454,10 @@ Rscript FAALPhylotree.R
 
 ---
 
+## 8.1 - Note:
+
+**The final figure of the article was edited after generating the figure using the code provided in this repository**.
+
 ## 9. Important parameters you may want to adjust
 
 At the top of FAALPhylotree, several parameters control the appearance of the figure. Some of the most useful ones are:
