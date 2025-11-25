@@ -352,6 +352,98 @@ From the Streamlit interface, you can also:
 - Download a **`results.zip`** archive containing all outputs in the chosen run directory.
 
 ---
+
+## 2. Running FAALPred with Docker (Docker Hub image: `mattoslmp/faalpred`)
+
+FAALPred is available as a ready-to-use Docker image on Docker Hub: **`mattoslmp/faalpred`**.  
+This allows you to run the full Streamlit app (with all dependencies) without manually installing the Conda environment.
+
+The recommended workflow is:
+
+1. Clone the FAALPred project from GitHub  
+2. Ensure local permissions for output directories (optional but recommended)  
+3. Install Docker  
+4. Pull and run the FAALPred Docker image **`mattoslmp/faalpred`** from Docker Hub
+
+---
+
+### 2.1. Clone the FAALPred repository and set permissions
+
+First, clone this repository and move into the project folder:
+
+```bash
+git clone https://github.com/mattoslmp/FAALPred.git
+cd FAALPred
+```
+
+If you plan to **mount local folders** for results/logs (recommended for persistence), create them and set permissions:
+
+```bash
+mkdir -p results logs
+chmod 775 results logs
+```
+
+> 💡 If you are using WSL2, it is recommended to clone the repository inside the Linux filesystem  
+> (e.g. `/home/<user>/FAALPred`) instead of under `/mnt/c` for better performance and fewer I/O issues.
+
+---
+
+### 2.2. Install Docker on Ubuntu or WSL2
+
+On a fresh Ubuntu (or WSL2 Ubuntu) system, you can install Docker using the official convenience script:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gnupg lsb-release
+
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+```
+
+After installation, add your user to the `docker` group so you can run Docker without `sudo`:
+
+```bash
+sudo usermod -aG docker $USER
+```
+
+**Log out and log back in** (or fully restart your session) so group changes take effect.  
+Then test:
+
+```bash
+docker ps
+```
+
+You should see an empty list of containers (no “permission denied” error).
+
+> If you prefer the long-form installation following Ubuntu’s documentation, see:  
+> https://docs.docker.com/engine/install/ubuntu/
+
+---
+
+### 2.3. Pull the FAALPred Docker image from Docker Hub
+
+Once Docker is installed and working, you can **download (pull)** the FAALPred image from Docker Hub:
+
+```bash
+docker pull mattoslmp/faalpred:latest
+```
+
+This will download the FAALPred image `mattoslmp/faalpred` to your local Docker installation.
+
+You can verify that the image is available with:
+
+```bash
+docker images | grep faalpred
+```
+
+You should see a line similar to:
+
+```text
+mattoslmp/faalpred   latest   <IMAGE_ID>   <CREATED>   <SIZE>
+```
+
+---
+
 ### 2.4. Run the FAALPred container (simple mode)
 
 To start the Streamlit app in a container and expose it on port **8501** of your machine:
@@ -362,6 +454,7 @@ docker run --rm -p 8501:8501 mattoslmp/faalpred:latest
 
 - `--rm` removes the container when it stops.
 - `-p 8501:8501` maps container port 8501 (Streamlit) to host port 8501.
+- `mattoslmp/faalpred:latest` is the image name on Docker Hub.
 
 After the container starts, open in your browser:
 
@@ -413,13 +506,43 @@ In this setup:
 
 ---
 
-## 3. Development notes
+## 3. (Optional) Building the FAALPred Docker image from source
+
+If you prefer to build the Docker image yourself (instead of pulling from Docker Hub), make sure Docker is installed and then run:
+
+```bash
+git clone https://github.com/mattoslmp/FAALPred.git
+cd FAALPred
+
+docker build -t mattoslmp/faalpred:latest .
+```
+
+After the build completes, run as before:
+
+```bash
+docker run --rm -p 8501:8501 mattoslmp/faalpred:latest
+```
+
+---
+
+## 4. Development notes
 
 - The main entry point of the app is `faal_pred.py`.
 - Environment dependencies are defined in `faalpred_env.yml` (Python 3.9 + scientific stack).
 - Most helper functions and reusable code are under the `utilities/` directory.
 
----
+If you plan to modify the app or extend the models:
+
+1. Create a feature branch in your fork.  
+2. Adjust or add utilities under `utilities/`.  
+3. Update `faalpred_env.yml` if you add new dependencies.  
+4. Rebuild the Docker image (if needed) with:
+
+   ```bash
+   docker build -t mattoslmp/faalpred:latest .
+   ```
+
+------
 
 ## Auxiliary Tool: Automatic FAAL Domain Extraction
 
