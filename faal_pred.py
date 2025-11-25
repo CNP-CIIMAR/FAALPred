@@ -51,6 +51,7 @@ from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from sklearn.calibration  import calibration_curve
 from sklearn.metrics import precision_recall_curve, average_precision_score
 
+#FAALPred is a comprehensive bioinformatics tool designed to predict the fatty acyl chain length specificity of FAALs, ranging from C4 to C18.
 # ============================================
 # Streamlit Configuration and Interface
 # ============================================
@@ -2688,7 +2689,7 @@ st.markdown(
             FAALPred: Predicting Fatty Acyl Chain Specificities in Fatty Acyl-AMP Ligases (FAALs) Using Integrated Approaches of Neural Networks, Bioinformatics, and Machine Learning
         </p>
         <p style="color: #2c3e50; font-size: 1.2em; font-weight: normal; margin-top: 10px;">
-            Leandro de Mattos Pereira, Anne Liong and Pedro LeÃ£o
+            Leandro de Mattos Pereira, Anne Liong and Pedro Leão
         </p>
         <p style="color: #2c3e50; font-size: 18px; line-height: 1.8;">
             <strong>FAALPred</strong> is a comprehensive bioinformatics tool designed to predict the fatty acyl chain length specificity of FAALs, ranging from C4 to C18.
@@ -3000,5 +3001,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
+
 
 
