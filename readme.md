@@ -625,5 +625,5 @@ within the **Natural Products and Bioengineering group (CNP)**, led by **Pedro N
 - Pedro N. Leão  
 
 For questions, bug reports or feature requests, please open an issue in this repository.
-
+All codes in this repository were created by Leandro de Mattos Pereira (contact: mattoslmp@gmail.com).
 The web server and code are supported by CIIMAR/CNP and associated funding agencies, as shown in the app footer (lab and institutional logos).
