@@ -466,3 +466,20 @@ At the top of FAALPhylotree, several parameters control the appearance of the fi
   - `TOP_N_PHYLA` — number of phyla to highlight individually (others collapsed).
   - `FIG_W`, `FIG_H` — figure width and height for `ggsave()` (in inches).
   - `TREE_SIZE` — line width of the tree branche
+
+## Citation
+If you use FAALPred and/or any of its associated resources in your research, please cite the following article and acknowledge the corresponding repository/repositories:
+
+## Associated resources
+
+FAALPhylotree: https://github.com/CNP-CIIMAR/FAALPred/tree/main/FAALPhylotree
+FAAL utilities: https://github.com/CNP-CIIMAR/FAALPred/tree/main/utilities
+FAALPred heterogeneity (FAALProt_heterogeneity): https://github.com/CNP-CIIMAR/FAALPred/tree/main/utilities/FAALProt_heterogeneity
+Article
+
+Protein Science — Diversity of FAAL enzymes and prediction of their substrate specificity using FAALPred
+Leandro de Mattos Pereira†, Anne Liong†, and Pedro Leão ¹ Interdisciplinary Centre of Marine and Environmental Research (CIIMAR/CIMAR), University of Porto, Matosinhos, 4450-208, Portugal
+² ICBAS – School of Medicine and Biomedical Sciences, University of Porto, Porto, 4050-313, Portugal.
+
+†Leandro de Mattos Pereira and Anne Liong contributed equally to this work.
+DOI: 10.1002/pro.70468 — Accepted in January 2026 (article in production)
