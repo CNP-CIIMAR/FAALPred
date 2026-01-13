@@ -610,20 +610,17 @@ Anne Liong¹˒²,†, Leandro de Mattos Pereira¹,† and Pedro N. Leão¹,*
 ¹ Interdisciplinary Centre of Marine and Environmental Research (CIIMAR/CIMAR), University of Porto, Matosinhos, 4450-208, Portugal  
 ² ICBAS – School of Medicine and Biomedical Sciences, University of Porto, Porto, 4050-313, Portugal  
 
-*To whom correspondence should be addressed.* Email: [pleao@ciimar.up.pt](mailto:pleao@ciimar.up.pt)  
-† Anne Liong and Leandro de Mattos Pereira contributed equally to this work. *Artigo em revisão.*
+† Anne Liong and Leandro de Mattos Pereira contributed equally to this work. *Article in production.* 2026, January.
 
 ---
 
 ## Contact and Acknowledgements
 
-FAALPred was developed at **CIIMAR – Interdisciplinary Centre of Marine and Environmental Research**,  
-within the **Natural Products and Bioengineering group (CNP)**, led by **Pedro N. Leão**.
+The entire codebase and repository were implemented by Leandro de Mattos Pereira during his postdoctoral appointment in the group led by Dr. Pedro N. Leão.
 
 - Leandro de Mattos Pereira  
 - Anne Liong  
 - Pedro N. Leão  
 
-For questions, bug reports or feature requests, please open an issue in this repository.
-All codes in this repository were created by Leandro de Mattos Pereira (contact: mattoslmp@gmail.com).
-The web server and code are supported by CIIMAR/CNP and associated funding agencies, as shown in the app footer (lab and institutional logos).
+For questions, bug reports in the code or feature requests, please open an issue in this repository or contact Leandro de Mattos Pereira (contact: mattoslmp@gmail.com).
+The web server (https://faalpred.ciimar.up.pt/) and code are supported by CIIMAR/CNP and associated funding agencies, as shown in the app footer (lab and institutional logos).
