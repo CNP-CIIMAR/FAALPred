@@ -621,5 +621,5 @@ The entire codebase and repository were implemented by Leandro de Mattos Pereira
 - Anne Liong  
 - Pedro N. Leão  
 
-For questions, bug reports in the code or feature requests, please open an issue in this repository or contact Leandro de Mattos Pereira (contact: mattoslmp@gmail.com).
-The web server (https://faalpred.ciimar.up.pt/) and code are supported by CIIMAR/CNP and associated funding agencies, as shown in the app footer (lab and institutional logos).
+For questions, bug reports, or feature requests, please open an issue in this repository or contact Leandro de Mattos Pereira (mattoslmp@gmail.com
+). The FAALPred web server (https://faalpred.ciimar.up.pt/) and the code are supported by CIIMAR/CNP and associated funding agencies, as indicated in the app footer (lab and institutional logos).
