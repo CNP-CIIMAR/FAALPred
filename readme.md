@@ -610,8 +610,7 @@ Anne Liong¹˒²,†, Leandro de Mattos Pereira¹,† and Pedro N. Leão¹,*
 ¹ Interdisciplinary Centre of Marine and Environmental Research (CIIMAR/CIMAR), University of Porto, Matosinhos, 4450-208, Portugal  
 ² ICBAS – School of Medicine and Biomedical Sciences, University of Porto, Porto, 4050-313, Portugal  
 
-† Anne Liong and Leandro de Mattos Pereira contributed equally to this work. *Article in production.* 2026, January.
-
+† Anne Liong and Leandro de Mattos Pereira contributed equally to this work. Protein Science. Article in production. DOI: 10.1002/pro.70468. Accepted in January 2026.
 ---
 
 ## Contact and Acknowledgements
