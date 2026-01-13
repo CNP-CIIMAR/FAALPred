@@ -1661,6 +1661,20 @@ ________________________________________
 - **main()**
   - Parses command-line arguments.
 
+## Citation
+
+If you use **FAALPred** and/or any of its associated resources in your research, please cite the following article and acknowledge the corresponding repository/repositories:
+
+**Associated resources**
+- **FAALPhylotree:** https://github.com/CNP-CIIMAR/FAALPred/tree/main/FAALPhylotree  
+- **FAAL utilities:** https://github.com/CNP-CIIMAR/FAALPred/tree/main/utilities  
+- **FAALPred heterogeneity (FAALProt_heterogeneity):** https://github.com/CNP-CIIMAR/FAALPred/tree/main/utilities/FAALProt_heterogeneity  
+
+**Article**
+- *Protein Science* — **Diversity of FAAL enzymes and prediction of their substrate specificity using FAALPred**  
+  Leandro de Mattos Pereira†, Anne Liong†, and Pedro Leão  
+  †Leandro de Mattos Pereira and Anne Liong contributed equally to this work.  
+  DOI: 10.1002/pro.70468 — Accepted in January 2026 (article in production)
 
 # License
 
