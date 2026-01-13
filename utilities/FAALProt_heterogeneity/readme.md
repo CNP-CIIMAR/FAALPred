@@ -513,7 +513,22 @@ For each `(subset, dimension, epochs)` configuration, FAALProt reports the Pears
 
 ---
 
-## 12. References
+## 12. Citation
+
+If you use **FAALPred** and/or any of its associated resources in your research, please cite the following article and acknowledge the corresponding repository/repositories:
+
+**Associated resources**
+- **FAALPhylotree:** https://github.com/CNP-CIIMAR/FAALPred/tree/main/FAALPhylotree  
+- **FAAL utilities:** https://github.com/CNP-CIIMAR/FAALPred/tree/main/utilities  
+- **FAALPred heterogeneity (FAALProt_heterogeneity):** https://github.com/CNP-CIIMAR/FAALPred/tree/main/utilities/FAALProt_heterogeneity  
+
+**Article**
+- *Protein Science* — **Diversity of FAAL enzymes and prediction of their substrate specificity using FAALPred**  
+  Leandro de Mattos Pereira†, Anne Liong†, and Pedro Leão  
+  †Leandro de Mattos Pereira and Anne Liong contributed equally to this work.  
+  DOI: 10.1002/pro.70468 — Accepted in January 2026 (article in production)
+
+## 12.1. References
 
 - Katoh, K. & Standley, D.M. (2013). MAFFT multiple sequence alignment software version 7: improvements in performance and usability. *Mol. Biol. Evol.*  
 - Steinegger, M. & Söding, J. (2017). MMseqs2 enables sensitive protein sequence searching. *Nat. Biotechnol.*  
