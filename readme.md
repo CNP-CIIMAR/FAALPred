@@ -603,23 +603,28 @@ which can be cited as Supplementary Methods in the Protein Science article.
 
 ## Citation
 
-If you use FAALPred in your research, please cite:
+If you use **FAALPred** and/or any of its associated resources in your research, please cite the following article and acknowledge the corresponding repository/repositories:
 
-**Diversity of FAAL enzymes and prediction of their substrate specificity using FAALPred**  
-Anne Liong¹˒²,†, Leandro de Mattos Pereira¹,† and Pedro N. Leão¹,*  
+**Associated resources**
+- **FAALPhylotree:** https://github.com/CNP-CIIMAR/FAALPred/tree/main/FAALPhylotree  
+- **FAAL utilities:** https://github.com/CNP-CIIMAR/FAALPred/tree/main/utilities  
+- **FAALPred heterogeneity (FAALProt_heterogeneity):** https://github.com/CNP-CIIMAR/FAALPred/tree/main/utilities/FAALProt_heterogeneity  
+
+**Article**
+- *Protein Science* — **Diversity of FAAL enzymes and prediction of their substrate specificity using FAALPred**  
+  Leandro de Mattos Pereira†, Anne Liong†, and Pedro Leão
 ¹ Interdisciplinary Centre of Marine and Environmental Research (CIIMAR/CIMAR), University of Porto, Matosinhos, 4450-208, Portugal  
-² ICBAS – School of Medicine and Biomedical Sciences, University of Porto, Porto, 4050-313, Portugal  
+² ICBAS – School of Medicine and Biomedical Sciences, University of Porto, Porto, 4050-313, Portugal.
+  
+  †Leandro de Mattos Pereira and Anne Liong contributed equally to this work.  
+  DOI: 10.1002/pro.70468 — Accepted in January 2026 (article in production)
 
-† Anne Liong and Leandro de Mattos Pereira contributed equally to this work. Protein Science. Article in production. DOI: 10.1002/pro.70468. Accepted in January 2026.
 ---
 
 ## Contact and Acknowledgements
 
-The entire codebase and repository were implemented by Leandro de Mattos Pereira during his postdoctoral appointment in the group led by Dr. Pedro N. Leão.
+The entire codebase and this repository were implemented by Leandro de Mattos Pereira during his postdoctoral appointment within the BB4F (Blue4BioFuture) project (https://bb4f.ciimar.up.pt/
+). The project was chaired by Dr. Pedro N. Leão and coordinated by Dr. Vítor Vasconcellos, with funding from the European Union.
 
-- Leandro de Mattos Pereira  
-- Anne Liong  
-- Pedro N. Leão  
-
-For questions, bug reports, or feature requests, please open an issue in this repository or contact Leandro de Mattos Pereira (mattoslmp@gmail.com
-). The FAALPred web server (https://faalpred.ciimar.up.pt/) and the code are supported by CIIMAR/CNP and associated funding agencies, as indicated in the app footer (lab and institutional logos).
+The FAALPred web server (https://faalpred.ciimar.up.pt/) and the code are supported by CIIMAR/CNP and associated funding agencies, as indicated in the app footer (lab and institutional logos).
+For questions, bug reports, or feature requests, please open an issue in this repository or contact Leandro de Mattos Pereira (mattoslmp@gmail.com). 
