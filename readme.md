@@ -621,10 +621,13 @@ If you use **FAALPred** and/or any of its associated resources in your research,
 
 ---
 
-## Contact and Acknowledgements
+## Contact
 
-The entire codebase/workflow and this repository were implemented by Leandro de Mattos Pereira during his postdoctoral appointment within the BB4F (Blue4BioFuture) project (https://bb4f.ciimar.up.pt/
-). The project was chaired by Dr. Pedro N. Leão and coordinated by Dr. Vítor Vasconcellos, with funding from the European Union.
+Please open an issue for questions, bug reports, or feature requests.
+Maintainer: **Leandro de Mattos Pereira** (mattoslmp@gmail.com).
 
-The FAALPred web server (https://faalpred.ciimar.up.pt/) and the code are supported by CIIMAR/CNP and associated funding agencies, as indicated in the app footer (lab and institutional logos).
-For questions, bug reports, or feature requests, please open an issue in this repository or contact Leandro de Mattos Pereira (mattoslmp@gmail.com). 
+## Acknowledgements
+
+Core implementation and workflow integration were carried out by **Leandro de Mattos Pereira** during his postdoctoral appointment in the **BB4F (Blue4BioFuture)** project (https://bb4f.ciimar.up.pt/) at **CIIMAR/CNP**.
+Project leadership: **Dr. Pedro N. Leão** (Chair) and **Dr. Vítor Vasconcellos** (Coordinator).
+This project acknowledges support from the **European Union** and associated funding agencies (as indicated on the FAALPred web server footer: https://faalpred.ciimar.up.pt/).
