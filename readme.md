@@ -616,8 +616,8 @@ If you use **FAALPred** and/or any of its associated resources in your research,
 ¹ Interdisciplinary Centre of Marine and Environmental Research (CIIMAR/CIMAR), University of Porto, Matosinhos, 4450-208, Portugal  
 ² ICBAS – School of Medicine and Biomedical Sciences, University of Porto, Porto, 4050-313, Portugal.
   
-  †Leandro de Mattos Pereira and Anne Liong contributed equally to this work.  
-  DOI: 10.1002/pro.70468 — Accepted in January 2026 (article in production)
+†Leandro de Mattos Pereira and Anne Liong contributed equally to this work.
+DOI: 10.1002/pro.70468 — First published: 21 January 2026.
 
 ---
 
@@ -628,6 +628,6 @@ Maintainer: **Leandro de Mattos Pereira** (mattoslmp@gmail.com).
 
 ## Acknowledgements
 
-Core implementation and workflow integration were carried out by **Leandro de Mattos Pereira** during his postdoctoral appointment in the **BB4F (Blue4BioFuture)** project (https://bb4f.ciimar.up.pt/) at **CIIMAR/CNP**.
+Workflow implementation and integration were carried out by **Leandro de Mattos Pereira** during his postdoctoral appointment in the **BB4F (Blue4BioFuture)** project (https://bb4f.ciimar.up.pt/) at **CIIMAR/CNP**.
 Project leadership: **Dr. Pedro N. Leão** (Chair) and **Dr. Vítor Vasconcellos** (Coordinator).
 This project acknowledges support from the **European Union** and associated funding agencies (as indicated on the FAALPred web server footer: https://faalpred.ciimar.up.pt/).
