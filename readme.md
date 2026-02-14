@@ -628,6 +628,7 @@ Maintainer: **Leandro de Mattos Pereira** (mattoslmp@gmail.com).
 
 ## Acknowledgements
 
-Workflow implementation and integration were carried out by **Leandro de Mattos Pereira** during his postdoctoral appointment in the **BB4F (Blue4BioFuture)** project (https://bb4f.ciimar.up.pt/) at **CIIMAR/CNP**.
-Project leadership: **Dr. Pedro N. Leão** (Chair) and **Dr. Vítor Vasconcellos** (Coordinator).
+Workflow Development, implementation and integration were carried out by **Leandro de Mattos Pereira** during his postdoctoral appointment in the **BB4F (Blue4BioFuture)** project (https://bb4f.ciimar.up.pt/) at **CIIMAR/CNP**.
+
+**Pedro N. Leão** (ERA Chair) and **Vítor Vasconcellos** (Coordinator).
 This project acknowledges support from the **European Union** and associated funding agencies (as indicated on the FAALPred web server footer: https://faalpred.ciimar.up.pt/).
